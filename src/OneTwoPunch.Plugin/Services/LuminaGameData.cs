@@ -64,13 +64,21 @@ public sealed class LuminaGameData : IGameDataLookup
         return index;
     }
 
-    /// <summary>Whether the id is a real, pressable player action.</summary>
+    /// <summary>
+    /// Whether the id is a real, named action.
+    /// <para>
+    /// Deliberately does not require the sheet's IsPlayerAction flag. The game marks its
+    /// hidden upgrade and combo variants as not-player-actions even though the player is
+    /// exactly who presses them: Ninja's mudra combinations (18873-18881), Dancer's second
+    /// Technical Finish set (33215-33218) and Pictomancer's Star Prism II are all flagged
+    /// false, and requiring the flag switched those three jobs off over ids that work
+    /// perfectly well. A named row is the honest test of "this id is a real action".
+    /// </para>
+    /// </summary>
     public bool IsPlayerAction(uint actionId)
     {
         var row = _data.GetExcelSheet<LuminaAction>()?.GetRowOrDefault(actionId);
-        return row is not null
-            && row.Value.IsPlayerAction
-            && !string.IsNullOrEmpty(row.Value.Name.ExtractText());
+        return row is not null && !string.IsNullOrEmpty(row.Value.Name.ExtractText());
     }
 
     public string? GetStatusName(uint statusId)

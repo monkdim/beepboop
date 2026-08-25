@@ -56,6 +56,11 @@ public sealed class CombatSnapshot
 
     public byte Level { get; set; }
 
+    /// <summary>Current MP. Black Mage's whole rotation is a mana cycle, so rules need it.</summary>
+    public uint Mp { get; set; }
+
+    public uint MaxMp { get; set; } = 10000;
+
     public bool InCombat { get; set; }
 
     /// <summary>Seconds the player has been in combat. Drives opener tracking.</summary>
@@ -76,6 +81,20 @@ public sealed class CombatSnapshot
     public float AnimationLock { get; set; }
 
     // ---- Targeting -------------------------------------------------------
+
+    /// <summary>
+    /// The target's object id, or <see cref="NoTarget"/>.
+    /// <para>
+    /// This exists because asking the game whether an action is usable is meaningless
+    /// without saying usable <em>on what</em>. GetActionStatus takes a target id and
+    /// defaults it to E0000000, the game's "no target" sentinel - so every targeted action
+    /// answered "not usable" and no rule in any job ever matched.
+    /// </para>
+    /// </summary>
+    public ulong TargetId { get; set; } = NoTarget;
+
+    /// <summary>The game's sentinel for "nothing targeted".</summary>
+    public const ulong NoTarget = 0xE000_0000;
 
     public bool HasTarget { get; set; }
 

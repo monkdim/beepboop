@@ -61,6 +61,8 @@ public sealed unsafe class GameStateProvider(
         var s = _snapshot;
         s.JobId = player.ClassJob.RowId;
         s.Level = player.Level;
+        s.Mp = player.CurrentMp;
+        s.MaxMp = player.MaxMp;
         s.InCombat = condition[ConditionFlag.InCombat];
         s.CombatDuration = _combatDuration;
         s.Now = now;
@@ -92,7 +94,11 @@ public sealed unsafe class GameStateProvider(
         var elapsed = manager->GetRecastTimeElapsed(ActionType.Action, probe);
 
         s.GcdTotal = total > 0f ? total : 2.5f;
-        s.GcdRemaining = Math.Max(0f, total - elapsed);
+
+        // Elapsed is zero when the recast is not running at all, which means the global is
+        // ready now - not a full global away. Subtracting gave a whole GCD of imaginary
+        // weave room at exactly the moment the answer should have been "press the global".
+        s.GcdRemaining = elapsed <= 0f ? 0f : Math.Max(0f, total - elapsed);
         s.AnimationLock = Math.Max(0f, manager->AnimationLock);
     }
 
@@ -101,6 +107,7 @@ public sealed unsafe class GameStateProvider(
         var target = targets.Target;
         var battleTarget = target as IBattleChara;
 
+        s.TargetId = battleTarget?.GameObjectId ?? CombatSnapshot.NoTarget;
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
 

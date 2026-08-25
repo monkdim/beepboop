@@ -15,6 +15,7 @@ public sealed unsafe class ActionStateAdapter : IActionState
 {
     private readonly Dictionary<uint, Entry> _cache = [];
     private byte _level = 1;
+    private ulong _targetId = CombatSnapshot.NoTarget;
 
     private readonly record struct Entry(
         bool Unlocked,
@@ -24,9 +25,10 @@ public sealed unsafe class ActionStateAdapter : IActionState
         bool Usable);
 
     /// <summary>Drops the cache. Called once per resolve.</summary>
-    public void BeginFrame(byte level)
+    public void BeginFrame(byte level, ulong targetId)
     {
         _level = level;
+        _targetId = targetId;
         _cache.Clear();
     }
 
@@ -83,7 +85,10 @@ public sealed unsafe class ActionStateAdapter : IActionState
         // GetActionStatus reports 0 when the game would accept the action right now. This is
         // what keeps a suggestion from ever being something that just makes an error noise:
         // out of range, wrong target, not enough resource, not learned.
-        var status = manager->GetActionStatus(ActionType.Action, actionId);
+        // With the target. The parameter defaults to E0000000 - "no target" - and asking
+        // whether a targeted action is usable on nothing always answers no, which silently
+        // made every rule in every job unmatchable and left the button on its base attack.
+        var status = manager->GetActionStatus(ActionType.Action, actionId, _targetId);
         var usable = status == 0;
 
         // 572 is "you have not learned this action"; treat anything that is purely a

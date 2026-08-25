@@ -19,6 +19,8 @@ public sealed class SnapshotBuilder
         TargetHpFraction = 1f,
         EnemiesInAoeRange = 1,
         Position = RelativePosition.Rear,
+        Mp = 10000,
+        MaxMp = 10000,
     };
 
     private readonly List<StatusEntry> _self = [];
@@ -27,6 +29,13 @@ public sealed class SnapshotBuilder
     public SnapshotBuilder Job(uint jobId)
     {
         _snapshot.JobId = jobId;
+        return this;
+    }
+
+    /// <summary>Current mana. Black Mage's phase choice turns on it.</summary>
+    public SnapshotBuilder Mp(uint mp)
+    {
+        _snapshot.Mp = mp;
         return this;
     }
 
