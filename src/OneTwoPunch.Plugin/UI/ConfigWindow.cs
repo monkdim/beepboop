@@ -197,6 +197,11 @@ public sealed class ConfigWindow(
         Toggle("Show the reason", ref config.ShowReason,
             "A short line explaining why the engine picked this action.");
 
+        Toggle("Show the positional banner", ref config.ShowPositionalBanner,
+            "A large banner telling you which side of the target to stand on for the coming "
+            + "global cooldown - a beat before you need to be there, not as it comes up. It "
+            + "goes quiet as soon as you are standing correctly.");
+
         Toggle("Show the potion prompt", ref config.ShowPotionPrompt,
             "A large banner when it is the moment to pop your potion.");
 

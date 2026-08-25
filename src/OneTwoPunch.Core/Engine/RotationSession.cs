@@ -103,6 +103,10 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // The prompt is decided after stabilisation so it always reflects the window the
         // player is actually looking at.
         stabilised.PotionPrompt = ShouldPromptPotion(context, stabilised);
+
+        // Set after stabilisation and every frame, so the display tracks the player moving
+        // even while the suggestion itself is being held steady.
+        stabilised.Position = snapshot.Position;
         return stabilised;
     }
 

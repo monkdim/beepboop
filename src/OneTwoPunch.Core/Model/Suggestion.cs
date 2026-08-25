@@ -21,7 +21,33 @@ public sealed class Suggestion(
     /// <summary>Short human explanation, e.g. "overcap protection" or "instant, you are moving".</summary>
     public string? Note { get; } = note;
 
+    /// <summary>
+    /// Where the next global cooldown wants you standing, or None.
+    /// <para>
+    /// This is deliberately the requirement of the <em>next</em> GCD rather than of the
+    /// action being suggested right now. Being told to stand behind something at the moment
+    /// the ability comes up is no use to anyone who needs a beat to move - the whole point
+    /// is to have the warning a global early.
+    /// </para>
+    /// </summary>
     public PositionalHint Positional { get; } = positional;
+
+    /// <summary>
+    /// Where the player is actually standing, so the display can tell "move" from "you are
+    /// already there" rather than nagging through a positional that is being hit correctly.
+    /// </summary>
+    public RelativePosition Position { get; set; } = RelativePosition.Unknown;
+
+    /// <summary>
+    /// True when a positional is wanted and the player is not standing in it. This is the
+    /// one that earns a banner; a positional already satisfied earns a quiet tick.
+    /// </summary>
+    public bool NeedsToMove => Positional switch
+    {
+        PositionalHint.Rear => Position != RelativePosition.Rear,
+        PositionalHint.Flank => Position != RelativePosition.Flank,
+        _ => false,
+    };
 
     /// <summary>
     /// True when now is the moment to pop your potion.
