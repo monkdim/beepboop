@@ -1,0 +1,116 @@
+using System.Numerics;
+using Dalamud.Interface.Textures;
+using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
+using ImGuiNET;
+using TwoButton.Core.Jobs;
+using TwoButton.Core.Model;
+using TwoButton.Plugin.Services;
+
+namespace TwoButton.Plugin.UI;
+
+/// <summary>
+/// Shows what each button currently is, and what is coming after it.
+/// <para>
+/// This is not decoration. Being able to see the next action a beat before you need it is
+/// what turns a changing button from something you react to into something you plan for -
+/// which is the difference between playable and exhausting if your hands are the
+/// bottleneck. It is deliberately large, high contrast and legible at a glance.
+/// </para>
+/// </summary>
+public sealed class PreviewWindow(
+    Configuration config,
+    ITextureProvider textures,
+    LuminaGameData gameData,
+    Func<IReadOnlyDictionary<RotationMode, Suggestion>> suggestions,
+    Func<IJobRotation?> job)
+    : Window("Two Button##preview",
+        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.AlwaysAutoResize)
+{
+    public override bool DrawConditions()
+    {
+        if (!config.ShowPreview || job() is null)
+            return false;
+
+        return !config.ShowPreviewOnlyInCombat || Plugin.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat];
+    }
+
+    public override void PreDraw()
+    {
+        Flags = ImGuiWindowFlags.NoScrollbar
+            | ImGuiWindowFlags.NoScrollWithMouse
+            | ImGuiWindowFlags.AlwaysAutoResize;
+
+        if (config.LockPreviewWindow)
+            Flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground;
+    }
+
+    public override void Draw()
+    {
+        var current = suggestions();
+        var size = 48f * config.PreviewScale;
+
+        DrawRow("Single target", current.GetValueOrDefault(RotationMode.SingleTarget), size);
+        ImGui.Spacing();
+        DrawRow("AoE", current.GetValueOrDefault(RotationMode.Aoe), size);
+    }
+
+    private void DrawRow(string label, Suggestion? suggestion, float size)
+    {
+        ImGui.TextDisabled(label);
+
+        if (suggestion is null)
+        {
+            ImGui.TextUnformatted("-");
+            return;
+        }
+
+        DrawIcon(suggestion.Action.Id, size);
+        ImGui.SameLine();
+
+        ImGui.BeginGroup();
+        ImGui.TextUnformatted(suggestion.Action.Name);
+
+        if (config.ShowReason && !string.IsNullOrEmpty(suggestion.Note))
+            ImGui.TextDisabled(suggestion.Note);
+
+        if (suggestion.Positional != PositionalHint.None)
+        {
+            ImGui.TextColored(
+                new Vector4(1f, 0.78f, 0.25f, 1f),
+                suggestion.Positional == PositionalHint.Rear ? "stand behind" : "stand to the side");
+        }
+
+        ImGui.EndGroup();
+
+        if (!config.ShowNextGcd || suggestion.NextGcd is null)
+            return;
+
+        if (suggestion.NextGcd.Id == suggestion.Action.Id)
+            return;
+
+        ImGui.SameLine();
+        ImGui.TextDisabled("then");
+        ImGui.SameLine();
+        DrawIcon(suggestion.NextGcd.Id, size * 0.6f);
+    }
+
+    private void DrawIcon(uint actionId, float size)
+    {
+        var iconId = gameData.GetActionIcon(actionId);
+        if (iconId == 0)
+        {
+            ImGui.Dummy(new Vector2(size, size));
+            return;
+        }
+
+        var texture = textures.GetFromGameIcon(new GameIconLookup(iconId)).GetWrapOrDefault();
+        if (texture is null)
+        {
+            ImGui.Dummy(new Vector2(size, size));
+            return;
+        }
+
+        ImGui.Image(texture.ImGuiHandle, new Vector2(size, size));
+    }
+}

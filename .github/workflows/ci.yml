@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  core:
+    name: Rotation engine (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      # TwoButton.Core has no Dalamud dependency on purpose, so the rotation logic is
+      # testable without the game. This is where the rotations are actually verified.
+      - name: Test
+        run: dotnet test tests/TwoButton.Core.Tests/TwoButton.Core.Tests.csproj -c Release --logger "console;verbosity=normal"
+
+  plugin:
+    name: Plugin (build)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Fetch Dalamud dev libraries
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive -Path dalamud.zip -DestinationPath dalamud -Force
+        shell: pwsh
+
+      - name: Build
+        env:
+          DALAMUD_HOME: ${{ github.workspace }}/dalamud
+        run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TwoButton
+          path: src/TwoButton.Plugin/bin/x64/Release/TwoButton/
+          if-no-files-found: error

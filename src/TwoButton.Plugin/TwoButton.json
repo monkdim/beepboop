@@ -1,0 +1,12 @@
+{
+  "Author": "monkdim",
+  "Name": "Two Button",
+  "InternalName": "TwoButton",
+  "Punchline": "Turns a DPS rotation into two buttons you still press yourself.",
+  "Description": "Collapses each supported DPS job into a single-target button and an AoE button. The button shows the action that is correct right now given your cooldowns, gauge, buffs, target count and whether you are moving. It never presses anything for you: one keypress is always exactly one action.\n\nBuilt for players who cannot sustain a full hotbar - limited hand mobility, chronic pain, tremor, fatigue, one-handed play - who want to keep playing themselves rather than hand the fight to an automation plugin.",
+  "ApplicableVersion": "any",
+  "Tags": ["dps", "rotation", "accessibility", "combo"],
+  "CategoryTags": ["jobs"],
+  "AcceptsFeedback": true,
+  "IconUrl": ""
+}

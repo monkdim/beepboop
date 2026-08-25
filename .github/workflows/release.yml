@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Fetch Dalamud dev libraries
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive -Path dalamud.zip -DestinationPath dalamud -Force
+        shell: pwsh
+
+      - name: Build
+        env:
+          DALAMUD_HOME: ${{ github.workspace }}/dalamud
+        run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
+
+      # DalamudPackager fills in AssemblyVersion and DalamudApiLevel from the Dalamud we
+      # just built against, so the repo listing always matches the real API level rather
+      # than a number somebody remembered wrong.
+      - name: Generate pluginmaster.json
+        shell: pwsh
+        run: |
+          $out = "src/TwoButton.Plugin/bin/x64/Release/TwoButton"
+          $manifest = Get-Content "$out/TwoButton.json" -Raw | ConvertFrom-Json
+          $repo = "https://github.com/${{ github.repository }}"
+          $dl = "$repo/releases/latest/download/latest.zip"
+
+          $manifest | Add-Member -NotePropertyName RepoUrl -NotePropertyValue $repo -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $dl -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $dl -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkTesting -NotePropertyValue $dl -Force
+          $manifest | Add-Member -NotePropertyName IsHide -NotePropertyValue $false -Force
+          $manifest | Add-Member -NotePropertyName IsTestingExclusive -NotePropertyValue $false -Force
+          $manifest | Add-Member -NotePropertyName LastUpdate -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Force
+
+          ConvertTo-Json @($manifest) -Depth 10 | Set-Content pluginmaster.json -Encoding utf8
+          Get-Content pluginmaster.json
+
+      - name: Commit pluginmaster.json
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pluginmaster.json
+          if (git diff --cached --quiet) {
+            Write-Host "pluginmaster.json unchanged"
+          } else {
+            git commit -m "Update pluginmaster.json"
+            git push origin HEAD:${{ github.event.repository.default_branch }}
+          }
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest build' }}
+          files: |
+            src/TwoButton.Plugin/bin/x64/Release/TwoButton/latest.zip
+            pluginmaster.json
+          fail_on_unmatched_files: true

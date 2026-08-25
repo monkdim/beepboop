@@ -1,0 +1,21 @@
+[
+  {
+    "Author": "monkdim",
+    "Name": "Two Button",
+    "InternalName": "TwoButton",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Collapses each supported DPS job into a single-target button and an AoE button. The button shows the action that is correct right now given your cooldowns, gauge, buffs, target count and whether you are moving. It never presses anything for you: one keypress is always exactly one action.",
+    "Punchline": "Turns a DPS rotation into two buttons you still press yourself.",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/monkdim/beepboop",
+    "Tags": ["dps", "rotation", "accessibility", "combo"],
+    "CategoryTags": ["jobs"],
+    "DownloadLinkInstall": "https://github.com/monkdim/beepboop/releases/latest/download/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/monkdim/beepboop/releases/latest/download/latest.zip",
+    "DownloadLinkTesting": "https://github.com/monkdim/beepboop/releases/latest/download/latest.zip",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "AcceptsFeedback": true,
+    "DownloadCount": 0
+  }
+]
