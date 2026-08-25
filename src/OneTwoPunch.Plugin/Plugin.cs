@@ -255,7 +255,7 @@ public sealed class Plugin : IDalamudPlugin
             SwitchJob(jobId);
         }
 
-        // Nothing to poll: uses arrive from the UseAction hook.
+        // Nothing to poll: uses arrive from the UseActionLocation hook.
     }
 
     /// <summary>

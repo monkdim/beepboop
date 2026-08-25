@@ -222,13 +222,26 @@ public sealed class RotationContext
 
     // ---- Statuses --------------------------------------------------------
 
-    public bool Buff(StatusRef status) => BuffTime(status) > 0f;
+    /// <summary>
+    /// Whether the status is on you at all. Deliberately a question about presence rather
+    /// than about time left.
+    /// <para>
+    /// This used to be <c>BuffTime(status) &gt; 0</c>, which is the same thing right up
+    /// until the game reports a status with no time on it. Black Mage's Thunderhead does
+    /// exactly that - a recorded pull had it on the player for seventy seconds straight,
+    /// every frame reporting zero seconds remaining - so both Thunder rules read it as
+    /// absent and Thunder was never once suggested in a whole fight. A buff you are holding
+    /// is a buff you are holding; ask <see cref="BuffTime"/> when the answer needs a clock.
+    /// </para>
+    /// </summary>
+    public bool Buff(StatusRef status) => Has(_snapshot.SelfStatuses, status.Id);
 
     public float BuffTime(StatusRef status) => Find(_snapshot.SelfStatuses, status.Id).remaining;
 
     public int BuffStacks(StatusRef status) => Find(_snapshot.SelfStatuses, status.Id).stacks;
 
-    public bool Debuff(StatusRef status) => DebuffTime(status) > 0f;
+    /// <summary>Whether your own debuff is on the target. Presence, as with <see cref="Buff"/>.</summary>
+    public bool Debuff(StatusRef status) => Has(_snapshot.TargetStatuses, status.Id);
 
     public float DebuffTime(StatusRef status) => Find(_snapshot.TargetStatuses, status.Id).remaining;
 
@@ -236,6 +249,17 @@ public sealed class RotationContext
     /// True when a damage-over-time needs refreshing: missing, or inside the reapply window.
     /// </summary>
     public bool DotExpiring(StatusRef status, float within = 3f) => DebuffTime(status) < within;
+
+    private static bool Has(IReadOnlyList<StatusEntry> list, uint id)
+    {
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i].Id == id)
+                return true;
+        }
+
+        return false;
+    }
 
     private static (float remaining, int stacks) Find(IReadOnlyList<StatusEntry> list, uint id)
     {

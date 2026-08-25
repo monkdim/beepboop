@@ -92,10 +92,17 @@ public sealed unsafe class ActionStateAdapter : IActionState
         // made every rule in every job unmatchable and left the button on its base attack.
         var status = manager->GetActionStatus(ActionType.Action, actionId, _targetId);
 
-        // The same question with the recast check switched off. Choosing the next global
-        // means asking "would this be legal apart from the cooldown I am waiting out".
-        var statusIgnoringRecast =
-            manager->GetActionStatus(ActionType.Action, actionId, _targetId, checkRecastActive: false);
+        // The same question with the recast and cast checks switched off. Choosing the next
+        // global means asking "would this be legal apart from the things I am waiting out".
+        //
+        // checkCastingActive matters as much as checkRecastActive on a caster: mid-cast the
+        // game answers no to every spell, because you cannot start one while another is
+        // going off. A recorded Black Mage pull is full of "nothing to suggest" for exactly
+        // the length of each cast - the button dropping back to Fire I while Fire IV was in
+        // the air - because the look-ahead was asking whether the next spell could be cast
+        // *now* rather than when the current one lands.
+        var statusIgnoringRecast = manager->GetActionStatus(
+            ActionType.Action, actionId, _targetId, checkRecastActive: false, checkCastingActive: false);
         var usable = status == 0;
 
         // 572 is "you have not learned this action"; treat anything that is purely a
