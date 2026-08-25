@@ -33,34 +33,27 @@ jobs:
 
       # DalamudPackager fills in AssemblyVersion; the API level is overridden below with
       # the value read off the assembly, because the packager stamps its own.
-      # DalamudPackager stamps the API level it was built against, not the one the Dalamud
-      # we just built against actually reports - and Dalamud silently hides any plugin whose
-      # level does not match, which looks exactly like a plugin that failed to publish. So
-      # read the real number off the assembly.
+      # Dalamud computes its own API level as the major version of Dalamud.dll:
+      #
+      #     DalamudApiLevel = typeof(PluginManager).Assembly.GetName().Version!.Major;
+      #
+      # and the installer only lists a plugin whose level matches exactly. DalamudPackager
+      # stamps the level it was itself built against - 10, against a Dalamud 15 - so the
+      # first release published a listing the installer silently discarded. Read the real
+      # number off the assembly instead.
       - name: Read Dalamud API level
         id: apilevel
         shell: pwsh
         run: |
-          $asm = [System.Reflection.Assembly]::LoadFrom("$PWD/dalamud/Dalamud.dll")
-          $found = @()
-          foreach ($t in $asm.GetTypes()) {
-            $fields = $t.GetFields('Public,NonPublic,Static')
-            foreach ($f in $fields) {
-              if ($f.IsLiteral -and $f.FieldType -eq [int] -and $f.Name -match 'ApiLevel') {
-                $value = $f.GetRawConstantValue()
-                Write-Host "$($t.FullName).$($f.Name) = $value"
-                $found += [pscustomobject]@{ Name = $f.Name; Value = $value }
-              }
-            }
-          }
+          $dll = Join-Path $PWD "dalamud/Dalamud.dll"
+          $version = [System.Reflection.AssemblyName]::GetAssemblyName($dll).Version
+          if (-not $version) { throw "Could not read a version from Dalamud.dll" }
 
-          # Prefer the plain one; a "Testing" variant is a different number.
-          $pick = $found | Where-Object { $_.Name -notmatch 'Testing' } | Select-Object -First 1
-          if (-not $pick) { $pick = $found | Select-Object -First 1 }
-          if (-not $pick) { throw "Could not read Dalamud's API level - refusing to publish a listing Dalamud would hide" }
+          $level = $version.Major
+          Write-Host "Dalamud.dll version $version -> API level $level"
+          if ($level -lt 1) { throw "Implausible API level $level - refusing to publish a listing the installer would hide" }
 
-          Write-Host "Using DalamudApiLevel $($pick.Value)"
-          "level=$($pick.Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "level=$level" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Generate pluginmaster.json
         shell: pwsh

@@ -79,49 +79,14 @@ jobs:
             }
           }
 
-      # Finding where Dalamud keeps its API level. The release workflow needs this number
-      # and cannot guess it - a mismatch makes Dalamud hide the plugin silently - but only
-      # a human can trigger a release, so the search happens here where every push runs it.
-      - name: Find the Dalamud API level
-        continue-on-error: true
+      # Same derivation the release uses, printed on every push so a Dalamud bump that
+      # changes the API level is visible here rather than as a plugin that stops appearing
+      # in anyone's installer.
+      - name: Report Dalamud API level
         shell: pwsh
         run: |
-          Write-Host "===== dalamud-distrib version metadata ====="
-          try {
-            $v = Invoke-RestMethod -Uri "https://goatcorp.github.io/dalamud-distrib/version" -TimeoutSec 30
-            $v | ConvertTo-Json -Depth 5
-          } catch { Write-Host "could not fetch: $_" }
-
-          Write-Host "===== int constants and properties matching /api/ ====="
-          Get-ChildItem dalamud -Filter *.dll | ForEach-Object {
-            $file = $_
-            try { $asm = [System.Reflection.Assembly]::LoadFrom($file.FullName) } catch { return }
-            try { $types = $asm.GetTypes() } catch { $types = $_.Exception.Types | Where-Object { $_ } }
-            foreach ($t in $types) {
-              if (-not $t) { continue }
-              try {
-                foreach ($f in $t.GetFields('Public,NonPublic,Static,Instance')) {
-                  if ($f.Name -match 'api' -and $f.FieldType -eq [int]) {
-                    $val = if ($f.IsLiteral) { $f.GetRawConstantValue() } else { '(not a constant)' }
-                    Write-Host "$($file.Name)  FIELD  $($t.FullName).$($f.Name) = $val"
-                  }
-                }
-                foreach ($pr in $t.GetProperties('Public,NonPublic,Static,Instance')) {
-                  if ($pr.Name -match 'api' -and $pr.PropertyType -eq [int]) {
-                    Write-Host "$($file.Name)  PROP   $($t.FullName).$($pr.Name)"
-                  }
-                }
-              } catch { }
-            }
-          }
-
-          Write-Host "===== any type whose name mentions api ====="
-          Get-ChildItem dalamud -Filter Dalamud*.dll | ForEach-Object {
-            try { $asm = [System.Reflection.Assembly]::LoadFrom($_.FullName) } catch { return }
-            try { $asm.GetTypes() } catch { $_.Exception.Types } |
-              Where-Object { $_ -and $_.FullName -match 'api' } |
-              ForEach-Object { Write-Host "  TYPE $($_.FullName)" }
-          }
+          $version = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $PWD "dalamud/Dalamud.dll")).Version
+          Write-Host "Dalamud.dll version $version -> API level $($version.Major)"
 
       - name: Build
         env:
