@@ -64,6 +64,14 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Show a banner when it is the moment to pop a potion.</summary>
     public bool ShowPotionPrompt = true;
 
+    /// <summary>
+    /// Show a large banner telling you which side of the target to stand on for the coming
+    /// global cooldown. On by default: positionals are the part of melee that costs the most
+    /// damage when hands are the bottleneck, and a warning a global early is the difference
+    /// between making one and missing it.
+    /// </summary>
+    public bool ShowPositionalBanner = true;
+
     /// <summary>Icon scale for the preview window. Large by default; this is the point.</summary>
     public float PreviewScale = 1.6f;
 

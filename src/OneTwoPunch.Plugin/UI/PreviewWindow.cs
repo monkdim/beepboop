@@ -65,6 +65,15 @@ public sealed class PreviewWindow(
             ImGui.Separator();
         }
 
+        // The positional banner, above everything except the potion prompt.
+        //
+        // This is the whole reason the engine reports the *next* GCD's positional rather
+        // than the current action's: a player who needs a moment to reposition has to be
+        // told a global early, not as the ability comes up. It goes quiet the instant you
+        // are standing correctly - a warning that is always on is one nobody reads.
+        if (config.ShowPositionalBanner)
+            DrawPositionalBanner(single, aoe);
+
         DrawRow("Single target", single, size);
         ImGui.Spacing();
         DrawRow("AoE", aoe, size);
@@ -85,6 +94,56 @@ public sealed class PreviewWindow(
         }
     }
 
+    private void DrawPositionalBanner(Suggestion? single, Suggestion? aoe)
+    {
+        // Whichever button is actually asking for a position.
+        // Written out rather than with ?., because "single?.Positional != None" is true when
+        // single is null and would stop the AoE button ever being consulted.
+        var live = Asking(single) ?? Asking(aoe);
+        if (live is null)
+            return;
+
+        static Suggestion? Asking(Suggestion? s) =>
+            s is not null && s.Positional != PositionalHint.None ? s : null;
+
+        var wanted = live.Positional == PositionalHint.Rear ? "BEHIND" : "TO THE SIDE";
+
+        if (live.NeedsToMove)
+        {
+            // Red rather than the potion prompt's amber: this one costs damage every time
+            // it is missed, and it is the thing hands struggle with most.
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.35f, 0.3f, 1f));
+            ImGui.SetWindowFontScale(1.5f * config.PreviewScale);
+            ImGui.TextUnformatted($"MOVE {wanted}");
+            ImGui.SetWindowFontScale(1f);
+            ImGui.PopStyleColor();
+
+            if (live.Position != RelativePosition.Unknown)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled($"(you are {Describe(live.Position)})");
+            }
+        }
+        else
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.9f, 0.45f, 1f));
+            ImGui.SetWindowFontScale(1.1f * config.PreviewScale);
+            ImGui.TextUnformatted($"{wanted} - good");
+            ImGui.SetWindowFontScale(1f);
+            ImGui.PopStyleColor();
+        }
+
+        ImGui.Separator();
+    }
+
+    private static string Describe(RelativePosition position) => position switch
+    {
+        RelativePosition.Front => "in front",
+        RelativePosition.Flank => "to the side",
+        RelativePosition.Rear => "behind",
+        _ => "not sure where",
+    };
+
     private void DrawRow(string label, Suggestion? suggestion, float size)
     {
         ImGui.TextDisabled(label);
@@ -104,11 +163,15 @@ public sealed class PreviewWindow(
         if (config.ShowReason && !string.IsNullOrEmpty(suggestion.Note))
             ImGui.TextDisabled(suggestion.Note);
 
-        if (suggestion.Positional != PositionalHint.None)
+        // The banner says this far more loudly; only duplicate it here when it is switched off.
+        if (!config.ShowPositionalBanner && suggestion.Positional != PositionalHint.None)
         {
+            var text = suggestion.Positional == PositionalHint.Rear ? "stand behind" : "stand to the side";
             ImGui.TextColored(
-                new Vector4(1f, 0.78f, 0.25f, 1f),
-                suggestion.Positional == PositionalHint.Rear ? "stand behind" : "stand to the side");
+                suggestion.NeedsToMove
+                    ? new Vector4(1f, 0.78f, 0.25f, 1f)
+                    : new Vector4(0.4f, 0.9f, 0.45f, 1f),
+                suggestion.NeedsToMove ? text : $"{text} - good");
         }
 
         ImGui.EndGroup();
