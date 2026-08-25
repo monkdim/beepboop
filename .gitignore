@@ -5,5 +5,9 @@ obj/
 *.user
 *.suo
 artifacts/
-dist/
+# The published build lives in the repository so that installing it is a single plain
+# file fetch from raw.githubusercontent.com, rather than a redirect chain onto a signed
+# CDN host. Everything else under dist/ is still build scratch.
+dist/*
+!dist/latest.zip
 TestResults/
