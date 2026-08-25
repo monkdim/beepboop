@@ -104,9 +104,31 @@ public sealed class RotationContext
 
     // ---- Gauges ----------------------------------------------------------
 
+    public ref MonkGauge Mnk => ref _snapshot.Gauges.Monk;
+
     public ref DragoonGauge Drg => ref _snapshot.Gauges.Dragoon;
 
+    public ref BardGauge Brd => ref _snapshot.Gauges.Bard;
+
+    public ref BlackMageGauge Blm => ref _snapshot.Gauges.BlackMage;
+
+    public ref SummonerGauge Smn => ref _snapshot.Gauges.Summoner;
+
+    public ref NinjaGauge Nin => ref _snapshot.Gauges.Ninja;
+
     public ref MachinistGauge Mch => ref _snapshot.Gauges.Machinist;
+
+    public ref SamuraiGauge Sam => ref _snapshot.Gauges.Samurai;
+
+    public ref RedMageGauge Rdm => ref _snapshot.Gauges.RedMage;
+
+    public ref DancerGauge Dnc => ref _snapshot.Gauges.Dancer;
+
+    public ref ReaperGauge Rpr => ref _snapshot.Gauges.Reaper;
+
+    public ref ViperGauge Vpr => ref _snapshot.Gauges.Viper;
+
+    public ref PictomancerGauge Pct => ref _snapshot.Gauges.Pictomancer;
 
     // ---- Actions ---------------------------------------------------------
 
