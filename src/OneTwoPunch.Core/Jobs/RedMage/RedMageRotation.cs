@@ -33,6 +33,39 @@ public sealed class RedMageRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.Embolden;
 
+    /// <summary>
+    /// The Balance's "Standard Opener" for Red Mage level 100, Dawntrail patch 7.0,
+    /// including the first loop out of the burst.
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance standard", 100,
+        A.VeraeroIII,
+        A.VerthunderIII, A.Swiftcast,
+        A.VerthunderIII, A.Fleche, A.Acceleration,
+        A.VerthunderIII, A.Embolden, A.Manafication,
+        A.EnchantedRiposte, A.ContreSixte,
+        A.EnchantedZwerchhau, A.Engagement,
+        A.EnchantedRedoublement, A.CorpsACorps,
+        A.Verholy, A.ViceOfThorns,
+        A.Scorch, A.Engagement, A.CorpsACorps,
+        A.Resolution, A.Prefulgence,
+        A.GrandImpact, A.Acceleration,
+        A.Verfire,
+        A.GrandImpact,
+        A.VerthunderIII, A.Fleche,
+        A.VeraeroIII,
+        A.Verfire,
+        A.VerthunderIII,
+        A.Verstone,
+        A.VeraeroIII, A.Swiftcast,
+        A.VeraeroIII, A.ContreSixte)
+    {
+        // Drunk right after Swiftcast, in the first global's weave window.
+        PotionBeforeStep = 3,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

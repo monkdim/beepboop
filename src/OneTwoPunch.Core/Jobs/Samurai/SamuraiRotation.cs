@@ -36,6 +36,37 @@ public sealed class SamuraiRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.Ikishoten;
 
+    /// <summary>
+    /// The Balance's "Standard Opener" for Samurai level 100, Dawntrail patch 7.05. Meikyo
+    /// Shisui goes up fourteen seconds before the pull so the three free finishers are
+    /// Gekko, Kasha and Yukikaze - that is what makes Tendo Setsugekka the fourth global.
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance standard", 100,
+        A.MeikyoShisui,
+        A.TrueNorth,
+        A.Gekko,
+        A.Kasha, A.Ikishoten,
+        A.Yukikaze,
+        A.TendoSetsugekka, A.HissatsuSenei,
+        A.TendoKaeshiSetsugekka, A.MeikyoShisui,
+        A.Gekko, A.Zanshin,
+        A.Higanbana,
+        A.OgiNamikiri, A.Shoha,
+        A.KaeshiNamikiri,
+        A.Kasha, A.HissatsuShinten,
+        A.Gekko, A.HissatsuGyoten,
+        A.Gyofu,
+        A.Yukikaze, A.HissatsuShinten,
+        A.TendoSetsugekka,
+        A.TendoKaeshiSetsugekka)
+    {
+        // First weave window of the fight, on Gekko.
+        PotionBeforeStep = 3,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

@@ -35,6 +35,40 @@ public sealed class ViperRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.SerpentsIre;
 
+    /// <summary>
+    /// The Balance's "Standard Opener" for Viper level 100, Dawntrail patch 7.5, up to the
+    /// end of the burst.
+    /// <para>
+    /// The chart runs four globals further, but both of those are written as a choice -
+    /// "Steel Fangs or Reaving Fangs", "Hindsting Strike or Hindsbane Fang" - because which
+    /// one is correct depends on the buff you are holding. A scripted list cannot express
+    /// that, and guessing wrong would abandon the opener anyway, so the tail is left to the
+    /// priority list, which reads the buff and picks properly.
+    /// </para>
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance standard", 100,
+        A.Slither,
+        A.SteelFangs, A.SerpentsIre,
+        A.SwiftskinsSting,
+        A.Vicewinder,
+        A.HuntersCoil, A.TwinfangBite, A.TwinbloodBite,
+        A.SwiftskinsCoil, A.TwinbloodBite, A.TwinfangBite,
+        A.Reawaken,
+        A.FirstGeneration, A.FirstLegacy,
+        A.SecondGeneration, A.SecondLegacy,
+        A.ThirdGeneration, A.ThirdLegacy,
+        A.FourthGeneration, A.FourthLegacy,
+        A.Ouroboros,
+        A.UncoiledFury, A.UncoiledTwinfang, A.UncoiledTwinblood,
+        A.UncoiledFury, A.UncoiledTwinfang, A.UncoiledTwinblood)
+    {
+        // The chart drinks in Vicewinder's weave window, just before Hunter's Coil.
+        PotionBeforeStep = 5,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

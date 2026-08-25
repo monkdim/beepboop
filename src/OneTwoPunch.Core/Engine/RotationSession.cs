@@ -199,17 +199,26 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (!settings.PotionEnabled || !context.Snapshot.PotionAvailable)
             return false;
 
-        if (!context.InCombat || context.Downtime || !context.CanWeave)
+        if (context.Downtime)
             return false;
 
-        if (settings.PotionInOpener
+        var atOpenerPotionStep = settings.PotionInOpener
             && OpenerActive
             && job.Opener is not null
             && job.Opener.PotionBeforeStep >= 0
-            && _openerStep == job.Opener.PotionBeforeStep)
-        {
+            && _openerStep == job.Opener.PotionBeforeStep;
+
+        // Before the pull there is no global rolling, so a potion cannot clip anything.
+        // Several of the Balance openers drink a few seconds early for exactly that
+        // reason, and the prompt is useless if it only appears once the fight has started.
+        if (!context.InCombat)
+            return atOpenerPotionStep;
+
+        if (!context.CanWeave)
+            return false;
+
+        if (atOpenerPotionStep)
             return true;
-        }
 
         if (!settings.PotionOnBurst)
             return false;
@@ -277,7 +286,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (opener is null || !settings.UseOpener || _openerAborted)
             return null;
 
-        if (!context.InCombat || context.Level < opener.MinimumLevel)
+        if (context.Level < opener.MinimumLevel)
             return null;
 
         if (_openerStep >= opener.Steps.Count)
@@ -285,7 +294,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
         // Only ever start an opener at the start of a fight. Loading mid-pull, or joining a
         // fight in progress, must not rewind the button to step one.
-        if (_openerStep == 0 && context.CombatDuration > settings.OpenerGraceSeconds)
+        if (context.InCombat && _openerStep == 0 && context.CombatDuration > settings.OpenerGraceSeconds)
         {
             _openerAborted = true;
             return null;
@@ -293,19 +302,30 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
         var step = opener.Steps[_openerStep];
 
+        // Out of combat nothing is rolling, so an off-global cannot clip a global and the
+        // weave budget does not apply. Most of the Balance openers start before the pull -
+        // Meikyo Shisui, Reassemble, a prepull Harpe - and none of that is reachable if
+        // weaving rules written for a live fight are applied to a standing start.
+        var canWeave = context.CanWeave || !context.InCombat;
+
         // If the scripted action is not usable the world has diverged from the script -
         // a late pull, a sync, a missing level. Drop out rather than jam the button.
         if (!context.Ready(step))
         {
             // An off-global that simply does not fit this window is not a divergence; wait.
-            if (step.Kind == ActionKind.OGcd && !context.CanWeave)
+            if (step.Kind == ActionKind.OGcd && !canWeave)
+                return null;
+
+            // Nor is anything before the pull: there is no target, no gauge and no buff to
+            // diverge from yet. Wait for the fight rather than burning the opener.
+            if (!context.InCombat)
                 return null;
 
             _openerAborted = true;
             return null;
         }
 
-        if (step.Kind == ActionKind.OGcd && !context.CanWeave)
+        if (step.Kind == ActionKind.OGcd && !canWeave)
             return null;
 
         return step;
@@ -359,9 +379,20 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return;
 
         if (opener.Steps[_openerStep].Id == actionId)
+        {
             _openerStep++;
-        else
+        }
+        else if (_wasInCombat)
+        {
             _openerAborted = true;
+        }
+        else
+        {
+            // A stray press while waiting for the pull is somebody fidgeting on a dummy,
+            // not a divergence worth throwing the opener away over. Start the pre-pull
+            // walk again instead.
+            _openerStep = 0;
+        }
     }
 
     private void TrackGcdWindow(CombatSnapshot snapshot)
@@ -381,11 +412,16 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return;
 
         _wasInCombat = snapshot.InCombat;
-
-        // Leaving or entering combat rearms the opener for the next pull.
-        _openerStep = 0;
-        _openerAborted = false;
         _weavesThisWindow = 0;
+
+        // Leaving combat rearms the opener for the next pull. Entering it must not: by then
+        // the pre-pull steps have already been walked, and rewinding here would ask for
+        // them a second time with the fight already running.
+        if (!snapshot.InCombat)
+        {
+            _openerStep = 0;
+            _openerAborted = false;
+        }
     }
 
     private static HashSet<uint> BuildKindSet(IJobRotation job, ActionKind kind)

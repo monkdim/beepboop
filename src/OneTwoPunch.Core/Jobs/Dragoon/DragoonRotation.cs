@@ -35,14 +35,26 @@ public sealed class DragoonRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.LanceCharge;
 
+    /// <summary>
+    /// The Balance's "Standard Opener - No PT" for Dragoon level 100, Dawntrail patch 7.1.
+    /// Both Life Surges are spent inside the window, on Drakesbane and on Heavens' Thrust.
+    /// </summary>
     private static readonly Opener Sequence = new(
-        "Dawntrail standard", 100,
-        A.TrueThrust, A.SpiralBlow, A.LanceCharge, A.ChaoticSpring, A.BattleLitany,
-        A.Geirskogul, A.WheelingThrust, A.HighJump, A.LifeSurge, A.Drakesbane,
-        A.DragonfireDive, A.RaidenThrust, A.Nastrond, A.Stardiver)
+        "The Balance standard, no PT", 100,
+        A.TrueThrust,
+        A.SpiralBlow, A.LanceCharge,
+        A.ChaoticSpring, A.BattleLitany, A.Geirskogul,
+        A.WheelingThrust, A.HighJump, A.LifeSurge,
+        A.Drakesbane, A.DragonfireDive, A.Nastrond,
+        A.RaidenThrust, A.Stardiver,
+        A.LanceBarrage, A.Starcross, A.LifeSurge,
+        A.HeavensThrust, A.RiseOfTheDragon, A.MirageDive,
+        A.FangAndClaw,
+        A.Drakesbane,
+        A.RaidenThrust, A.WyrmwindThrust)
     {
-        // First real weave window of the opener, on Lance Charge.
-        PotionBeforeStep = 2,
+        // Drunk right after Lance Charge, in Spiral Blow's weave window.
+        PotionBeforeStep = 3,
     };
 
     public override Opener? Opener => Sequence;

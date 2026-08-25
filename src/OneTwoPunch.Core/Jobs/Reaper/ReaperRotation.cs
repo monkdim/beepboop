@@ -32,6 +32,36 @@ public sealed class ReaperRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.ArcaneCircle;
 
+    /// <summary>
+    /// The Balance's "Opener - 2nd GCD AC" for Reaper level 100, Dawntrail patch 7.0.
+    /// Arcane Circle and the potion are both late-weaved after Soul Slice, which is what
+    /// puts the buff over the Executioner pair rather than over Shadow of Death.
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance 2nd-GCD Arcane Circle", 100,
+        A.Harpe,
+        A.ShadowofDeath,
+        A.SoulSlice, A.ArcaneCircle, A.Gluttony,
+        A.ExecutionersGibbet,
+        A.ExecutionersGallows,
+        A.SoulSlice,
+        A.PlentifulHarvest, A.Enshroud,
+        A.VoidReaping, A.Sacrificium,
+        A.CrossReaping, A.LemuresSlice,
+        A.VoidReaping,
+        A.CrossReaping, A.LemuresSlice,
+        A.Communio,
+        A.Perfectio, A.UnveiledGibbet,
+        A.Gibbet,
+        A.ShadowofDeath,
+        A.Slice)
+    {
+        // Drunk alongside Arcane Circle, which the chart weaves after Soul Slice.
+        PotionBeforeStep = 2,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

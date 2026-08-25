@@ -129,6 +129,16 @@ public override Opener? Opener => Sequence;
 Cache it in a static — do not build one per property access. The engine walks it, gives up
 the moment the player does something else, and never starts one mid-fight.
 
+Write the whole chart, pre-pull steps included: the engine drives the opener before combat
+too, so a Meikyo Shisui at -14s or a Reassemble at -5s is a step like any other, and
+entering combat does not rewind the walk. `PotionBeforeStep` is the index of the step the
+potion is drunk *before*.
+
+Openers come from The Balance's charts rather than being derived, so pin each one with a
+test that restates the chart independently — see `BalanceOpenerTests`. Do not write one for
+a chart that is not a fixed sequence: Ninja's implicit mudras and Dancer's randomised dance
+steps cannot be expressed as an `ActionRef` list, and guessing is worse than having none.
+
 ## 3. Register it
 
 `src/OneTwoPunch.Core/Jobs/JobRegistry.cs`

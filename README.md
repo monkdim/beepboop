@@ -140,8 +140,18 @@ not been parsed on a dummy. Expect them to be good, not optimal, and tell us whe
 wrong. The HUD shows the reason for every choice specifically so a job main can audit it in
 one training-dummy pull.
 
-Openers are deliberately absent on most jobs. A wrong opener *overrides* the priority list,
-which is worse than not having one, and a good list opens correctly on its own.
+**Openers** are transcribed from [The Balance](https://www.thebalanceffxiv.com/)'s opener
+charts — Dragoon, Monk, Reaper, Samurai, Viper, Bard, Machinist, Black Mage, Pictomancer
+and Red Mage. Each one is pinned by a test that restates the chart independently, so a
+transcription slip fails CI rather than a pull. An opener *overrides* the priority list
+while it runs, so it gives up the moment reality stops matching, and never starts
+mid-fight.
+
+Ninja and Dancer have none, on purpose. Ninja's chart leaves the mudra presses implicit,
+and a scripted list would have to invent them — a wrong one is a Rabbit Medium, a wasted
+global. Dancer's chart is half contextual: the dance steps are randomised per dance and
+four of its globals are drawn as "Priority GCD" placeholders. Neither is a fixed sequence,
+so neither gets guessed at; their priority lists open on their own.
 
 ## How it's built
 

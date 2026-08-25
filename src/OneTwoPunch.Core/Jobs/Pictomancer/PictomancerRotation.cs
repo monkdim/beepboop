@@ -36,6 +36,39 @@ public sealed class PictomancerRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.StarryMuse;
 
+    /// <summary>
+    /// The Balance's "2nd GCD Starry Opener" for Pictomancer level 100, Dawntrail patch
+    /// 7.2. Starry Muse lands between Wing Motif and Hammer Stamp, which is what the name
+    /// refers to: the buff covers from the second global on.
+    /// <para>
+    /// The chart assumes the pre-pull motifs are already drawn - Pom Muse and Striking Muse
+    /// cannot go off otherwise. Those are held between pulls rather than drawn during the
+    /// opener, so they are not steps here; the priority list draws them when they are down.
+    /// </para>
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance 2nd-GCD Starry", 100,
+        A.RainbowDrip,
+        A.PomMuse, A.StrikingMuse,
+        A.WingMotif, A.StarryMuse,
+        A.HammerStamp, A.SubtractivePalette,
+        A.BlizzardInCyan,
+        A.StoneInYellow,
+        A.ThunderInMagenta,
+        A.CometInBlack, A.WingedMuse, A.MogOfTheAges,
+        A.StarPrism,
+        A.HammerBrush,
+        A.PolishingHammer,
+        A.RainbowDrip,
+        A.FireInRed, A.Swiftcast,
+        A.AeroInGreen)
+    {
+        // Drunk on the pull itself, ahead of the two muses.
+        PotionBeforeStep = 1,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();
