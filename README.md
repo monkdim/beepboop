@@ -81,20 +81,39 @@ untouched — the plugin only ever answers for those two slots.
 
 ## Supported jobs
 
-Action and status tables — ids, names, levels, and whether each action rolls the global
-cooldown — are generated for **all thirteen DPS jobs**. Rotations are written per job:
+All thirteen DPS jobs, single target and AoE:
 
-| Job | Rotation | Notes |
-|---|---|---|
-| Dragoon | yes | ST + AoE + opener |
-| Machinist | yes | ST + AoE + opener |
-| Monk, Ninja, Samurai, Reaper, Viper | table only | rotation to come |
-| Bard, Dancer | table only | rotation to come |
-| Black Mage, Summoner, Red Mage, Pictomancer | table only | rotation to come |
+| | |
+|---|---|
+| **Melee** | Monk, Dragoon, Ninja, Samurai, Reaper, Viper |
+| **Physical ranged** | Bard, Machinist, Dancer |
+| **Casters** | Black Mage, Summoner, Red Mage, Pictomancer |
 
-More jobs are a pair of files each — see [docs/ADDING_A_JOB.md](docs/ADDING_A_JOB.md). The
-rotations are ordinary priority lists that read like the guide they came from, so they can
-be reviewed by someone who plays the job rather than someone who writes C#.
+Action and status tables are generated from the game's own data, and every id is verified
+again at startup.
+
+### Jobs that need a third key
+
+Two buttons cover twelve of the thirteen. **Ninja** needs one more: a ninjutsu is two or
+three mudra presses and then the cast, and folding that into a single icon that changes
+under your hand between presses would be worse than an extra key. The Mudra button walks
+the sequence and fires the result — Raiton on a single target, Katon on a group, and both
+Kassatsu upgrades, chosen automatically. Suiton, Huton and Doton still need their own keys.
+
+Dancer's dances look like the same problem but aren't: its gauge names the next step
+outright, so the main buttons walk the dance themselves.
+
+### How honest the rotations are
+
+The engine's guarantees hold on every job — no clipped GCDs, no unusable suggestions, no
+wrong ids. The **priority lists** are a different kind of claim: they were written against
+the game's data and cross-checked against BossMod and RotationSolver Reborn, but they have
+not been parsed on a dummy. Expect them to be good, not optimal, and tell us where they're
+wrong. The HUD shows the reason for every choice specifically so a job main can audit it in
+one training-dummy pull.
+
+Openers are deliberately absent on most jobs. A wrong opener *overrides* the priority list,
+which is worse than not having one, and a good list opens correctly on its own.
 
 ## How it's built
 
