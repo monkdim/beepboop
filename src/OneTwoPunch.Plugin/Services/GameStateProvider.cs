@@ -61,6 +61,8 @@ public sealed unsafe class GameStateProvider(
         var s = _snapshot;
         s.JobId = player.ClassJob.RowId;
         s.Level = player.Level;
+        s.Mp = player.CurrentMp;
+        s.MaxMp = player.MaxMp;
         s.InCombat = condition[ConditionFlag.InCombat];
         s.CombatDuration = _combatDuration;
         s.Now = now;

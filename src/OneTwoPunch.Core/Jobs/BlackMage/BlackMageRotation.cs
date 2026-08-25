@@ -35,6 +35,12 @@ public sealed class BlackMageRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.LeyLines;
 
+    /// <summary>
+    /// Mana at or above which a phaseless Black Mage opens in fire rather than ice. Matches
+    /// RotationSolver Reborn.
+    /// </summary>
+    private const uint NeutralFireMp = 7200;
+
     protected override void Build()
     {
         BuildSingleTarget();
@@ -110,6 +116,15 @@ public sealed class BlackMageRotation : JobRotationBase
 
         // Back into fire once ice has done its job.
         p.Gcd(A.Fire3).When(c => c.Blm.InUmbralIce).Because("back to Astral Fire");
+
+        // From neither phase - the pull, or after a death or a long downtime - which element
+        // you open into is decided by mana, not by habit. With a full bar you open in fire;
+        // this used to go into ice unconditionally, which is a wasted opener every time.
+        // Threshold matches RotationSolver Reborn's.
+        p.Gcd(A.Fire3)
+            .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
+            .Because("full mana, open in Astral Fire");
+
         p.Gcd(A.Blizzard3).When(c => !c.Blm.InAstralFire).Because("into Umbral Ice");
 
         p.Gcd(A.Fire1);
@@ -145,6 +160,10 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
             .When(c => c.Blm.InUmbralIce)
             .Because("back to Astral Fire");
+
+        p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
+            .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
+            .Because("full mana, open in Astral Fire");
 
         p.Gcd(c => c.Has(A.HighBlizzard2) ? A.HighBlizzard2 : A.Blizzard2)
             .When(c => !c.Blm.InAstralFire)

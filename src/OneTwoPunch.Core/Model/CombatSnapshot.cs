@@ -56,6 +56,11 @@ public sealed class CombatSnapshot
 
     public byte Level { get; set; }
 
+    /// <summary>Current MP. Black Mage's whole rotation is a mana cycle, so rules need it.</summary>
+    public uint Mp { get; set; }
+
+    public uint MaxMp { get; set; } = 10000;
+
     public bool InCombat { get; set; }
 
     /// <summary>Seconds the player has been in combat. Drives opener tracking.</summary>

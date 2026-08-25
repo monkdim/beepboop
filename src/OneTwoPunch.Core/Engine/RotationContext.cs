@@ -150,6 +150,9 @@ public sealed class RotationContext
     /// game. This is the gate every rule passes through, so a rule can never suggest
     /// something that would produce an error noise.
     /// </summary>
+    /// <summary>Current MP.</summary>
+    public uint Mp => _snapshot.Mp;
+
     public bool Ready(ActionRef action)
     {
         if (!Has(action))
