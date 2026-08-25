@@ -71,6 +71,8 @@ public static class ViperActions
 
     public static readonly StatusRef HuntersInstinct = new(3668, "Hunters Instinct");
     public static readonly StatusRef Swiftscaled = new(3669, "Swiftscaled");
+    public static readonly StatusRef HonedSteel = new(3672, "Honed Steel");
+    public static readonly StatusRef HonedReavers = new(3772, "Honed Reavers");
     public static readonly StatusRef HindstungVenom = new(3647, "Hindstung Venom");
     public static readonly StatusRef HindsbaneVenom = new(3648, "Hindsbane Venom");
     public static readonly StatusRef FlanksbaneVenom = new(3646, "Flanksbane Venom");
@@ -83,8 +85,8 @@ public static class ViperActions
     public static readonly StatusRef ReawakenReady = new(3671, "Reawaken Ready");
     public static readonly StatusRef FellhuntersVenom = new(3659, "Fellhunters Venom");
     public static readonly StatusRef FellskinsVenom = new(3660, "Fellskins Venom");
-    public static readonly StatusRef TwinbloodfangST = new(3773, "Twinbloodfang S T");
-    public static readonly StatusRef TwinbloodfangAOE = new(3774, "Twinbloodfang A O E");
+    public static readonly StatusRef TwinbloodfangST = new(3773, "Twinbloodfang ST");
+    public static readonly StatusRef TwinbloodfangAOE = new(3774, "Twinbloodfang AOE");
     public static readonly StatusRef PoisedForTwinfang = new(3665, "Poised For Twinfang");
     public static readonly StatusRef PoisedForTwinblood = new(3666, "Poised For Twinblood");
     public static readonly StatusRef FeintBuff = new(1195, "Feint");
@@ -109,10 +111,11 @@ public static class ViperActions
 
     public static readonly IReadOnlyList<StatusRef> AllStatuses =
     [
-        HuntersInstinct, Swiftscaled, HindstungVenom, HindsbaneVenom,
-        FlanksbaneVenom, FlankstungVenom, GrimskinsVenom, GrimhuntersVenom,
-        HuntersVenom, SwiftskinsVenom, Reawakened, ReawakenReady,
-        FellhuntersVenom, FellskinsVenom, TwinbloodfangST, TwinbloodfangAOE,
-        PoisedForTwinfang, PoisedForTwinblood, FeintBuff, TrueNorthBuff,
+        HuntersInstinct, Swiftscaled, HonedSteel, HonedReavers,
+        HindstungVenom, HindsbaneVenom, FlanksbaneVenom, FlankstungVenom,
+        GrimskinsVenom, GrimhuntersVenom, HuntersVenom, SwiftskinsVenom,
+        Reawakened, ReawakenReady, FellhuntersVenom, FellskinsVenom,
+        TwinbloodfangST, TwinbloodfangAOE, PoisedForTwinfang, PoisedForTwinblood,
+        FeintBuff, TrueNorthBuff,
     ];
 }

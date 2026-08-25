@@ -21,7 +21,7 @@ public static class MonkActions
     public static readonly ActionRef TrueStrike = new(54, "True Strike", ActionKind.OGcd, 4);
     public static readonly ActionRef SnapPunch = new(56, "Snap Punch", ActionKind.OGcd, 6);
     public static readonly ActionRef SteeledMeditation = new(36940, "Steeled Meditation", ActionKind.OGcd, 15);
-    public static readonly ActionRef TwinSnakes = new(61, "Twin Snakes", ActionKind.OGcd, 18);
+    public static readonly ActionRef TwinSnakes = new(61, "Tw in Snakes", ActionKind.OGcd, 18);
     public static readonly ActionRef ArmOfTheDestroyer = new(62, "Arm Of The Destroyer", ActionKind.OGcd, 26);
     public static readonly ActionRef Demolish = new(66, "Demolish", ActionKind.OGcd, 30);
     public static readonly ActionRef Rockbreaker = new(70, "Rockbreaker", ActionKind.OGcd, 30);
@@ -81,6 +81,10 @@ public static class MonkActions
     public static readonly StatusRef OpoOpoForm = new(107, "Opo Opo Form");
     public static readonly StatusRef PerfectBalanceBuff = new(110, "Perfect Balance");
     public static readonly StatusRef Stun = new(2, "Stun");
+    public static readonly StatusRef LostFontofPower = new(2346, "Lost Font of Power");
+    public static readonly StatusRef BannerHonoredSacrifice = new(2327, "Banner Honored Sacrifice");
+    public static readonly StatusRef LostExcellence = new(2564, "Lost Excellence");
+    public static readonly StatusRef Memorable = new(2565, "Memorable");
     public static readonly StatusRef FeintBuff = new(1195, "Feint");
     public static readonly StatusRef TrueNorthBuff = new(1250, "True North");
 
@@ -106,6 +110,7 @@ public static class MonkActions
         RiddleOfFireBuff, FiresRumination, RiddleOfWindBuff, WindsRumination,
         MantraBuff, RiddleOfEarthBuff, EarthsRumination, FormlessFist,
         SixSidedStarBuff, OpoOpoForm, PerfectBalanceBuff, Stun,
+        LostFontofPower, BannerHonoredSacrifice, LostExcellence, Memorable,
         FeintBuff, TrueNorthBuff,
     ];
 }

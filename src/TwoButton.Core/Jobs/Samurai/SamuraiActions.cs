@@ -75,7 +75,7 @@ public static class SamuraiActions
     public static readonly StatusRef MeditateBuff = new(1231, "Meditate");
     public static readonly StatusRef OgiNamikiriReady = new(2959, "Ogi Namikiri Ready");
     public static readonly StatusRef TengentsuBuff = new(3853, "Tengentsu");
-    public static readonly StatusRef ZanshinReady = new(3855, "Zanshin Ready");
+    public static readonly StatusRef ZanshinReady = new(3855, "Zansh in Ready");
     public static readonly StatusRef Tendo = new(3856, "Tendo");
     public static readonly StatusRef TsubameReady = new(4216, "Tsubame Ready");
     public static readonly StatusRef FeintBuff = new(1195, "Feint");

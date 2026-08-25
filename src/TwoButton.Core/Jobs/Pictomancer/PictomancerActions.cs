@@ -22,7 +22,7 @@ public static class PictomancerActions
     public static readonly ActionRef TemperaCoat = new(34685, "Tempera Coat", ActionKind.OGcd, 10);
     public static readonly ActionRef WaterInBlue = new(34652, "Water In Blue", ActionKind.Gcd, 15);
     public static readonly ActionRef Smudge = new(34684, "Smudge", ActionKind.OGcd, 20);
-    public static readonly ActionRef FireIIInRed = new(34656, "Fire I I In Red", ActionKind.Gcd, 25);
+    public static readonly ActionRef FireIIInRed = new(34656, "Fire II In Red", ActionKind.Gcd, 25);
     public static readonly ActionRef WingedMuse = new(34671, "Winged Muse", ActionKind.OGcd, 30);
     public static readonly ActionRef LivingMuse = new(35347, "Living Muse", ActionKind.OGcd, 30);
     public static readonly ActionRef CreatureMotif = new(34689, "Creature Motif", ActionKind.Gcd, 30);
@@ -30,19 +30,19 @@ public static class PictomancerActions
     public static readonly ActionRef MogOfTheAges = new(34676, "Mog Of The Ages", ActionKind.OGcd, 30);
     public static readonly ActionRef PomMotif = new(34664, "Pom Motif", ActionKind.Gcd, 30);
     public static readonly ActionRef PomMuse = new(34670, "Pom Muse", ActionKind.OGcd, 30);
-    public static readonly ActionRef AeroIIInGreen = new(34657, "Aero I I In Green", ActionKind.Gcd, 35);
-    public static readonly ActionRef WaterIIInBlue = new(34658, "Water I I In Blue", ActionKind.Gcd, 45);
+    public static readonly ActionRef AeroIIInGreen = new(34657, "Aero II In Green", ActionKind.Gcd, 35);
+    public static readonly ActionRef WaterIIInBlue = new(34658, "Water II In Blue", ActionKind.Gcd, 45);
     public static readonly ActionRef WeaponMotif = new(34690, "Weapon Motif", ActionKind.Gcd, 50);
     public static readonly ActionRef HammerStamp = new(34678, "Hammer Stamp", ActionKind.Gcd, 50);
     public static readonly ActionRef SteelMuse = new(35348, "Steel Muse", ActionKind.OGcd, 50);
     public static readonly ActionRef StrikingMuse = new(34674, "Striking Muse", ActionKind.OGcd, 50);
     public static readonly ActionRef HammerMotif = new(34668, "Hammer Motif", ActionKind.Gcd, 50);
-    public static readonly ActionRef ThunderIIInMagenta = new(34661, "Thunder I I In Magenta", ActionKind.Gcd, 60);
+    public static readonly ActionRef ThunderIIInMagenta = new(34661, "Thunder II In Magenta", ActionKind.Gcd, 60);
     public static readonly ActionRef StoneInYellow = new(34654, "Stone In Yellow", ActionKind.Gcd, 60);
-    public static readonly ActionRef BlizzardIIInCyan = new(34659, "Blizzard I I In Cyan", ActionKind.Gcd, 60);
+    public static readonly ActionRef BlizzardIIInCyan = new(34659, "Blizzard II In Cyan", ActionKind.Gcd, 60);
     public static readonly ActionRef ThunderInMagenta = new(34655, "Thunder In Magenta", ActionKind.Gcd, 60);
     public static readonly ActionRef BlizzardInCyan = new(34653, "Blizzard In Cyan", ActionKind.Gcd, 60);
-    public static readonly ActionRef StoneIIInYellow = new(34660, "Stone I I In Yellow", ActionKind.Gcd, 60);
+    public static readonly ActionRef StoneIIInYellow = new(34660, "Stone II In Yellow", ActionKind.Gcd, 60);
     public static readonly ActionRef SubtractivePalette = new(34683, "Subtractive Palette", ActionKind.OGcd, 60);
     public static readonly ActionRef StarrySkyMotif = new(34669, "Starry Sky Motif", ActionKind.Gcd, 70);
     public static readonly ActionRef StarryMuse = new(34675, "Starry Muse", ActionKind.OGcd, 70);
@@ -68,7 +68,7 @@ public static class PictomancerActions
     public static readonly ActionRef Surecast = new(7559, "Surecast", ActionKind.OGcd, 44);
 
     public static readonly StatusRef Aetherhues = new(3675, "Aetherhues");
-    public static readonly StatusRef AetherhuesII = new(3676, "Aetherhues I I");
+    public static readonly StatusRef AetherhuesII = new(3676, "Aetherhues II");
     public static readonly StatusRef TemperaCoatBuff = new(3686, "Tempera Coat");
     public static readonly StatusRef TemperaGrassaBuff = new(3687, "Tempera Grassa");
     public static readonly StatusRef SmudgeBuff = new(3684, "Smudge");
@@ -79,6 +79,7 @@ public static class PictomancerActions
     public static readonly StatusRef SubtractiveSpectrum = new(3690, "Subtractive Spectrum");
     public static readonly StatusRef Hyperphantasia = new(3688, "Hyperphantasia");
     public static readonly StatusRef Starstruck = new(3681, "Starstruck");
+    public static readonly StatusRef RainbowBright = new(3679, "Rainbow Bright");
     public static readonly StatusRef AddleBuff = new(1203, "Addle");
     public static readonly StatusRef SurecastBuff = new(160, "Surecast");
     public static readonly StatusRef LucidDreamingBuff = new(1204, "Lucid Dreaming");
@@ -106,6 +107,7 @@ public static class PictomancerActions
         Aetherhues, AetherhuesII, TemperaCoatBuff, TemperaGrassaBuff,
         SmudgeBuff, HammerTime, SubtractivePaletteBuff, MonochromeTones,
         StarryMuseBuff, SubtractiveSpectrum, Hyperphantasia, Starstruck,
-        AddleBuff, SurecastBuff, LucidDreamingBuff, SwiftcastBuff,
+        RainbowBright, AddleBuff, SurecastBuff, LucidDreamingBuff,
+        SwiftcastBuff,
     ];
 }

@@ -68,13 +68,13 @@ public static class SummonerActions
     public static readonly ActionRef Rekindle = new(25830, "Rekindle", ActionKind.OGcd, 80);
     public static readonly ActionRef SummonPhoenix = new(25831, "Summon Phoenix", ActionKind.Gcd, 80);
     public static readonly ActionRef EnkindlePhoenix = new(16516, "Enkindle Phoenix", ActionKind.OGcd, 80);
-    public static readonly ActionRef BrandOfPurgatory = new(16515, "Brand Of Purgatory", ActionKind.Gcd, 80);
-    public static readonly ActionRef FountainOfFire = new(16514, "Fountain Of Fire", ActionKind.Gcd, 80);
+    public static readonly ActionRef BrandOfPurgatory = new(16515, "Br and Of Purgatory", ActionKind.Gcd, 80);
+    public static readonly ActionRef FountainOfFire = new(16514, "Founta in Of Fire", ActionKind.Gcd, 80);
     public static readonly ActionRef RubyCatastrophe = new(25832, "Ruby Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef TopazCatastrophe = new(25833, "Topaz Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef EmeraldCatastrophe = new(25834, "Emerald Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef Slipstream = new(25837, "Slipstream", ActionKind.Gcd, 86);
-    public static readonly ActionRef MountainBuster = new(25836, "Mountain Buster", ActionKind.OGcd, 86);
+    public static readonly ActionRef MountainBuster = new(25836, "Mounta in Buster", ActionKind.OGcd, 86);
     public static readonly ActionRef CrimsonCyclone = new(25835, "Crimson Cyclone", ActionKind.Gcd, 86);
     public static readonly ActionRef CrimsonStrike = new(25885, "Crimson Strike", ActionKind.Gcd, 86);
     public static readonly ActionRef SummonIfrit2 = new(25838, "Summon Ifrit II", ActionKind.Gcd, 90);
@@ -100,6 +100,7 @@ public static class SummonerActions
     public static readonly StatusRef SearingLightBuff = new(2703, "Searing Light");
     public static readonly StatusRef TitansFavor = new(2853, "Titans Favor");
     public static readonly StatusRef RekindleBuff = new(2704, "Rekindle");
+    public static readonly StatusRef RadiantAegisBuff = new(2702, "Radiant Aegis");
     public static readonly StatusRef SlipstreamBuff = new(2706, "Slipstream");
     public static readonly StatusRef IfritsFavor = new(2724, "Ifrits Favor");
     public static readonly StatusRef GarudasFavor = new(2725, "Garudas Favor");
@@ -112,6 +113,21 @@ public static class SummonerActions
     public static readonly StatusRef SurecastBuff = new(160, "Surecast");
     public static readonly StatusRef LucidDreamingBuff = new(1204, "Lucid Dreaming");
     public static readonly StatusRef SwiftcastBuff = new(167, "Swiftcast");
+    public static readonly StatusRef FurtherRuinPvP = new(4399, "Further Ru in Pv P");
+    public static readonly StatusRef CrimsonStrikeReadyPvP = new(4400, "Crimson Strike Ready Pv P");
+    public static readonly StatusRef CometEquippedPvP = new(4492, "Comet Equipped Pv P");
+    public static readonly StatusRef PhantomDartEquippedPvP = new(4516, "Phantom Dart Equipped Pv P");
+    public static readonly StatusRef RustEquippedPvP = new(4494, "Rust Equipped Pv P");
+    public static readonly StatusRef GuardPvP = new(3054, "Guard Pv P");
+    public static readonly StatusRef SprintPvP = new(1342, "Sprint Pv P");
+    public static readonly StatusRef SilencePvP = new(1347, "Silence Pv P");
+    public static readonly StatusRef BindPvP = new(1345, "Bind Pv P");
+    public static readonly StatusRef StunPvP = new(1343, "Stun Pv P");
+    public static readonly StatusRef HalfAsleepPvP = new(3022, "Half Asleep Pv P");
+    public static readonly StatusRef SleepPvP = new(1348, "Sleep Pv P");
+    public static readonly StatusRef DeepFreezePvP = new(3219, "Deep Freeze Pv P");
+    public static readonly StatusRef HeavyPvP = new(1344, "Heavy Pv P");
+    public static readonly StatusRef UnguardedPvP = new(3021, "Unguarded Pv P");
 
     public static readonly IReadOnlyList<ActionRef> All =
     [
@@ -140,9 +156,13 @@ public static class SummonerActions
     public static readonly IReadOnlyList<StatusRef> AllStatuses =
     [
         SleepBuff, FurtherRuin, SearingLightBuff, TitansFavor,
-        RekindleBuff, SlipstreamBuff, IfritsFavor, GarudasFavor,
-        RubysGlimmer, RefulgentLux, CrimsonStrikeReady, DreadwyrmTranceBuff,
-        FirebirdTrance, AddleBuff, SurecastBuff, LucidDreamingBuff,
-        SwiftcastBuff,
+        RekindleBuff, RadiantAegisBuff, SlipstreamBuff, IfritsFavor,
+        GarudasFavor, RubysGlimmer, RefulgentLux, CrimsonStrikeReady,
+        DreadwyrmTranceBuff, FirebirdTrance, AddleBuff, SurecastBuff,
+        LucidDreamingBuff, SwiftcastBuff, FurtherRuinPvP, CrimsonStrikeReadyPvP,
+        CometEquippedPvP, PhantomDartEquippedPvP, RustEquippedPvP, GuardPvP,
+        SprintPvP, SilencePvP, BindPvP, StunPvP,
+        HalfAsleepPvP, SleepPvP, DeepFreezePvP, HeavyPvP,
+        UnguardedPvP,
     ];
 }

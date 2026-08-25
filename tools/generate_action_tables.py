@@ -36,7 +36,9 @@ JOBS = [
 
 MELEE = {"Monk", "Dragoon", "Ninja", "Samurai", "Reaper", "Viper"}
 
-ENTRY = re.compile(r"^\s*(\w+)\s*=\s*(\d+)\s*,\s*//\s*(.*)$")
+# The trailing comment is optional: BossMod annotates actions but usually not statuses,
+# and requiring it silently dropped most of several jobs' status tables.
+ENTRY = re.compile(r"^\s*(\w+)\s*=\s*(\d+)\s*,(?:\s*//\s*(.*))?\s*$")
 SHARED = re.compile(r"^\s*(\w+)\s*=\s*ClassShared\.(?:AID|SID)\.(\w+)\s*,")
 LEVEL = re.compile(r"\bL(\d+)\b")
 ROMAN = {"1": "", "2": " II", "3": " III", "4": " IV", "5": " V"}
@@ -65,7 +67,13 @@ def display_name(identifier):
         suffix = ROMAN[identifier[-1]]
         identifier = identifier[:-1]
 
-    words = re.findall(r"[A-Z][a-z0-9]*|[A-Z]+(?![a-z])", identifier)
+    # BossMod writes lowercase connectors inline - "ShadowofDeath", "CircleofSacrifice" -
+    # and a plain CamelCase split glues them onto the previous word. Verification still
+    # passes (normalisation strips spaces), but the HUD would read "Shadowof Death", and
+    # the HUD being legible at a glance is the whole point of it.
+    identifier = re.sub(r"(?<=[a-z])(of|the|and|in|to|for|from)(?=[A-Z])", r"_\1_", identifier)
+
+    words = re.findall(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+", identifier)
     return " ".join(words) + suffix
 
 
@@ -84,7 +92,8 @@ def parse(path, shared_actions, shared_statuses):
         if not entry:
             continue
 
-        member, aid, comment = entry.group(1), int(entry.group(2)), entry.group(3)
+        member, aid, comment = entry.group(1), int(entry.group(2)), entry.group(3) or ""
+
 
         # Limit breaks have no level and are never part of a rotation.
         level = LEVEL.search(comment)
@@ -115,10 +124,11 @@ def parse_shared(path):
         entry = ENTRY.match(line)
         if not entry:
             continue
-        level = LEVEL.search(entry.group(3))
+        comment = entry.group(3) or ""
+        level = LEVEL.search(comment)
         if not level:
             continue
-        kind = "Gcd" if GCD_MARKER.search(entry.group(3)) else "OGcd"
+        kind = "Gcd" if GCD_MARKER.search(comment) else "OGcd"
         actions[entry.group(1)] = (int(entry.group(2)), int(level.group(1)), kind)
 
     for line in extract_enum(text, "SID"):

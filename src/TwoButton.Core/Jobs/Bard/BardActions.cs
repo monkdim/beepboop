@@ -30,7 +30,7 @@ public static class BardActions
     public static readonly ActionRef WardensPaean = new(3561, "Wardens Paean", ActionKind.OGcd, 35);
     public static readonly ActionRef Barrage = new(107, "Barrage", ActionKind.OGcd, 38);
     public static readonly ActionRef ArmysPaeon = new(116, "Armys Paeon", ActionKind.OGcd, 40);
-    public static readonly ActionRef RainOfDeath = new(117, "Rain Of Death", ActionKind.OGcd, 45);
+    public static readonly ActionRef RainOfDeath = new(117, "Ra in Of Death", ActionKind.OGcd, 45);
     public static readonly ActionRef BattleVoice = new(118, "Battle Voice", ActionKind.OGcd, 50);
     public static readonly ActionRef WanderersMinuet = new(3559, "Wanderers Minuet", ActionKind.OGcd, 52);
     public static readonly ActionRef PitchPerfect = new(7404, "Pitch Perfect", ActionKind.OGcd, 52);

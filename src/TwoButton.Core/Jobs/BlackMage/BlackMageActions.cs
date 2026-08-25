@@ -59,15 +59,16 @@ public static class BlackMageActions
 
     public static readonly StatusRef ManawardBuff = new(168, "Manaward");
     public static readonly StatusRef Thunder = new(161, "Thunder");
-    public static readonly StatusRef ThunderII = new(162, "Thunder I I");
-    public static readonly StatusRef ThunderIII = new(163, "Thunder I I I");
-    public static readonly StatusRef ThunderIV = new(1210, "Thunder I V");
+    public static readonly StatusRef ThunderII = new(162, "Thunder II");
+    public static readonly StatusRef ThunderIII = new(163, "Thunder III");
+    public static readonly StatusRef ThunderIV = new(1210, "Thunder IV");
     public static readonly StatusRef LeyLinesBuff = new(737, "Ley Lines");
     public static readonly StatusRef CircleOfPower = new(738, "Circle Of Power");
     public static readonly StatusRef TriplecastBuff = new(1211, "Triplecast");
     public static readonly StatusRef Firestarter = new(165, "Firestarter");
+    public static readonly StatusRef Thunderhead = new(3870, "Thunderhead");
     public static readonly StatusRef HighThunderBuff = new(3871, "High Thunder");
-    public static readonly StatusRef HighThunderII = new(3872, "High Thunder I I");
+    public static readonly StatusRef HighThunderII = new(3872, "High Thunder II");
     public static readonly StatusRef AddleBuff = new(1203, "Addle");
     public static readonly StatusRef SurecastBuff = new(160, "Surecast");
     public static readonly StatusRef LucidDreamingBuff = new(1204, "Lucid Dreaming");
@@ -91,7 +92,7 @@ public static class BlackMageActions
     [
         ManawardBuff, Thunder, ThunderII, ThunderIII,
         ThunderIV, LeyLinesBuff, CircleOfPower, TriplecastBuff,
-        Firestarter, HighThunderBuff, HighThunderII, AddleBuff,
-        SurecastBuff, LucidDreamingBuff, SwiftcastBuff,
+        Firestarter, Thunderhead, HighThunderBuff, HighThunderII,
+        AddleBuff, SurecastBuff, LucidDreamingBuff, SwiftcastBuff,
     ];
 }

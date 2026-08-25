@@ -35,13 +35,13 @@ public static class DancerActions
     public static readonly ActionRef Fountainfall = new(15992, "Fountainfall", ActionKind.Gcd, 40);
     public static readonly ActionRef Bloodshower = new(15996, "Bloodshower", ActionKind.Gcd, 45);
     public static readonly ActionRef EnAvant = new(16010, "En Avant", ActionKind.OGcd, 50);
-    public static readonly ActionRef FanDanceII = new(16008, "Fan Dance I I", ActionKind.OGcd, 50);
+    public static readonly ActionRef FanDanceII = new(16008, "Fan Dance II", ActionKind.OGcd, 50);
     public static readonly ActionRef CuringWaltz = new(16015, "Curing Waltz", ActionKind.OGcd, 52);
     public static readonly ActionRef ShieldSamba = new(16012, "Shield Samba", ActionKind.OGcd, 56);
     public static readonly ActionRef ClosedPosition = new(16006, "Closed Position", ActionKind.OGcd, 60);
     public static readonly ActionRef Ending = new(18073, "Ending", ActionKind.OGcd, 60);
     public static readonly ActionRef Devilment = new(16011, "Devilment", ActionKind.OGcd, 62);
-    public static readonly ActionRef FanDanceIII = new(16009, "Fan Dance I I I", ActionKind.OGcd, 66);
+    public static readonly ActionRef FanDanceIII = new(16009, "Fan Dance III", ActionKind.OGcd, 66);
     public static readonly ActionRef TechnicalStep = new(15998, "Technical Step", ActionKind.Gcd, 70);
     public static readonly ActionRef TechnicalFinish = new(16004, "Technical Finish", ActionKind.Gcd, 70);
     public static readonly ActionRef SingleTechnicalFinish = new(16193, "Single Technical Finish", ActionKind.Gcd, 70);
@@ -57,7 +57,7 @@ public static class DancerActions
     public static readonly ActionRef Improvisation = new(16014, "Improvisation", ActionKind.OGcd, 80);
     public static readonly ActionRef ImprovisedFinish = new(25789, "Improvised Finish", ActionKind.OGcd, 80);
     public static readonly ActionRef Tillana = new(25790, "Tillana", ActionKind.Gcd, 82);
-    public static readonly ActionRef FanDanceIV = new(25791, "Fan Dance I V", ActionKind.OGcd, 86);
+    public static readonly ActionRef FanDanceIV = new(25791, "Fan Dance IV", ActionKind.OGcd, 86);
     public static readonly ActionRef StarfallDance = new(25792, "Starfall Dance", ActionKind.Gcd, 90);
     public static readonly ActionRef LegGraze = new(7554, "Leg Graze", ActionKind.OGcd, 6);
     public static readonly ActionRef SecondWind = new(7541, "Second Wind", ActionKind.OGcd, 8);
@@ -89,6 +89,9 @@ public static class DancerActions
     public static readonly StatusRef SilkenFlow = new(2694, "Silken Flow");
     public static readonly StatusRef DancePartner = new(1824, "Dance Partner");
     public static readonly StatusRef ClosedPositionBuff = new(1823, "Closed Position");
+    public static readonly StatusRef LastDanceReady = new(3867, "Last Dance Ready");
+    public static readonly StatusRef FinishingMoveReady = new(3868, "Finishing Move Ready");
+    public static readonly StatusRef DanceOfTheDawnReady = new(3869, "Dance Of The Dawn Ready");
     public static readonly StatusRef PelotonBuff = new(1199, "Peloton");
 
     public static readonly IReadOnlyList<ActionRef> All =
@@ -114,6 +117,7 @@ public static class DancerActions
         StandardFinishBuff, StandardEsprit, StandardStepBuff, ImprovisationBuff,
         ImprovisedFinishBuff, ShieldSambaBuff, DevilmentBuff, FlourishingStarfall,
         FlourishingSymmetry, FlourishingFlow, ThreefoldFanDance, FourfoldFanDance,
-        SilkenFlow, DancePartner, ClosedPositionBuff, PelotonBuff,
+        SilkenFlow, DancePartner, ClosedPositionBuff, LastDanceReady,
+        FinishingMoveReady, DanceOfTheDawnReady, PelotonBuff,
     ];
 }

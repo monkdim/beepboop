@@ -24,8 +24,8 @@ public static class RedMageActions
     public static readonly ActionRef CorpsACorps = new(7506, "Corps A Corps", ActionKind.OGcd, 6);
     public static readonly ActionRef Veraero = new(7507, "Veraero", ActionKind.Gcd, 10);
     public static readonly ActionRef Scatter = new(7509, "Scatter", ActionKind.Gcd, 15);
-    public static readonly ActionRef VerthunderII = new(16524, "Verthunder I I", ActionKind.Gcd, 18);
-    public static readonly ActionRef VeraeroII = new(16525, "Veraero I I", ActionKind.Gcd, 22);
+    public static readonly ActionRef VerthunderII = new(16524, "Verthunder II", ActionKind.Gcd, 18);
+    public static readonly ActionRef VeraeroII = new(16525, "Veraero II", ActionKind.Gcd, 22);
     public static readonly ActionRef Verfire = new(7510, "Verfire", ActionKind.Gcd, 26);
     public static readonly ActionRef Verstone = new(7511, "Verstone", ActionKind.Gcd, 30);
     public static readonly ActionRef Zwerchhau = new(7512, "Zwerchhau", ActionKind.Gcd, 35);
@@ -44,7 +44,7 @@ public static class RedMageActions
     public static readonly ActionRef ContreSixte = new(7519, "Contre Sixte", ActionKind.OGcd, 56);
     public static readonly ActionRef Embolden = new(7520, "Embolden", ActionKind.OGcd, 58);
     public static readonly ActionRef Manafication = new(7521, "Manafication", ActionKind.OGcd, 60);
-    public static readonly ActionRef JoltII = new(7524, "Jolt I I", ActionKind.Gcd, 62);
+    public static readonly ActionRef JoltII = new(7524, "Jolt II", ActionKind.Gcd, 62);
     public static readonly ActionRef Verraise = new(7523, "Verraise", ActionKind.Gcd, 64);
     public static readonly ActionRef Impact = new(16526, "Impact", ActionKind.Gcd, 66);
     public static readonly ActionRef Verflare = new(7525, "Verflare", ActionKind.Gcd, 68);
@@ -52,13 +52,13 @@ public static class RedMageActions
     public static readonly ActionRef Reprise = new(16529, "Reprise", ActionKind.Gcd, 76);
     public static readonly ActionRef EnchantedReprise = new(16528, "Enchanted Reprise", ActionKind.Gcd, 76);
     public static readonly ActionRef Scorch = new(16530, "Scorch", ActionKind.Gcd, 80);
-    public static readonly ActionRef VerthunderIII = new(25855, "Verthunder I I I", ActionKind.Gcd, 82);
-    public static readonly ActionRef VeraeroIII = new(25856, "Veraero I I I", ActionKind.Gcd, 82);
-    public static readonly ActionRef JoltIII = new(37004, "Jolt I I I", ActionKind.Gcd, 84);
+    public static readonly ActionRef VerthunderIII = new(25855, "Verthunder III", ActionKind.Gcd, 82);
+    public static readonly ActionRef VeraeroIII = new(25856, "Veraero III", ActionKind.Gcd, 82);
+    public static readonly ActionRef JoltIII = new(37004, "Jolt III", ActionKind.Gcd, 84);
     public static readonly ActionRef MagickBarrier = new(25857, "Magick Barrier", ActionKind.OGcd, 86);
     public static readonly ActionRef Resolution = new(25858, "Resolution", ActionKind.Gcd, 90);
     public static readonly ActionRef ViceOfThorns = new(37005, "Vice Of Thorns", ActionKind.OGcd, 92);
-    public static readonly ActionRef GrandImpact = new(37006, "Grand Impact", ActionKind.Gcd, 96);
+    public static readonly ActionRef GrandImpact = new(37006, "Gr and Impact", ActionKind.Gcd, 96);
     public static readonly ActionRef Prefulgence = new(37007, "Prefulgence", ActionKind.OGcd, 100);
     public static readonly ActionRef Addle = new(7560, "Addle", ActionKind.OGcd, 8);
     public static readonly ActionRef Sleep = new(25880, "Sleep", ActionKind.Gcd, 10);
@@ -66,6 +66,17 @@ public static class RedMageActions
     public static readonly ActionRef Swiftcast = new(7561, "Swiftcast", ActionKind.OGcd, 18);
     public static readonly ActionRef Surecast = new(7559, "Surecast", ActionKind.OGcd, 44);
 
+    public static readonly StatusRef VerfireReady = new(1234, "Verfire Ready");
+    public static readonly StatusRef VerstoneReady = new(1235, "Verstone Ready");
+    public static readonly StatusRef AccelerationBuff = new(1238, "Acceleration");
+    public static readonly StatusRef EmboldenSelf = new(1239, "Embolden Self");
+    public static readonly StatusRef Dualcast = new(1249, "Dualcast");
+    public static readonly StatusRef EmboldenBuff = new(1297, "Embolden");
+    public static readonly StatusRef ManaficationBuff = new(1971, "Manafication");
+    public static readonly StatusRef MagickedSwordplay = new(3875, "Magicked Swordplay");
+    public static readonly StatusRef ThornedFlourish = new(3876, "Thorned Flourish");
+    public static readonly StatusRef GrandImpactReady = new(3877, "Gr and Impact Ready");
+    public static readonly StatusRef PrefulgenceReady = new(3878, "Prefulgence Ready");
     public static readonly StatusRef AddleBuff = new(1203, "Addle");
     public static readonly StatusRef SurecastBuff = new(160, "Surecast");
     public static readonly StatusRef LucidDreamingBuff = new(1204, "Lucid Dreaming");
@@ -89,6 +100,9 @@ public static class RedMageActions
 
     public static readonly IReadOnlyList<StatusRef> AllStatuses =
     [
-        AddleBuff, SurecastBuff, LucidDreamingBuff, SwiftcastBuff,
+        VerfireReady, VerstoneReady, AccelerationBuff, EmboldenSelf,
+        Dualcast, EmboldenBuff, ManaficationBuff, MagickedSwordplay,
+        ThornedFlourish, GrandImpactReady, PrefulgenceReady, AddleBuff,
+        SurecastBuff, LucidDreamingBuff, SwiftcastBuff,
     ];
 }

@@ -19,13 +19,13 @@ public static class ReaperActions
 {
     public static readonly ActionRef Slice = new(24373, "Slice", ActionKind.Gcd, 1);
     public static readonly ActionRef WaxingSlice = new(24374, "Waxing Slice", ActionKind.Gcd, 5);
-    public static readonly ActionRef ShadowofDeath = new(24378, "Shadowof Death", ActionKind.Gcd, 10);
+    public static readonly ActionRef ShadowofDeath = new(24378, "Shadow of Death", ActionKind.Gcd, 10);
     public static readonly ActionRef Harpe = new(24386, "Harpe", ActionKind.Gcd, 15);
     public static readonly ActionRef HellsEgress = new(24402, "Hells Egress", ActionKind.OGcd, 20);
     public static readonly ActionRef HellsIngress = new(24401, "Hells Ingress", ActionKind.OGcd, 20);
     public static readonly ActionRef SpinningScythe = new(24376, "Spinning Scythe", ActionKind.Gcd, 25);
     public static readonly ActionRef InfernalSlice = new(24375, "Infernal Slice", ActionKind.Gcd, 30);
-    public static readonly ActionRef WhorlofDeath = new(24379, "Whorlof Death", ActionKind.Gcd, 35);
+    public static readonly ActionRef WhorlofDeath = new(24379, "Whorl of Death", ActionKind.Gcd, 35);
     public static readonly ActionRef ArcaneCrest = new(24404, "Arcane Crest", ActionKind.OGcd, 40);
     public static readonly ActionRef NightmareScythe = new(24377, "Nightmare Scythe", ActionKind.Gcd, 45);
     public static readonly ActionRef BloodStalk = new(24389, "Blood Stalk", ActionKind.OGcd, 50);
@@ -62,6 +62,27 @@ public static class ReaperActions
     public static readonly ActionRef ArmsLength = new(7548, "Arms Length", ActionKind.OGcd, 32);
     public static readonly ActionRef TrueNorth = new(7546, "True North", ActionKind.OGcd, 50);
 
+    public static readonly StatusRef DeathsDesign = new(2586, "Deaths Design");
+    public static readonly StatusRef SoulReaver = new(2587, "Soul Reaver");
+    public static readonly StatusRef ImmortalSacrifice = new(2592, "Immortal Sacrifice");
+    public static readonly StatusRef ArcaneCircleBuff = new(2599, "Arcane Circle");
+    public static readonly StatusRef EnhancedGibbet = new(2588, "Enhanced Gibbet");
+    public static readonly StatusRef EnhancedGallows = new(2589, "Enhanced Gallows");
+    public static readonly StatusRef EnhancedVoidReaping = new(2590, "Enhanced Void Reaping");
+    public static readonly StatusRef EnhancedCrossReaping = new(2591, "Enhanced Cross Reaping");
+    public static readonly StatusRef EnhancedHarpe = new(2845, "Enhanced Harpe");
+    public static readonly StatusRef Enshrouded = new(2593, "Enshrouded");
+    public static readonly StatusRef SoulsowBuff = new(2594, "Soulsow");
+    public static readonly StatusRef Threshold = new(2595, "Threshold");
+    public static readonly StatusRef CircleofSacrifice = new(2600, "Circle of Sacrifice");
+    public static readonly StatusRef BloodsownCircle = new(2972, "Bloodsown Circle");
+    public static readonly StatusRef BloodbathBuff = new(84, "Bloodbath");
+    public static readonly StatusRef Stun = new(2, "Stun");
+    public static readonly StatusRef IdealHost = new(3905, "Ideal Host");
+    public static readonly StatusRef Oblatio = new(3857, "Oblatio");
+    public static readonly StatusRef Executioner = new(3858, "Executioner");
+    public static readonly StatusRef PerfectioOcculta = new(3859, "Perfectio Occulta");
+    public static readonly StatusRef PerfectioParata = new(3860, "Perfectio Parata");
     public static readonly StatusRef FeintBuff = new(1195, "Feint");
     public static readonly StatusRef TrueNorthBuff = new(1250, "True North");
 
@@ -82,6 +103,11 @@ public static class ReaperActions
 
     public static readonly IReadOnlyList<StatusRef> AllStatuses =
     [
-        FeintBuff, TrueNorthBuff,
+        DeathsDesign, SoulReaver, ImmortalSacrifice, ArcaneCircleBuff,
+        EnhancedGibbet, EnhancedGallows, EnhancedVoidReaping, EnhancedCrossReaping,
+        EnhancedHarpe, Enshrouded, SoulsowBuff, Threshold,
+        CircleofSacrifice, BloodsownCircle, BloodbathBuff, Stun,
+        IdealHost, Oblatio, Executioner, PerfectioOcculta,
+        PerfectioParata, FeintBuff, TrueNorthBuff,
     ];
 }
