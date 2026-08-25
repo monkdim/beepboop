@@ -1,57 +1,113 @@
+using Dalamud.Hooking;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using OneTwoPunch.Core.Jobs;
 
 namespace OneTwoPunch.Plugin.Services;
 
 /// <summary>
-/// Notices when one of the job's actions actually goes off, so the engine's weave budget
-/// and opener stay in step with what the player really pressed.
+/// Notices when the player actually uses an action, so the engine's weave budget and opener
+/// stay in step with what was really pressed.
 /// <para>
-/// This watches cooldowns rather than hooking UseAction. A hook would be more direct, but
-/// its signature moves with every patch, and a broken hook here would break the plugin. A
-/// cooldown that was zero last frame and is not zero now is a use, and that is true in
-/// every patch.
+/// This used to watch cooldowns instead of hooking: a recast that was zero last frame and
+/// is not zero now looked like a use, and needed no signature. It was wrong, and badly.
+/// Every global cooldown shares one recast timer, so casting a single global made all of
+/// them jump at once and the watcher reported the entire job's action list as used - fifty
+/// or more spurious uses per cast, each one advancing the opener and spending weave budget.
+/// A recorded pull showed twenty-six "casts" at a single timestamp.
+/// </para>
+/// <para>
+/// So it hooks UseAction, which is what BossMod does, through FFXIVClientStructs' own
+/// resolved address and generated delegate. The detour observes and never changes the
+/// outcome: the original is called first and its answer returned untouched, so this cannot
+/// affect what the game does with a press.
 /// </para>
 /// </summary>
-public sealed unsafe class ActionUseWatcher
+public sealed unsafe class ActionUseWatcher : IDisposable
 {
-    private readonly Dictionary<uint, float> _lastRemaining = [];
-    private readonly List<uint> _tracked = [];
+    private readonly IPluginLog _log;
+    private Hook<ActionManager.Delegates.UseAction>? _hook;
+    private bool _unavailable;
+
+    public ActionUseWatcher(IPluginLog log) => _log = log;
 
     public event Action<uint>? ActionUsed;
 
-    public void Track(IJobRotation job)
+    /// <summary>Installs the hook. Safe to call repeatedly; returns false if unavailable.</summary>
+    public bool Enable(IGameInteropProvider interop)
     {
-        _tracked.Clear();
-        _lastRemaining.Clear();
+        if (_unavailable)
+            return false;
 
-        foreach (var action in job.AllActions)
-            _tracked.Add(action.Id);
-    }
-
-    public void Tick()
-    {
-        var manager = ActionManager.Instance();
-        if (manager is null)
-            return;
-
-        foreach (var actionId in _tracked)
+        try
         {
-            var recast = manager->GetRecastTime(ActionType.Action, actionId);
-            var elapsed = manager->GetRecastTimeElapsed(ActionType.Action, actionId);
-            var remaining = Math.Max(0f, recast - elapsed);
-
-            if (_lastRemaining.TryGetValue(actionId, out var previous))
+            if (_hook is null)
             {
-                // A cooldown that jumped up is a use. The threshold keeps a recast that was
-                // simply ticking from registering.
-                if (remaining > previous + 0.05f)
-                    ActionUsed?.Invoke(actionId);
+                var address = ActionManager.Addresses.UseAction.Value;
+                if (address == 0)
+                    return false;
+
+                _hook = interop.HookFromAddress<ActionManager.Delegates.UseAction>(address, Detour);
             }
 
-            _lastRemaining[actionId] = remaining;
+            if (!_hook.IsEnabled)
+                _hook.Enable();
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _unavailable = true;
+            _log.Error(ex, "One Two Punch: could not hook UseAction; opener and weave tracking are off.");
+            return false;
         }
     }
 
-    public void Reset() => _lastRemaining.Clear();
+    public void Disable() => _hook?.Disable();
+
+    private bool Detour(
+        ActionManager* self,
+        ActionType actionType,
+        uint actionId,
+        ulong targetId,
+        uint extraParam,
+        ActionManager.UseActionMode mode,
+        uint comboRouteId,
+        bool* outOptAreaTargeted)
+    {
+        var used = _hook!.Original(
+            self, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
+
+        // Only a press the game actually accepted, and only a real action - not an item,
+        // not a mount. A rejected press must not advance the opener.
+        if (used && actionType == ActionType.Action)
+        {
+            try
+            {
+                ActionUsed?.Invoke(actionId);
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex, "One Two Punch: handling a use failed");
+            }
+        }
+
+        return used;
+    }
+
+    /// <summary>Kept for the job switch, which has no per-action state to forget any more.</summary>
+    public void Track(IJobRotation job)
+    {
+    }
+
+    public void Reset()
+    {
+    }
+
+    public void Dispose()
+    {
+        _hook?.Disable();
+        _hook?.Dispose();
+        _hook = null;
+    }
 }

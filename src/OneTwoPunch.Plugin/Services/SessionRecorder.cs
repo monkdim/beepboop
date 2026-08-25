@@ -41,7 +41,7 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Notes an action the player actually used, beside what was being suggested.</summary>
-    public void Cast(double now, string cast, uint castId, string? suggested, string? note)
+    public void Cast(double now, string cast, uint castId, string? suggested, string? note, string? state = null)
     {
         if (!IsRecording)
             return;
@@ -68,6 +68,12 @@ public sealed class SessionRecorder
             _line.Append("   (").Append(note).Append(')');
 
         _lines.Add(_line.ToString());
+
+        // The state the rules were reading. Without it a disagreement only says the engine
+        // chose differently, not what it was looking at when it did - and a condition that
+        // is never true is invisible from the choices alone.
+        if (!string.IsNullOrEmpty(state))
+            _lines.Add("             " + state);
     }
 
     public void Note(double now, string text)

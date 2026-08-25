@@ -43,7 +43,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly MovementTracker _movement = new();
     private readonly ActionStateAdapter _actionState = new();
-    private readonly ActionUseWatcher _useWatcher = new();
+    // Assigned in the constructor, not here: a field initialiser runs before the
+    // constructor body, so before Create<Svc>() has injected anything - Log would be null.
+    private readonly ActionUseWatcher _useWatcher;
     private readonly GameStateProvider _state;
     private readonly LuminaGameData _gameData;
     private readonly PotionTracker _potions;
@@ -124,6 +126,7 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.Create<Svc>();
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        _useWatcher = new ActionUseWatcher(Log);
         _gameData = new LuminaGameData(Data);
         _potions = new PotionTracker(Data);
 
@@ -252,8 +255,7 @@ public sealed class Plugin : IDalamudPlugin
             SwitchJob(jobId);
         }
 
-        if (_session is not null)
-            _useWatcher.Tick();
+        // Nothing to poll: uses arrive from the UseAction hook.
     }
 
     /// <summary>
@@ -346,6 +348,9 @@ public sealed class Plugin : IDalamudPlugin
         if (!_replacer.Enable())
             return false;
 
+        // Opener progress and the weave budget both depend on knowing what was pressed.
+        _useWatcher.Enable(Interop);
+
         _active = true;
 
         if (!_saidHello)
@@ -361,6 +366,7 @@ public sealed class Plugin : IDalamudPlugin
     private void Deactivate()
     {
         _replacer.Disable();
+        _useWatcher.Disable();
         _active = false;
 
         _currentJobId = 0;
@@ -501,7 +507,52 @@ public sealed class Plugin : IDalamudPlugin
             _gameData.GetActionName(actionId) ?? $"action {actionId}",
             actionId,
             suggestion?.Action.Name,
-            suggestion?.Note);
+            suggestion?.Note,
+            DescribeState());
+    }
+
+    /// <summary>
+    /// A one-line picture of what the rules could see. Buffs and debuffs by name, because
+    /// "why did it never suggest Thunder" is answered by whether Thunderhead was up, and
+    /// that is invisible in a list of choices.
+    /// </summary>
+    private string DescribeState()
+    {
+        var s = _frameSnapshot;
+        if (s is null)
+            return "no snapshot";
+
+        var text = new System.Text.StringBuilder();
+        text.Append($"mp {s.Mp} | gcd {s.GcdRemaining:0.0}s");
+
+        if (s.SelfStatuses.Count > 0)
+        {
+            text.Append(" | on you: ");
+            AppendStatuses(text, s.SelfStatuses, self: true);
+        }
+
+        if (s.TargetStatuses.Count > 0)
+        {
+            text.Append(" | on target: ");
+            AppendStatuses(text, s.TargetStatuses, self: false);
+        }
+
+        return text.ToString();
+    }
+
+    private void AppendStatuses(System.Text.StringBuilder text, IReadOnlyList<StatusEntry> list, bool self)
+    {
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (i > 0)
+                text.Append(", ");
+
+            var name = _gameData.GetStatusName(list[i].Id);
+            text.Append(string.IsNullOrEmpty(name) ? $"#{list[i].Id}" : name);
+
+            if (!float.IsPositiveInfinity(list[i].Remaining))
+                text.Append($" {list[i].Remaining:0}s");
+        }
     }
 
     // ---- The two buttons -------------------------------------------------
@@ -681,6 +732,7 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.ActionUsed -= OnActionUsed;
 
         _replacer.Dispose();
+        _useWatcher.Dispose();
         _windows.RemoveAllWindows();
     }
 }
