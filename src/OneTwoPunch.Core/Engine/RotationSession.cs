@@ -300,6 +300,34 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return null;
         }
 
+        // An off-global whose own cooldown is still turning is not the world diverging from
+        // the script - it is a cooldown that was already running when the pull started,
+        // which on a striking dummy is most of them. Two recorded pulls died here: Dragoon
+        // lost the whole opener at step three because Lance Charge was still down from the
+        // previous attempt, and Black Mage the same at step four over Amplifier. Twenty-one
+        // scripted steps thrown away for one missing weave.
+        //
+        // So skip it and carry on. The globals are the backbone of an opener, and the
+        // priority list will weave the ability the moment it comes back. A step that is
+        // merely not usable this instant - a proc that has not landed, a window that has
+        // not opened - is still waited for; only a real cooldown is stepped over.
+        while (_openerStep < opener.Steps.Count)
+        {
+            var candidate = opener.Steps[_openerStep];
+
+            if (candidate.Kind != ActionKind.OGcd
+                || context.Ready(candidate)
+                || context.Cd(candidate) <= context.GcdTotal)
+            {
+                break;
+            }
+
+            _openerStep++;
+        }
+
+        if (_openerStep >= opener.Steps.Count)
+            return null;
+
         var step = opener.Steps[_openerStep];
 
         // Out of combat nothing is rolling, so an off-global cannot clip a global and the
@@ -378,11 +406,27 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (opener is null || _openerAborted || _openerStep >= opener.Steps.Count)
             return;
 
-        if (opener.Steps[_openerStep].Id == actionId)
+        // Weaves are not strictly ordered in practice: an opener chart draws two off-globals
+        // in one window, and which goes first inside that window does not matter. Nor does
+        // pressing the next global while an off-global step is still waiting for a slot.
+        // Neither is going off script, so look ahead as far as the next global and accept a
+        // match anywhere in between - the steps stepped over are weaves that will not
+        // happen, and the priority list picks those up.
+        for (var i = _openerStep; i < opener.Steps.Count; i++)
         {
-            _openerStep++;
+            if (opener.Steps[i].Id == actionId)
+            {
+                _openerStep = i + 1;
+                return;
+            }
+
+            // Past the first global that is not the one used, this really is a different
+            // rotation and the opener has no business driving it.
+            if (opener.Steps[i].Kind == ActionKind.Gcd)
+                break;
         }
-        else if (_wasInCombat)
+
+        if (_wasInCombat)
         {
             _openerAborted = true;
         }

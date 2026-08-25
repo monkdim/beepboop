@@ -41,15 +41,25 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Notes an action the player actually used, beside what was being suggested.</summary>
-    public void Cast(double now, string cast, uint castId, string? suggested, string? note, string? state = null)
+    public void Cast(
+        double now,
+        string cast,
+        uint castId,
+        string? suggested,
+        uint suggestedId,
+        string? note,
+        string? state = null)
     {
         if (!IsRecording)
             return;
 
         _casts++;
 
-        var agreed = suggested is not null
-            && string.Equals(cast, suggested, StringComparison.OrdinalIgnoreCase);
+        // By id, not by name. The two names come from different places - the cast's from
+        // the game's sheet, the suggestion's from our own table - and the game writes
+        // "Heavens' Thrust" where the table says "Heavens Thrust". Comparing the strings
+        // reported three disagreements in a clean Dragoon pull that were the same action.
+        var agreed = suggested is not null && castId == suggestedId;
 
         if (agreed)
             _followed++;
