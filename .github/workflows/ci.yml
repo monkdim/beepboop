@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       # TwoButton.Core has no Dalamud dependency on purpose, so the rotation logic is
       # testable without the game. This is where the rotations are actually verified.
@@ -29,12 +29,18 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Fetch Dalamud dev libraries
         run: |
           Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
           Expand-Archive -Path dalamud.zip -DestinationPath dalamud -Force
+        shell: pwsh
+
+      # Which assemblies Dalamud ships moves between versions (ImGui.NET became
+      # Dalamud.Bindings.ImGui, for one). Print them so a build failure names the cause.
+      - name: List Dalamud assemblies
+        run: Get-ChildItem dalamud -Filter *.dll | Select-Object -ExpandProperty Name | Sort-Object
         shell: pwsh
 
       - name: Build

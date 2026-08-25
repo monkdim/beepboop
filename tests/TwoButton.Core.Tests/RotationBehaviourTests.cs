@@ -11,7 +11,8 @@ namespace TwoButton.Core.Tests;
 
 public sealed class RotationBehaviourTests
 {
-    private static RotationSettings NoOpener() => new() { UseOpener = false };
+    private static RotationSettings NoOpener() =>
+        new() { UseOpener = false, SuggestionHoldSeconds = 0f };
 
     private static RotationSession DragoonSession(RotationSettings? settings = null) =>
         new(JobRotationBase.Create<DragoonRotation>(), settings ?? NoOpener());

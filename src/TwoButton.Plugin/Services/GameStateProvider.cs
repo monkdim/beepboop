@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -136,7 +137,7 @@ public sealed unsafe class GameStateProvider(
                     continue;
 
                 // Only our own debuffs. Another Dragoon's dot must never suppress ours.
-                if (status.SourceId != player.GameObjectId)
+                if (status.SourceId != player.EntityId)
                     continue;
 
                 _target.Add(new StatusEntry(
