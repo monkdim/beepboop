@@ -150,8 +150,20 @@ jobs:
 
           $manifest | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $manifest | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
-          $icon = "https://raw.githubusercontent.com/${{ github.repository }}/main/assets/icon.png"
-          $manifest | Add-Member -NotePropertyName IconUrl -NotePropertyValue $icon -Force
+          # No icon, deliberately.
+          #
+          # Installing this plugin freezes the game, and it does so even in a build that
+          # runs no code at all - no hook, no frame work, nothing but two command handlers.
+          # So whatever is happening happens before any of this plugin's code exists, which
+          # leaves what the installer itself does with the listing.
+          #
+          # The icon is the one field that separates this listing from HealAssist's, which
+          # installs on the same machine without trouble and carries an empty IconUrl. It is
+          # also the only change that lines up with when the freezing started: the rename
+          # commit that added the icon was the first build that ever installed at all, every
+          # earlier one having been hidden by the API level bug. Correlation is not proof,
+          # but it is the last untested difference and it costs nothing to remove.
+          $manifest | Add-Member -NotePropertyName IconUrl -NotePropertyValue "" -Force
           $manifest | Add-Member -NotePropertyName RepoUrl -NotePropertyValue $repo -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $raw -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $raw -Force
@@ -231,7 +243,7 @@ jobs:
           }
           if ($listing.IsHide -eq $true) { $problems += "IsHide is true - the installer would not show it" }
 
-          foreach ($field in 'DownloadLinkInstall','DownloadLinkUpdate','IconUrl') {
+          foreach ($field in 'DownloadLinkInstall','DownloadLinkUpdate') {
             if (-not $listing.$field) { $problems += "$field is empty" }
           }
 
