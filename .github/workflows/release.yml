@@ -32,9 +32,16 @@ jobs:
           Expand-Archive -Path dalamud.zip -DestinationPath dalamud -Force
         shell: pwsh
 
+      # Dalamud.NET.Sdk resolves its reference assemblies from the XIVLauncher hooks path
+      # by default, which is where they live on a real install.
+      - name: Stage Dalamud where the SDK looks for it
+        shell: pwsh
+        run: |
+          $hooks = "$env:AppData\XIVLauncher\addon\Hooks\dev"
+          New-Item -ItemType Directory -Force -Path $hooks | Out-Null
+          Copy-Item dalamud/* $hooks -Recurse -Force
+
       - name: Build
-        env:
-          DALAMUD_HOME: ${{ github.workspace }}/dalamud
         run: dotnet build src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj -c Release
 
       # DalamudPackager fills in AssemblyVersion; the API level is overridden below with

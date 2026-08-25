@@ -39,6 +39,9 @@ public sealed unsafe class ActionReplacer : IDisposable
     /// <summary>Set when hooking has failed, so it is attempted once and not every frame.</summary>
     private bool _unavailable;
 
+    /// <summary>Set once the "not resolved yet" warning has been written.</summary>
+    private bool _warnedUnresolved;
+
     public ActionReplacer(
         IGameInteropProvider interop,
         IPluginLog log,
@@ -75,7 +78,15 @@ public sealed unsafe class ActionReplacer : IDisposable
                 var address = (nint)ActionManager.MemberFunctionPointers.GetAdjustedActionId;
                 if (address == 0)
                 {
-                    _log.Warning("One Two Punch: GetAdjustedActionId is not resolved yet; will retry.");
+                    // Enable() is retried every frame until it succeeds, so this must not
+                    // log every frame: a line per frame is a write to the log file sixty
+                    // times a second, which costs far more than the thing it is reporting.
+                    if (!_warnedUnresolved)
+                    {
+                        _warnedUnresolved = true;
+                        _log.Warning("One Two Punch: GetAdjustedActionId is not resolved yet; will retry quietly.");
+                    }
+
                     return false;
                 }
 
