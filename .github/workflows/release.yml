@@ -59,19 +59,6 @@ jobs:
           ConvertTo-Json @($manifest) -Depth 10 | Set-Content pluginmaster.json -Encoding utf8
           Get-Content pluginmaster.json
 
-      - name: Commit pluginmaster.json
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pluginmaster.json
-          if (git diff --cached --quiet) {
-            Write-Host "pluginmaster.json unchanged"
-          } else {
-            git commit -m "Update pluginmaster.json"
-            git push origin HEAD:${{ github.event.repository.default_branch }}
-          }
-
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
