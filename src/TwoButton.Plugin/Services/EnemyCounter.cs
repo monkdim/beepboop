@@ -28,12 +28,12 @@ public static class EnemyCounter
             if (obj is not IBattleNpc npc)
                 continue;
 
-            if (!npc.IsTargetable || npc.CurrentHp == 0)
+            if (!npc.IsTargetable || npc.IsDead || npc.CurrentHp == 0)
                 continue;
 
-            // Only things actually fighting us. Otherwise a passive mob standing nearby
-            // would flip the button to AoE mid-pull.
-            if (npc.BattleNpcKind != BattleNpcSubKind.Enemy)
+            // Combatant is the sub-kind for actual enemies. Without this a pet or a
+            // friendly battle NPC standing nearby would flip the button to AoE.
+            if (npc.BattleNpcKind != BattleNpcSubKind.Combatant)
                 continue;
 
             var dx = npc.Position.X - target.Position.X;

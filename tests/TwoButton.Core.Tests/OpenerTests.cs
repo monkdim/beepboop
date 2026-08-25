@@ -14,7 +14,8 @@ namespace TwoButton.Core.Tests;
 public sealed class OpenerTests
 {
     private static RotationSession Session() =>
-        new(JobRotationBase.Create<DragoonRotation>(), new RotationSettings());
+        new(JobRotationBase.Create<DragoonRotation>(),
+            new RotationSettings { SuggestionHoldSeconds = 0f });
 
     private static SnapshotBuilder AtPull() =>
         new SnapshotBuilder().Gcd(0.1f).NoCombo().Gauge(s => s.CombatDuration = 0.5f);

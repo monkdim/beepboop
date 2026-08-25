@@ -2,7 +2,7 @@ using System.Numerics;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using TwoButton.Core.Jobs;
 using TwoButton.Core.Model;
 using TwoButton.Plugin.Services;
@@ -50,9 +50,39 @@ public sealed class PreviewWindow(
         var current = suggestions();
         var size = 48f * config.PreviewScale;
 
-        DrawRow("Single target", current.GetValueOrDefault(RotationMode.SingleTarget), size);
+        var single = current.GetValueOrDefault(RotationMode.SingleTarget);
+        var aoe = current.GetValueOrDefault(RotationMode.Aoe);
+
+        // Deliberately at the top and loud: the potion window is short, and it is the one
+        // press the plugin cannot put on the button for you.
+        if (config.ShowPotionPrompt && (single?.PotionPrompt == true || aoe?.PotionPrompt == true))
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.85f, 0.3f, 1f));
+            ImGui.SetWindowFontScale(1.4f * config.PreviewScale);
+            ImGui.TextUnformatted("POTION NOW");
+            ImGui.SetWindowFontScale(1f);
+            ImGui.PopStyleColor();
+            ImGui.Separator();
+        }
+
+        DrawRow("Single target", single, size);
         ImGui.Spacing();
-        DrawRow("AoE", current.GetValueOrDefault(RotationMode.Aoe), size);
+        DrawRow("AoE", aoe, size);
+
+        var rotation = job();
+        if (rotation is null)
+            return;
+
+        for (var i = 0; i < rotation.ExtraButtons.Count; i++)
+        {
+            var mode = i == 0 ? RotationMode.Extra1 : RotationMode.Extra2;
+            var suggestion = current.GetValueOrDefault(mode);
+            if (suggestion is null)
+                continue;
+
+            ImGui.Spacing();
+            DrawRow(rotation.ExtraButtons[i].Name, suggestion, size);
+        }
     }
 
     private void DrawRow(string label, Suggestion? suggestion, float size)
@@ -111,6 +141,6 @@ public sealed class PreviewWindow(
             return;
         }
 
-        ImGui.Image(texture.ImGuiHandle, new Vector2(size, size));
+        ImGui.Image(texture.Handle, new Vector2(size, size));
     }
 }

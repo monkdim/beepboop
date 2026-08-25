@@ -1,5 +1,5 @@
 using System.Numerics;
-using Dalamud.Plugin.Services;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace TwoButton.Plugin.Services;
 
@@ -36,9 +36,8 @@ public sealed class MovementTracker
         _sinceLastMovement = 0f;
     }
 
-    public void Update(IClientState clientState, float deltaSeconds)
+    public void Update(IPlayerCharacter? player, float deltaSeconds)
     {
-        var player = clientState.LocalPlayer;
         if (player is null)
         {
             Reset();

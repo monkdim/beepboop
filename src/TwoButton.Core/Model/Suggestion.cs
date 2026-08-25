@@ -23,6 +23,18 @@ public sealed class Suggestion(
 
     public PositionalHint Positional { get; } = positional;
 
+    /// <summary>
+    /// True when now is the moment to pop your potion.
+    /// <para>
+    /// A potion is an item, not an action, so it cannot be reached through the action hook
+    /// this plugin is built on - and pressing it for you would make this an automation
+    /// plugin. So the engine does the next best thing and tells you the exact weave window,
+    /// having already confirmed the potion is off cooldown and that it fits without
+    /// clipping. Bind it to one spare key; it is one press every few minutes.
+    /// </para>
+    /// </summary>
+    public bool PotionPrompt { get; set; }
+
     public ActionKind Kind => Action.Kind;
 
     public override string ToString() =>

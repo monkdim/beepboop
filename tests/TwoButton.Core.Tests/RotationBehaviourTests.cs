@@ -11,7 +11,8 @@ namespace TwoButton.Core.Tests;
 
 public sealed class RotationBehaviourTests
 {
-    private static RotationSettings NoOpener() => new() { UseOpener = false };
+    private static RotationSettings NoOpener() =>
+        new() { UseOpener = false, SuggestionHoldSeconds = 0f };
 
     private static RotationSession DragoonSession(RotationSettings? settings = null) =>
         new(JobRotationBase.Create<DragoonRotation>(), settings ?? NoOpener());
@@ -41,7 +42,7 @@ public sealed class RotationBehaviourTests
         builder = step switch
         {
             0u => builder.NoCombo(),
-            1u => builder.Combo(Drg.TrueThrust).Buff(Drg.PowerSurge, 25f).Debuff(Drg.ChaoticSpringDot, 25f),
+            1u => builder.Combo(Drg.TrueThrust).Buff(Drg.PowerSurge, 25f).Debuff(Drg.ChaoticSpringBuff, 25f),
             _ => builder.Combo(Drg.LanceBarrage),
         };
 
@@ -58,7 +59,7 @@ public sealed class RotationBehaviourTests
             .Gcd(0.1f)
             .Combo(Drg.TrueThrust)
             .Buff(Drg.PowerSurge, 4f)
-            .Debuff(Drg.ChaoticSpringDot, 25f)
+            .Debuff(Drg.ChaoticSpringBuff, 25f)
             .Build();
 
         var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, new FakeActionState());
@@ -74,7 +75,7 @@ public sealed class RotationBehaviourTests
             .Gcd(0.1f)
             .Combo(Drg.TrueThrust)
             .Buff(Drg.PowerSurge, 25f)
-            .Debuff(Drg.ChaoticSpringDot, 25f)
+            .Debuff(Drg.ChaoticSpringBuff, 25f)
             .Build();
 
         var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, new FakeActionState());

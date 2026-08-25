@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -14,12 +15,12 @@ namespace TwoButton.Plugin.Services;
 /// engine testable without the game.
 /// </summary>
 public sealed unsafe class GameStateProvider(
-    IClientState clientState,
     ICondition condition,
     ITargetManager targets,
     IObjectTable objects,
     IJobGauges gauges,
     MovementTracker movement,
+    PotionTracker potions,
     Configuration config)
 {
     private readonly CombatSnapshot _snapshot = new();
@@ -45,7 +46,7 @@ public sealed unsafe class GameStateProvider(
 
     public CombatSnapshot? Build(IJobRotation job, double now)
     {
-        var player = clientState.LocalPlayer;
+        var player = objects.LocalPlayer;
         if (player is null)
             return null;
 
@@ -65,6 +66,7 @@ public sealed unsafe class GameStateProvider(
         FillStatuses(s, player);
         FillCombo(s);
         FillGauges(s, job);
+        FillPotion(s);
 
         return s;
     }
@@ -94,7 +96,7 @@ public sealed unsafe class GameStateProvider(
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
         s.TargetInRange = battleTarget is not null
-            && ActionManager.Instance()->GetActionInRangeOrLoS(
+            && ActionManager.GetActionInRangeOrLoS(
                 job.SingleTargetButton.Id,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleTarget.Address) == 0;
@@ -113,6 +115,20 @@ public sealed unsafe class GameStateProvider(
             : RelativePosition.Unknown;
     }
 
+    private void FillPotion(CombatSnapshot s)
+    {
+        if (!config.PotionEnabled || config.PotionItemId == 0)
+        {
+            s.PotionAvailable = false;
+            s.PotionCooldownRemaining = float.MaxValue;
+            return;
+        }
+
+        var remaining = potions.CooldownRemaining(config.PotionItemId, config.PotionPreferHq);
+        s.PotionCooldownRemaining = remaining;
+        s.PotionAvailable = remaining <= 0f;
+    }
+
     private void FillStatuses(CombatSnapshot s, IPlayerCharacter player)
     {
         _self.Clear();
@@ -124,7 +140,7 @@ public sealed unsafe class GameStateProvider(
             _self.Add(new StatusEntry(
                 status.StatusId,
                 status.RemainingTime < 0f ? float.PositiveInfinity : status.RemainingTime,
-                status.Param));
+                (byte)status.Param));
         }
 
         _target.Clear();
@@ -136,13 +152,13 @@ public sealed unsafe class GameStateProvider(
                     continue;
 
                 // Only our own debuffs. Another Dragoon's dot must never suppress ours.
-                if (status.SourceId != player.GameObjectId)
+                if (status.SourceId != player.EntityId)
                     continue;
 
                 _target.Add(new StatusEntry(
                     status.StatusId,
                     status.RemainingTime < 0f ? float.PositiveInfinity : status.RemainingTime,
-                    status.Param));
+                    (byte)status.Param));
             }
         }
 
@@ -160,10 +176,49 @@ public sealed unsafe class GameStateProvider(
         s.LastComboAction = s.ComboTimeRemaining > 0f ? manager->Combo.Action : 0u;
     }
 
+    /// <summary>
+    /// Maps the live job gauge onto the engine's plain structs. Member names here were read
+    /// off the Dalamud build in CI rather than guessed - see the "Probe Dalamud API surface"
+    /// step in .github/workflows/ci.yml.
+    /// </summary>
     private void FillGauges(CombatSnapshot s, IJobRotation job)
     {
         switch (job.JobId)
         {
+            case 20:
+            {
+                var g = gauges.Get<MNKGauge>();
+                ref var t = ref s.Gauges.Monk;
+                t.Chakra = g.Chakra;
+                t.BlitzTimeRemaining = g.BlitzTimeRemaining / 1000f;
+                t.OpoOpoFury = g.OpoOpoFury;
+                t.RaptorFury = g.RaptorFury;
+                t.CoeurlFury = g.CoeurlFury;
+                t.NadiFlags = (byte)g.Nadi;
+
+                // Compared as raw values so the engine needs no Dalamud enum.
+                var opened = 0;
+                var first = 0;
+                var matching = true;
+                foreach (var chakra in g.BeastChakra)
+                {
+                    var value = (int)chakra;
+                    if (value == 0)
+                        continue;
+
+                    if (opened == 0)
+                        first = value;
+                    else if (value != first)
+                        matching = false;
+
+                    opened++;
+                }
+
+                t.BeastChakraCount = (byte)opened;
+                t.BeastChakraMatching = opened > 0 && matching;
+                break;
+            }
+
             case 22:
             {
                 var g = gauges.Get<DRGGauge>();
@@ -172,16 +227,149 @@ public sealed unsafe class GameStateProvider(
                 break;
             }
 
+            case 23:
+            {
+                var g = gauges.Get<BRDGauge>();
+                ref var t = ref s.Gauges.Bard;
+                t.SongTimeRemaining = g.SongTimer / 1000f;
+                t.Repertoire = g.Repertoire;
+                t.SoulVoice = g.SoulVoice;
+                t.SongId = (byte)g.Song;
+
+                var coda = 0;
+                foreach (var song in g.Coda)
+                {
+                    if ((int)song != 0)
+                        coda++;
+                }
+
+                t.CodaCount = (byte)coda;
+                break;
+            }
+
+            case 25:
+            {
+                var g = gauges.Get<BLMGauge>();
+                ref var t = ref s.Gauges.BlackMage;
+                t.AstralFire = g.AstralFireStacks;
+                t.UmbralIce = g.UmbralIceStacks;
+                t.UmbralHearts = g.UmbralHearts;
+                t.PolyglotStacks = g.PolyglotStacks;
+                t.AstralSoulStacks = (byte)Math.Clamp(g.AstralSoulStacks, 0, 255);
+                t.ElementTimeRemaining = g.EnochianTimer / 1000f;
+                t.EnochianTimeRemaining = g.EnochianTimer / 1000f;
+                t.ParadoxActive = g.IsParadoxActive;
+                break;
+            }
+
+            case 27:
+            {
+                var g = gauges.Get<SMNGauge>();
+                ref var t = ref s.Gauges.Summoner;
+                t.AetherflowStacks = g.AetherflowStacks;
+                t.Attunement = g.Attunement;
+                t.SummonTimeRemaining = g.SummonTimerRemaining / 1000f;
+                t.IfritReady = g.IsIfritReady;
+                t.TitanReady = g.IsTitanReady;
+                t.GarudaReady = g.IsGarudaReady;
+                t.BahamutReady = g.IsBahamutReady;
+                t.PhoenixReady = g.IsPhoenixReady;
+                t.IfritAttuned = g.IsIfritAttuned;
+                t.TitanAttuned = g.IsTitanAttuned;
+                t.GarudaAttuned = g.IsGarudaAttuned;
+                break;
+            }
+
+            case 30:
+            {
+                var g = gauges.Get<NINGauge>();
+                s.Gauges.Ninja.Ninki = g.Ninki;
+                s.Gauges.Ninja.Kazematoi = g.Kazematoi;
+                break;
+            }
+
             case 31:
             {
                 var g = gauges.Get<MCHGauge>();
-                s.Gauges.Machinist.Heat = g.Heat;
-                s.Gauges.Machinist.Battery = g.Battery;
-                s.Gauges.Machinist.LastSummonBatteryPower = g.LastSummonBatteryPower;
-                s.Gauges.Machinist.Overheated = g.IsOverheated;
-                s.Gauges.Machinist.OverheatTimeRemaining = g.OverheatTimeRemaining / 1000f;
-                s.Gauges.Machinist.RobotActive = g.IsRobotActive;
-                s.Gauges.Machinist.SummonTimeRemaining = g.SummonTimeRemaining / 1000f;
+                ref var t = ref s.Gauges.Machinist;
+                t.Heat = g.Heat;
+                t.Battery = g.Battery;
+                t.LastSummonBatteryPower = g.LastSummonBatteryPower;
+                t.Overheated = g.IsOverheated;
+                t.OverheatTimeRemaining = g.OverheatTimeRemaining / 1000f;
+                t.RobotActive = g.IsRobotActive;
+                t.SummonTimeRemaining = g.SummonTimeRemaining / 1000f;
+                break;
+            }
+
+            case 34:
+            {
+                var g = gauges.Get<SAMGauge>();
+                ref var t = ref s.Gauges.Samurai;
+                t.Kenki = g.Kenki;
+                t.Meditation = g.MeditationStacks;
+                t.HasSetsu = g.HasSetsu;
+                t.HasGetsu = g.HasGetsu;
+                t.HasKa = g.HasKa;
+                break;
+            }
+
+            case 35:
+            {
+                var g = gauges.Get<RDMGauge>();
+                s.Gauges.RedMage.WhiteMana = g.WhiteMana;
+                s.Gauges.RedMage.BlackMana = g.BlackMana;
+                s.Gauges.RedMage.ManaStacks = g.ManaStacks;
+                break;
+            }
+
+            case 38:
+            {
+                var g = gauges.Get<DNCGauge>();
+                ref var t = ref s.Gauges.Dancer;
+                t.Feathers = g.Feathers;
+                t.Esprit = g.Esprit;
+                t.CompletedSteps = g.CompletedSteps;
+                t.Dancing = g.IsDancing;
+                t.NextStep = g.NextStep;
+                break;
+            }
+
+            case 39:
+            {
+                var g = gauges.Get<RPRGauge>();
+                ref var t = ref s.Gauges.Reaper;
+                t.Soul = g.Soul;
+                t.Shroud = g.Shroud;
+                t.EnshroudTimeRemaining = g.EnshroudedTimeRemaining / 1000f;
+                t.LemureShroud = g.LemureShroud;
+                t.VoidShroud = g.VoidShroud;
+                break;
+            }
+
+            case 41:
+            {
+                var g = gauges.Get<VPRGauge>();
+                ref var t = ref s.Gauges.Viper;
+                t.RattlingCoils = g.RattlingCoilStacks;
+                t.SerpentOffering = g.SerpentOffering;
+                t.AnguineTribute = g.AnguineTribute;
+                break;
+            }
+
+            case 42:
+            {
+                var g = gauges.Get<PCTGauge>();
+                ref var t = ref s.Gauges.Pictomancer;
+
+                // Dalamud spells this member "PalleteGauge".
+                t.PaletteGauge = g.PalleteGauge;
+                t.Paint = g.Paint;
+                t.CreatureMotifDrawn = g.CreatureMotifDrawn;
+                t.WeaponMotifDrawn = g.WeaponMotifDrawn;
+                t.LandscapeMotifDrawn = g.LandscapeMotifDrawn;
+                t.MooglePortraitReady = g.MooglePortraitReady;
+                t.MadeenPortraitReady = g.MadeenPortraitReady;
                 break;
             }
         }

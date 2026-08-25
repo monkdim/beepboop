@@ -26,10 +26,18 @@ public sealed class MachinistRotation : JobRotationBase
 
     public override IReadOnlyList<StatusRef> AllStatuses => A.AllStatuses;
 
+    // Machinist's burst is marked by Wildfire, which sits on the target rather than on the
+    // player, so there is no self-buff to key off - the burst ability serves instead.
+    public override ActionRef? BurstAction => A.Wildfire;
+
     private static readonly Opener Sequence = new(
         "Dawntrail standard", 100,
         A.Reassemble, A.AirAnchor, A.Drill, A.ChainSaw, A.Excavator,
-        A.BarrelStabilizer, A.Wildfire, A.Hypercharge, A.FullMetalField);
+        A.BarrelStabilizer, A.Wildfire, A.Hypercharge, A.FullMetalField)
+    {
+        // Just before Wildfire, so the potion covers the burst it opens.
+        PotionBeforeStep = 6,
+    };
 
     public override Opener? Opener => Sequence;
 
@@ -138,7 +146,7 @@ public sealed class MachinistRotation : JobRotationBase
         p.Gcd(A.ChainSaw).When(c => !c.Downtime);
 
         p.Gcd(A.Bioblaster)
-            .When(c => c.Enemies >= 3 && c.DotExpiring(A.BioblasterDot))
+            .When(c => c.Enemies >= 3 && c.DotExpiring(A.BioblasterBuff))
             .Because("dot the pack");
 
         p.Gcd(A.AirAnchor).When(c => c.Enemies <= 3 && !c.Downtime);

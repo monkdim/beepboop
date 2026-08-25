@@ -121,6 +121,38 @@ public sealed class ActionTableVerifierTests
         Assert.Contains("UNRESOLVED", report.Summarise());
     }
 
+    /// <summary>
+    /// A status that cannot be found simply reads as absent, so the rule depending on it
+    /// declines to fire. Losing one condition is a far better outcome than switching the
+    /// whole job off, which is what an unresolvable action does.
+    /// </summary>
+    [Fact]
+    public void AnUnresolvableStatusDegradesRatherThanDisablingTheJob()
+    {
+        var job = JobRotationBase.Create<DragoonRotation>();
+
+        var lookup = new StubLookup().FromJob(job);
+        lookup.Status(DragoonActions.PowerSurge.Id, "Not Power Surge");
+
+        var report = ActionTableVerifier.Verify(job, lookup);
+
+        Assert.True(report.IsSafeToRun);
+        Assert.Equal(1, report.UnresolvedCount);
+        Assert.Equal(0, report.UnresolvedActionCount);
+    }
+
+    [Fact]
+    public void NoTableContainsPvpEntries()
+    {
+        // PvP has its own action set; a PvP status name does not exist in the PvE sheet, so
+        // one left in a table would fail to resolve for every player.
+        foreach (var job in JobRegistry.CreateAll())
+        {
+            Assert.DoesNotContain(job.AllActions, a => a.Name.Contains("Pv", StringComparison.Ordinal));
+            Assert.DoesNotContain(job.AllStatuses, s => s.Name.Contains("Pv", StringComparison.Ordinal));
+        }
+    }
+
     [Fact]
     public void EveryRegisteredJobHasAUniqueIdAndBothButtons()
     {

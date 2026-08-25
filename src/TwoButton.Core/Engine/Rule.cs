@@ -9,6 +9,7 @@ public sealed class Rule
 {
     private readonly Func<RotationContext, ActionRef?> _resolve;
     private Func<RotationContext, bool>? _condition;
+    private Func<RotationContext, string>? _noteResolver;
 
     internal Rule(ActionKind kind, Func<RotationContext, ActionRef?> resolve)
     {
@@ -38,6 +39,20 @@ public sealed class Rule
         Note = note;
         return this;
     }
+
+    /// <summary>
+    /// Explanation that depends on why the rule fired - "instant, you are moving" versus
+    /// "coils are close to capping" for the same action.
+    /// </summary>
+    public Rule Because(Func<RotationContext, string> note)
+    {
+        _noteResolver = note;
+        return this;
+    }
+
+    /// <summary>The note to show, resolving the dynamic form if there is one.</summary>
+    internal string? NoteFor(RotationContext context) =>
+        _noteResolver is not null ? _noteResolver(context) : Note;
 
     /// <summary>Marks the action as wanting a positional, so the HUD can hint it.</summary>
     public Rule Needs(PositionalHint positional)

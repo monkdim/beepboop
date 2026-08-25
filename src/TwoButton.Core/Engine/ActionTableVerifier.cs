@@ -35,7 +35,8 @@ public sealed record VerificationEntry(
     string Name,
     uint SeededId,
     uint ResolvedId,
-    VerificationOutcome Outcome);
+    VerificationOutcome Outcome,
+    bool IsAction);
 
 public sealed class VerificationReport(string jobName)
 {
@@ -49,11 +50,22 @@ public sealed class VerificationReport(string jobName)
 
     public int UnresolvedCount => _entries.Count(e => e.Outcome == VerificationOutcome.Unresolved);
 
+    /// <summary>Unresolved entries that are actions rather than statuses.</summary>
+    public int UnresolvedActionCount =>
+        _entries.Count(e => e.Outcome == VerificationOutcome.Unresolved && e.IsAction);
+
     /// <summary>
-    /// A job with an unresolvable action is disabled rather than run. Guessing would mean
-    /// pressing the wrong button in a raid, which is worse than the plugin being off.
+    /// A job with an unresolvable <em>action</em> is disabled rather than run: the id would
+    /// stay at whatever was seeded, and pressing the wrong ability in a raid is worse than
+    /// the plugin being off.
+    /// <para>
+    /// An unresolvable <em>status</em> is only logged. A status that cannot be found simply
+    /// reads as absent, so the rule that depends on it declines to fire - the job degrades
+    /// by one condition instead of switching off entirely, which is the right trade for
+    /// something as harmless as a stray entry in the table.
+    /// </para>
     /// </summary>
-    public bool IsSafeToRun => UnresolvedCount == 0;
+    public bool IsSafeToRun => UnresolvedActionCount == 0;
 
     internal void Add(VerificationEntry entry) => _entries.Add(entry);
 
@@ -66,7 +78,12 @@ public sealed class VerificationReport(string jobName)
             sb.Append(", ").Append(RepairedCount).Append(" repaired by name");
 
         if (UnresolvedCount > 0)
-            sb.Append(", ").Append(UnresolvedCount).Append(" UNRESOLVED - job disabled");
+        {
+            sb.Append(", ").Append(UnresolvedCount).Append(" unresolved");
+
+            if (UnresolvedActionCount > 0)
+                sb.Append(" (").Append(UnresolvedActionCount).Append(" action(s) - job disabled)");
+        }
 
         foreach (var entry in _entries)
         {
@@ -101,6 +118,35 @@ public sealed class VerificationReport(string jobName)
 /// </summary>
 public static class ActionTableVerifier
 {
+    /// <summary>
+    /// Compares names ignoring case, punctuation and spacing, so a table that spells an
+    /// action <c>HeavensThrust</c> still matches the sheet's <c>Heavens' Thrust</c>, and
+    /// <c>Fang And Claw</c> matches <c>Fang and Claw</c>. Without this every apostrophe and
+    /// lowercase connector in the game's naming would read as a mismatch.
+    /// </summary>
+    private static bool NamesMatch(string? sheetName, string tableName)
+    {
+        if (sheetName is null)
+            return false;
+
+        if (string.Equals(sheetName, tableName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return Normalise(sheetName).Equals(Normalise(tableName), StringComparison.Ordinal);
+    }
+
+    private static string Normalise(string value)
+    {
+        var buffer = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetterOrDigit(c))
+                buffer.Append(char.ToLowerInvariant(c));
+        }
+
+        return buffer.ToString();
+    }
+
     public static VerificationReport Verify(IJobRotation job, IGameDataLookup lookup)
     {
         var report = new VerificationReport(job.Name);
@@ -110,23 +156,23 @@ public static class ActionTableVerifier
             var seeded = action.Id;
             var sheetName = lookup.GetActionName(seeded);
 
-            if (string.Equals(sheetName, action.Name, StringComparison.OrdinalIgnoreCase))
+            if (NamesMatch(sheetName, action.Name))
             {
                 action.Bind(seeded);
-                report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Ok));
+                report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Ok, true));
                 continue;
             }
 
             var byName = lookup.FindActionIdByName(action.Name);
             if (byName is null)
             {
-                report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Unresolved));
+                report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Unresolved, true));
                 continue;
             }
 
             action.Bind(byName.Value);
             report.Add(new VerificationEntry(
-                action.Name, seeded, byName.Value, VerificationOutcome.Repaired));
+                action.Name, seeded, byName.Value, VerificationOutcome.Repaired, true));
         }
 
         foreach (var status in job.AllStatuses)
@@ -134,23 +180,23 @@ public static class ActionTableVerifier
             var seeded = status.Id;
             var sheetName = lookup.GetStatusName(seeded);
 
-            if (string.Equals(sheetName, status.Name, StringComparison.OrdinalIgnoreCase))
+            if (NamesMatch(sheetName, status.Name))
             {
                 status.Bind(seeded);
-                report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Ok));
+                report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Ok, false));
                 continue;
             }
 
             var byName = lookup.FindStatusIdByName(status.Name);
             if (byName is null)
             {
-                report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Unresolved));
+                report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Unresolved, false));
                 continue;
             }
 
             status.Bind(byName.Value);
             report.Add(new VerificationEntry(
-                status.Name, seeded, byName.Value, VerificationOutcome.Repaired));
+                status.Name, seeded, byName.Value, VerificationOutcome.Repaired, false));
         }
 
         return report;

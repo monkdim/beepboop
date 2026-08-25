@@ -1,3 +1,4 @@
+using System.Text;
 using Dalamud.Plugin.Services;
 using TwoButton.Core.Engine;
 using LuminaAction = Lumina.Excel.Sheets.Action;
@@ -12,8 +13,10 @@ namespace TwoButton.Plugin.Services;
 public sealed class LuminaGameData : IGameDataLookup
 {
     private readonly IDataManager _data;
-    private readonly Dictionary<string, uint> _actionsByName = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, uint> _statusesByName = new(StringComparer.OrdinalIgnoreCase);
+    // Keyed by a normalised name so a table spelling "HeavensThrust" still finds
+    // "Heavens' Thrust". Matches ActionTableVerifier.Normalise.
+    private readonly Dictionary<string, uint> _actionsByName = [];
+    private readonly Dictionary<string, uint> _statusesByName = [];
 
     public LuminaGameData(IDataManager data)
     {
@@ -33,8 +36,9 @@ public sealed class LuminaGameData : IGameDataLookup
                 if (!row.IsPlayerAction)
                     continue;
 
-                if (!_actionsByName.ContainsKey(name))
-                    _actionsByName[name] = row.RowId;
+                var key = Normalise(name);
+                if (key.Length > 0 && !_actionsByName.ContainsKey(key))
+                    _actionsByName[key] = row.RowId;
             }
         }
 
@@ -47,8 +51,9 @@ public sealed class LuminaGameData : IGameDataLookup
                 if (string.IsNullOrEmpty(name))
                     continue;
 
-                if (!_statusesByName.ContainsKey(name))
-                    _statusesByName[name] = row.RowId;
+                var key = Normalise(name);
+                if (key.Length > 0 && !_statusesByName.ContainsKey(key))
+                    _statusesByName[key] = row.RowId;
             }
         }
     }
@@ -60,7 +65,7 @@ public sealed class LuminaGameData : IGameDataLookup
     }
 
     public uint? FindActionIdByName(string name) =>
-        _actionsByName.TryGetValue(name, out var id) ? id : null;
+        _actionsByName.TryGetValue(Normalise(name), out var id) ? id : null;
 
     public string? GetStatusName(uint statusId)
     {
@@ -69,7 +74,19 @@ public sealed class LuminaGameData : IGameDataLookup
     }
 
     public uint? FindStatusIdByName(string name) =>
-        _statusesByName.TryGetValue(name, out var id) ? id : null;
+        _statusesByName.TryGetValue(Normalise(name), out var id) ? id : null;
+
+    private static string Normalise(string value)
+    {
+        var buffer = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetterOrDigit(c))
+                buffer.Append(char.ToLowerInvariant(c));
+        }
+
+        return buffer.ToString();
+    }
 
     /// <summary>Icon id for an action, for the heads-up display. Zero when unknown.</summary>
     public uint GetActionIcon(uint actionId)

@@ -69,6 +69,21 @@ public sealed class RotationSettings
     /// </summary>
     public bool HoldBurstDuringDowntime { get; set; } = true;
 
+    // ---- Potion ----------------------------------------------------------
+
+    /// <summary>
+    /// Prompt for a potion. A potion is an item, not an action, so the button itself cannot
+    /// become one - see <see cref="Suggestion.PotionPrompt"/>. What the engine can do is
+    /// tell you the exact weave window to pop it in.
+    /// </summary>
+    public bool PotionEnabled { get; set; }
+
+    /// <summary>Prompt at the job opener's potion point.</summary>
+    public bool PotionInOpener { get; set; } = true;
+
+    /// <summary>Prompt whenever the job's burst window opens and the potion is off cooldown.</summary>
+    public bool PotionOnBurst { get; set; } = true;
+
     /// <summary>Effective weave budget as a count.</summary>
     public int MaxWeavesPerGcd => (int)WeaveStyle;
 }

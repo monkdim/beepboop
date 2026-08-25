@@ -12,13 +12,13 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
+      # No explicit ref: build whatever branch or tag the run was started from, so the
+      # branch picker in the Actions tab does what it looks like it does.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Fetch Dalamud dev libraries
         run: |
@@ -37,7 +37,13 @@ jobs:
       - name: Generate pluginmaster.json
         shell: pwsh
         run: |
-          $out = "src/TwoButton.Plugin/bin/x64/Release/TwoButton"
+          $zip = Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter latest.zip |
+                 Select-Object -First 1
+          if (-not $zip) { throw "DalamudPackager produced no latest.zip" }
+          $out = $zip.Directory.FullName
+          Write-Host "Packaged output: $out"
+          "PLUGIN_OUT=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
+
           $manifest = Get-Content "$out/TwoButton.json" -Raw | ConvertFrom-Json
           $repo = "https://github.com/${{ github.repository }}"
           $dl = "$repo/releases/latest/download/latest.zip"
@@ -53,25 +59,12 @@ jobs:
           ConvertTo-Json @($manifest) -Depth 10 | Set-Content pluginmaster.json -Encoding utf8
           Get-Content pluginmaster.json
 
-      - name: Commit pluginmaster.json
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pluginmaster.json
-          if (git diff --cached --quiet) {
-            Write-Host "pluginmaster.json unchanged"
-          } else {
-            git commit -m "Update pluginmaster.json"
-            git push origin HEAD:${{ github.event.repository.default_branch }}
-          }
-
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
           name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest build' }}
           files: |
-            src/TwoButton.Plugin/bin/x64/Release/TwoButton/latest.zip
+            ${{ env.PLUGIN_OUT }}/latest.zip
             pluginmaster.json
           fail_on_unmatched_files: true

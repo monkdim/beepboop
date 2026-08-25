@@ -14,5 +14,11 @@ public sealed class Opener(string name, byte minimumLevel, params ActionRef[] st
     /// <summary>Openers are written for a specific level. Below this, use the priority list.</summary>
     public byte MinimumLevel { get; } = minimumLevel;
 
+    /// <summary>
+    /// Step index to prompt the potion before. Most openers pre-pull or first-weave it.
+    /// Negative means this opener has no potion point.
+    /// </summary>
+    public int PotionBeforeStep { get; init; } = -1;
+
     public IReadOnlyList<ActionRef> Steps { get; } = steps;
 }

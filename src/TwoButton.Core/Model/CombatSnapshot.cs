@@ -1,10 +1,20 @@
 namespace TwoButton.Core.Model;
 
-/// <summary>Which of the two buttons is being resolved.</summary>
+/// <summary>Which button is being resolved.</summary>
 public enum RotationMode
 {
     SingleTarget,
+
     Aoe,
+
+    /// <summary>
+    /// First optional extra button. Two keys cover most jobs, but not all: Ninja's mudras
+    /// are several presses per cast and cannot honestly be folded into one changing icon.
+    /// A job may declare extra buttons for exactly those mechanics.
+    /// </summary>
+    Extra1,
+
+    Extra2,
 }
 
 /// <summary>Positional requirement of a suggested action, surfaced to the HUD as a hint.</summary>
@@ -117,6 +127,14 @@ public sealed class CombatSnapshot
     /// applied, so another Dragoon's Chaotic Spring never suppresses yours.
     /// </summary>
     public IReadOnlyList<StatusEntry> TargetStatuses { get; set; } = [];
+
+    // ---- Potion ----------------------------------------------------------
+
+    /// <summary>True when the configured potion is off cooldown and in the inventory.</summary>
+    public bool PotionAvailable { get; set; }
+
+    /// <summary>Seconds until the potion comes off cooldown.</summary>
+    public float PotionCooldownRemaining { get; set; }
 
     // ---- Job gauges ------------------------------------------------------
 

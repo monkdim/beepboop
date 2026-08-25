@@ -30,11 +30,34 @@ public abstract class JobRotationBase : IJobRotation
 
     public virtual StatusRef? PositionalRescueStatus => null;
 
+    public virtual StatusRef? BurstStatus => null;
+
+    public virtual ActionRef? BurstAction => null;
+
     public virtual Opener? Opener => null;
 
     public RotationPlan SingleTarget { get; }
 
     public RotationPlan Aoe { get; }
+
+    private readonly List<ExtraButton> _extraButtons = [];
+
+    public IReadOnlyList<ExtraButton> ExtraButtons => _extraButtons;
+
+    /// <summary>Declares an extra button. Call from <see cref="Build"/>.</summary>
+    protected ExtraButton AddExtraButton(
+        ActionRef host,
+        string name,
+        string purpose,
+        bool respectWeaveWindow = false)
+    {
+        if (_extraButtons.Count >= 2)
+            throw new InvalidOperationException("A job may declare at most two extra buttons.");
+
+        var button = new ExtraButton(host, name, purpose, respectWeaveWindow);
+        _extraButtons.Add(button);
+        return button;
+    }
 
     /// <summary>
     /// Called once after construction to populate the plans. Split out from the constructor

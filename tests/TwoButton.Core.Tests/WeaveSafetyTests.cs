@@ -18,6 +18,7 @@ public sealed class WeaveSafetyTests
     {
         settings ??= new RotationSettings();
         settings.UseOpener = false;
+        settings.SuggestionHoldSeconds = 0f;
         return new RotationSession(JobRotationBase.Create<DragoonRotation>(), settings);
     }
 
@@ -87,6 +88,7 @@ public sealed class WeaveSafetyTests
 
         var first = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
         session.NotifyActionUsed(first.Action.Id);
+        actions.OnCooldown(first.Action.Id, 60f);
 
         var second = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
 
