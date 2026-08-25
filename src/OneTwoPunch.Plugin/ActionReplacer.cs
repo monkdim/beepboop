@@ -26,15 +26,13 @@ namespace OneTwoPunch.Plugin;
 /// </summary>
 public sealed unsafe class ActionReplacer : IDisposable
 {
-    private delegate uint GetAdjustedActionIdDelegate(ActionManager* actionManager, uint actionId);
-
     private readonly IGameInteropProvider _interop;
     private readonly IPluginLog _log;
 
     private readonly Func<uint, RotationMode?> _classify;
     private readonly Func<RotationMode, Suggestion?> _resolve;
 
-    private Hook<GetAdjustedActionIdDelegate>? _hook;
+    private Hook<ActionManager.Delegates.GetAdjustedActionId>? _hook;
 
     /// <summary>Set when hooking has failed, so it is attempted once and not every frame.</summary>
     private bool _unavailable;
@@ -71,11 +69,17 @@ public sealed unsafe class ActionReplacer : IDisposable
         {
             if (_hook is null)
             {
-                // Hooked by member function pointer rather than a byte signature, so a patch
-                // that shifts code around does not silently break the plugin. If the pointer
-                // has not been resolved yet there is nothing to hook, and hooking address
-                // zero would be catastrophic - so check before, not after.
-                var address = (nint)ActionManager.MemberFunctionPointers.GetAdjustedActionId;
+                // Hooked through FFXIVClientStructs' own resolved address and its own
+                // generated delegate type, which is how BossMod hooks this subsystem.
+                // Addresses.X is the canonical location of the function; Delegates.X is
+                // generated from the same declaration the game's own signature is matched
+                // against, so the parameter list and calling convention cannot drift from a
+                // hand-written one. Resolved by signature rather than a fixed offset, so a
+                // patch that shifts code around does not silently break it.
+                //
+                // If it has not resolved there is nothing to hook, and hooking address zero
+                // would be catastrophic - so check before, not after.
+                var address = ActionManager.Addresses.GetAdjustedActionId.Value;
                 if (address == 0)
                 {
                     // Enable() is retried every frame until it succeeds, so this must not
@@ -90,7 +94,7 @@ public sealed unsafe class ActionReplacer : IDisposable
                     return false;
                 }
 
-                _hook = _interop.HookFromAddress<GetAdjustedActionIdDelegate>(address, Detour);
+                _hook = _interop.HookFromAddress<ActionManager.Delegates.GetAdjustedActionId>(address, Detour);
                 _log.Information("One Two Punch: hooked GetAdjustedActionId at 0x{Address:X}.", address);
             }
 
