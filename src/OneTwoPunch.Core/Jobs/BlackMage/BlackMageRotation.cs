@@ -114,26 +114,36 @@ public sealed class BlackMageRotation : JobRotationBase
 
         // Triplecast is the answer to movement, so it is held for it rather than spent on
         // damage - a Black Mage who has to move with no instants loses far more.
+        //
+        // Both say EvenWithTheGlobalUp because the moment they are needed is the moment the
+        // global comes up and the next thing is a hard cast you are about to run out of.
+        // Offered only in a weave window they were unreachable: a recorded pull has twelve
+        // Blizzard IIIs attempted in four seconds while the player ran, every one
+        // interrupted, and Triplecast never once suggested.
         p.OGcd(A.Triplecast)
-            .When(c => c.Moving && !c.Buff(A.TriplecastBuff))
-            .Because("you are moving");
+            .When(StuckMoving)
+            .EvenWithTheGlobalUp()
+            .Because("three instants, you are moving");
 
+        // Only when Triplecast cannot cover it. Three instants beat one, and spending
+        // Swiftcast first would leave the next two casts stranded anyway.
         p.OGcd(A.Swiftcast)
-            .When(c => c.Moving && !c.Buff(A.SwiftcastBuff))
-            .Because("you are moving");
+            .When(c => StuckMoving(c) && !c.Ready(A.Triplecast))
+            .EvenWithTheGlobalUp()
+            .Because("instant, you are moving");
 
         // ---- GCDs --------------------------------------------------------
         // Everything instant, first, while moving.
         p.Gcd(A.Xenoglossy)
-            .When(c => c.Moving && c.Blm.PolyglotStacks > 0)
+            .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");
 
         p.Gcd(A.Paradox)
-            .When(c => c.Moving && c.Blm.ParadoxActive)
+            .When(c => StuckMoving(c) && c.Blm.ParadoxActive)
             .Because("instant, you are moving");
 
         p.Gcd(c => ThunderAction(c))
-            .When(c => c.Moving && c.Buff(A.Thunderhead))
+            .When(c => StuckMoving(c) && c.Buff(A.Thunderhead))
             .Because("instant, you are moving");
 
         // The dot, refreshed on its proc so it never costs a cast.
@@ -195,10 +205,13 @@ public sealed class BlackMageRotation : JobRotationBase
         p.OGcd(A.LeyLines).When(c => !c.Downtime && !c.Moving);
         p.OGcd(A.Amplifier).When(c => c.Blm.PolyglotStacks < 2);
         p.OGcd(A.Manafont).When(c => c.Blm.InAstralFire && !c.Downtime);
-        p.OGcd(A.Triplecast).When(c => c.Moving && !c.Buff(A.TriplecastBuff)).Because("you are moving");
+        p.OGcd(A.Triplecast)
+            .When(StuckMoving)
+            .EvenWithTheGlobalUp()
+            .Because("three instants, you are moving");
 
         p.Gcd(A.Foul)
-            .When(c => c.Moving && c.Blm.PolyglotStacks > 0)
+            .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");
 
         p.Gcd(A.Foul)
@@ -231,6 +244,18 @@ public sealed class BlackMageRotation : JobRotationBase
     }
 
     /// <summary>The thunder the player actually has, which upgrades twice.</summary>
+    /// <summary>
+    /// Moving, with nothing that would make the next cast instant.
+    /// <para>
+    /// Once Triplecast or Swiftcast is up the movement rules have to stand down. Otherwise
+    /// a free instant gets spent on Xenoglossy while Fire IV sits there - which is the
+    /// opposite of the point: the instants exist so the rotation continues while you move,
+    /// not so the rotation is abandoned for the cheap spells.
+    /// </para>
+    /// </summary>
+    private static bool StuckMoving(RotationContext c) =>
+        c.Moving && !c.Buff(A.TriplecastBuff) && !c.Buff(A.SwiftcastBuff);
+
     private static ActionRef ThunderAction(RotationContext c) =>
         c.Has(A.HighThunder) ? A.HighThunder : A.Thunder3;
 }

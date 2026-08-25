@@ -550,6 +550,20 @@ public sealed class Plugin : IDalamudPlugin
         var text = new System.Text.StringBuilder();
         text.Append($"mp {s.Mp} | gcd {s.GcdRemaining:0.0}s");
 
+        // Movement and enemy count are decisions the rules make that leave no other trace.
+        // A recorded pull of somebody running while a Black Mage tried to hard-cast could
+        // not answer whether the engine had even noticed the movement, which is the first
+        // thing worth knowing.
+        if (s.IsMoving)
+            text.Append($" | moving {s.MovingFor:0.0}s");
+        else
+            text.Append($" | still {s.StillFor:0.0}s");
+
+        text.Append($" | enemies {s.EnemiesInAoeRange}");
+
+        if (s.InDowntime)
+            text.Append(" | downtime");
+
         if (s.SelfStatuses.Count > 0)
         {
             text.Append(" | on you: ");
