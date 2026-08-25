@@ -112,25 +112,16 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => c.Blm.InAstralFire && !c.Downtime)
             .Because("refill mana without leaving Astral Fire");
 
-        // Triplecast is the answer to movement, so it is held for it rather than spent on
-        // damage - a Black Mage who has to move with no instants loses far more.
+        // Triplecast and Swiftcast are deliberately not suggested at all.
         //
-        // Both say EvenWithTheGlobalUp because the moment they are needed is the moment the
-        // global comes up and the next thing is a hard cast you are about to run out of.
-        // Offered only in a weave window they were unreachable: a recorded pull has twelve
-        // Blizzard IIIs attempted in four seconds while the player ran, every one
-        // interrupted, and Triplecast never once suggested.
-        p.OGcd(A.Triplecast)
-            .When(StuckMoving)
-            .EvenWithTheGlobalUp()
-            .Because("three instants, you are moving");
-
-        // Only when Triplecast cannot cover it. Three instants beat one, and spending
-        // Swiftcast first would leave the next two casts stranded anyway.
-        p.OGcd(A.Swiftcast)
-            .When(c => StuckMoving(c) && !c.Ready(A.Triplecast))
-            .EvenWithTheGlobalUp()
-            .Because("instant, you are moving");
+        // They were, briefly, and the mechanism worked - but a button that sometimes becomes
+        // Triplecast competes with the key the player has bound to Triplecast, and the loser
+        // of that race is a wasted charge. The player asked for them back on their own keys
+        // for the faster reaction, which is the right call: reacting to movement is a
+        // half-second decision and a suggestion cannot beat a thumb that already knows.
+        //
+        // The rotation still notices them - see StuckMoving - so pressing one by hand keeps
+        // the list casting Fire IV rather than dropping to the instants.
 
         // ---- GCDs --------------------------------------------------------
         // Everything instant, first, while moving.
@@ -205,11 +196,6 @@ public sealed class BlackMageRotation : JobRotationBase
         p.OGcd(A.LeyLines).When(c => !c.Downtime && !c.Moving);
         p.OGcd(A.Amplifier).When(c => c.Blm.PolyglotStacks < 2);
         p.OGcd(A.Manafont).When(c => c.Blm.InAstralFire && !c.Downtime);
-        p.OGcd(A.Triplecast)
-            .When(StuckMoving)
-            .EvenWithTheGlobalUp()
-            .Because("three instants, you are moving");
-
         p.Gcd(A.Foul)
             .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");

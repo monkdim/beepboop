@@ -190,23 +190,6 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                     positional);
             }
         }
-        else
-        {
-            // A few off-globals exist to unblock the global that follows rather than to add
-            // to it, and for those the weave window is exactly the wrong moment - see
-            // Rule.BeatsTheGlobal. A recorded pull caught this: twelve Blizzard IIIs
-            // attempted in four seconds while the player ran, every one interrupted, and
-            // Triplecast never once offered because the global was up the whole time.
-            var urgent = FirstMatch(plan, ActionKind.OGcd, context, r => r.BeatsTheGlobal);
-            if (urgent is not null)
-            {
-                return new Suggestion(
-                    urgent.Value.action,
-                    nextGcd,
-                    urgent.Value.rule.NoteFor(context) ?? "before the cast",
-                    positional);
-            }
-        }
 
         if (nextGcd is not null)
         {
@@ -261,17 +244,13 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     private static (Rule rule, ActionRef action)? FirstMatch(
         RotationPlan plan,
         ActionKind kind,
-        RotationContext context,
-        Func<Rule, bool>? only = null)
+        RotationContext context)
     {
         var rules = plan.Rules;
         for (var i = 0; i < rules.Count; i++)
         {
             var rule = rules[i];
             if (rule.Kind != kind)
-                continue;
-
-            if (only is not null && !only(rule))
                 continue;
 
             var action = rule.Evaluate(context);
