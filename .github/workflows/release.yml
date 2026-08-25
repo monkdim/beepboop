@@ -189,25 +189,114 @@ jobs:
 
           throw "Could not push the published listing to main"
 
-      - name: Verify the published listing is actually fetchable
+      # Two separate questions, because conflating them nearly shipped a bad listing.
+      #
+      # First: is what we just committed internally consistent? The listing and the manifest
+      # sealed inside the zip are two copies of the same facts, and Dalamud reads the listing
+      # to decide whether to show the plugin and the packaged copy to decide whether to load
+      # it. When they disagree the plugin either never appears or appears and refuses to run,
+      # with no error either way. This is checked against the files on disk, so no cache or
+      # network can flatter it, and it is a hard failure.
+      - name: Verify the published files agree with each other
         shell: pwsh
         run: |
+          $level = [int]"${{ steps.apilevel.outputs.level }}"
           $listing = (Get-Content pluginmaster.json -Raw | ConvertFrom-Json)[0]
-          foreach ($url in @($listing.DownloadLinkInstall, $listing.IconUrl)) {
-            Write-Host "checking $url"
-            $attempt = 0
-            while ($true) {
-              $attempt++
-              try {
-                $r = Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -ErrorAction Stop
-                Write-Host "  $($r.StatusCode), $($r.Headers['Content-Length']) bytes, no redirect"
-                break
-              } catch {
-                if ($attempt -ge 6) { throw "$url is not fetchable after $attempt attempts: $_" }
-                # raw.githubusercontent takes a moment to see a fresh commit.
-                Start-Sleep -Seconds 10
-              }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path dist/latest.zip))
+          try {
+            $entry = $zip.Entries | Where-Object { $_.Name -eq 'OneTwoPunch.json' } | Select-Object -First 1
+            if (-not $entry) { throw "dist/latest.zip contains no OneTwoPunch.json" }
+            $reader = New-Object System.IO.StreamReader($entry.Open())
+            $packaged = $reader.ReadToEnd() | ConvertFrom-Json
+            $reader.Dispose()
+          } finally { $zip.Dispose() }
+
+          $problems = @()
+          if ($listing.DalamudApiLevel -ne $level)      { $problems += "listing api level $($listing.DalamudApiLevel), expected $level" }
+          if ($packaged.DalamudApiLevel -ne $level)     { $problems += "packaged api level $($packaged.DalamudApiLevel), expected $level" }
+          if ($listing.AssemblyVersion -ne $packaged.AssemblyVersion) {
+            $problems += "listing version $($listing.AssemblyVersion) but packaged version $($packaged.AssemblyVersion)"
+          }
+          if ($listing.InternalName -ne $packaged.InternalName) {
+            $problems += "listing name $($listing.InternalName) but packaged name $($packaged.InternalName)"
+          }
+          if ($listing.IsHide -eq $true) { $problems += "IsHide is true - the installer would not show it" }
+
+          foreach ($field in 'DownloadLinkInstall','DownloadLinkUpdate','IconUrl') {
+            if (-not $listing.$field) { $problems += "$field is empty" }
+          }
+
+          if ($problems.Count -gt 0) { throw "Refusing to publish:`n  " + ($problems -join "`n  ") }
+
+          Write-Host "listing and packaged manifest agree: $($listing.InternalName) $($listing.AssemblyVersion), api level $level"
+
+      # Second: is the right content actually being served? Asking only whether the URL
+      # answers is what let a run go green while the CDN was still handing out the previous
+      # listing - a listing with no api level in it, which is exactly the state that makes
+      # the plugin invisible. So fetch the bytes and read them.
+      #
+      # raw.githubusercontent.com caches for five minutes, so a fresh commit can take that
+      # long to appear. The wait is generous for that reason; a timeout here means the
+      # listing genuinely is not live and is worth failing over.
+      - name: Verify the served listing is the one we just published
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $expected = (Get-Content pluginmaster.json -Raw | ConvertFrom-Json)[0]
+          $listingUrl = "https://raw.githubusercontent.com/${{ github.repository }}/main/pluginmaster.json"
+          $deadline = (Get-Date).AddMinutes(8)
+          $attempt = 0
+
+          Write-Host "expecting $($expected.AssemblyVersion), api level $($expected.DalamudApiLevel), at $listingUrl"
+
+          while ($true) {
+            $attempt++
+            $served = $null
+            try {
+              $served = ((Invoke-WebRequest -Uri $listingUrl -UseBasicParsing -ErrorAction Stop).Content |
+                          ConvertFrom-Json)[0]
+            } catch {
+              Write-Host "  attempt ${attempt}: listing not fetchable yet ($_)"
             }
+
+            if ($served -and
+                $served.AssemblyVersion -eq $expected.AssemblyVersion -and
+                $served.DalamudApiLevel -eq $expected.DalamudApiLevel) {
+
+              # And the build it points at must be the matching one, not a stale zip.
+              try {
+                $tmp = (New-TemporaryFile).FullName
+                Invoke-WebRequest -Uri $served.DownloadLinkInstall -OutFile $tmp -UseBasicParsing -ErrorAction Stop
+
+                $zip = [System.IO.Compression.ZipFile]::OpenRead($tmp)
+                try {
+                  $e = $zip.Entries | Where-Object { $_.Name -eq 'OneTwoPunch.json' } | Select-Object -First 1
+                  $r = New-Object System.IO.StreamReader($e.Open())
+                  $servedZip = $r.ReadToEnd() | ConvertFrom-Json
+                  $r.Dispose()
+                } finally { $zip.Dispose() }
+
+                if ($servedZip.AssemblyVersion -eq $expected.AssemblyVersion) {
+                  Write-Host "served listing and served build are both $($expected.AssemblyVersion), api level $($served.DalamudApiLevel)"
+                  exit 0
+                }
+
+                Write-Host "  attempt ${attempt}: served build is $($servedZip.AssemblyVersion), waiting for $($expected.AssemblyVersion)"
+              } catch {
+                Write-Host "  attempt ${attempt}: served build not readable yet ($_)"
+              }
+            } elseif ($served) {
+              Write-Host "  attempt ${attempt}: served listing is $($served.AssemblyVersion) / api $($served.DalamudApiLevel), waiting for $($expected.AssemblyVersion) / api $($expected.DalamudApiLevel)"
+            }
+
+            if ((Get-Date) -gt $deadline) {
+              throw "The published listing is still not being served after $attempt attempts. It is committed, but nobody can install it yet."
+            }
+
+            Start-Sleep -Seconds 20
           }
 
       - name: Publish release
