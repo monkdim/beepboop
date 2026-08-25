@@ -43,6 +43,32 @@ jobs:
         run: Get-ChildItem dalamud -Filter *.dll | Select-Object -ExpandProperty Name | Sort-Object
         shell: pwsh
 
+      # Reflect over the Dalamud we are actually building against and print the members of
+      # the types this plugin touches. Dalamud's surface moves between versions, and reading
+      # it here beats guessing and burning a build.
+      - name: Probe Dalamud API surface
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $asm = [System.Reflection.Assembly]::LoadFrom("$PWD/dalamud/Dalamud.dll")
+          $wanted = @(
+            'IClientState', 'IObjectTable', 'IBattleNpc', 'IGameObject',
+            'BattleNpcSubKind', 'IDalamudTextureWrap', 'Status'
+          )
+          foreach ($name in $wanted) {
+            $types = $asm.GetTypes() | Where-Object { $_.Name -eq $name }
+            foreach ($t in $types) {
+              Write-Host "=== $($t.FullName) ==="
+              if ($t.IsEnum) {
+                [Enum]::GetNames($t) | ForEach-Object { Write-Host "  $_ = $([int][Enum]::Parse($t, $_))" }
+                continue
+              }
+              $t.GetMembers() |
+                Where-Object { $_.MemberType -in 'Property', 'Event' } |
+                ForEach-Object { Write-Host "  $($_.MemberType) $($_.Name)" }
+            }
+          }
+
       - name: Build
         env:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud

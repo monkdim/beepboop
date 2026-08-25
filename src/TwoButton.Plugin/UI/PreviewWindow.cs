@@ -111,6 +111,6 @@ public sealed class PreviewWindow(
             return;
         }
 
-        ImGui.Image(texture.ImGuiHandle, new Vector2(size, size));
+        ImGui.Image(texture.Handle, new Vector2(size, size));
     }
 }

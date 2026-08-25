@@ -59,7 +59,7 @@ public sealed class Plugin : IDalamudPlugin
         _gameData = new LuminaGameData(Data);
 
         _state = new GameStateProvider(
-            ClientState, Condition, Targets, Objects, Gauges, _movement, _config);
+            Condition, Targets, Objects, Gauges, _movement, _config);
 
         _configWindow = new ConfigWindow(_config, () => _job, () => _reports);
         _previewWindow = new PreviewWindow(_config, Textures, _gameData, () => _lastSuggestion, () => _job);
@@ -72,7 +72,6 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.ActionUsed += OnActionUsed;
 
         Framework.Update += OnUpdate;
-        ClientState.Logout += OnLogout;
 
         PluginInterface.UiBuilder.Draw += _windows.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfig;
@@ -95,10 +94,10 @@ public sealed class Plugin : IDalamudPlugin
         var delta = (float)framework.UpdateDelta.TotalSeconds;
         _now += delta;
 
-        _movement.Update(ClientState, delta);
+        _movement.Update(Objects.LocalPlayer, delta);
         _state.Tick(delta);
 
-        var player = ClientState.LocalPlayer;
+        var player = Objects.LocalPlayer;
         var jobId = player?.ClassJob.RowId ?? 0;
 
         if (jobId != _currentJobId)
@@ -149,13 +148,6 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void OnActionUsed(uint actionId) => _session?.NotifyActionUsed(actionId);
-
-    private void OnLogout(int type, int code)
-    {
-        _session?.Reset();
-        _movement.Reset();
-        _useWatcher.Reset();
-    }
 
     // ---- The two buttons -------------------------------------------------
 
@@ -262,7 +254,6 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= ToggleConfig;
 
         Framework.Update -= OnUpdate;
-        ClientState.Logout -= OnLogout;
         _useWatcher.ActionUsed -= OnActionUsed;
 
         _replacer.Dispose();

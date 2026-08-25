@@ -31,11 +31,6 @@ public static class EnemyCounter
             if (!npc.IsTargetable || npc.CurrentHp == 0)
                 continue;
 
-            // Only things actually fighting us. Otherwise a passive mob standing nearby
-            // would flip the button to AoE mid-pull.
-            if (npc.BattleNpcKind != BattleNpcSubKind.Enemy)
-                continue;
-
             var dx = npc.Position.X - target.Position.X;
             var dz = npc.Position.Z - target.Position.Z;
             var reach = radius + npc.HitboxRadius;

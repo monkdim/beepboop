@@ -15,7 +15,6 @@ namespace TwoButton.Plugin.Services;
 /// engine testable without the game.
 /// </summary>
 public sealed unsafe class GameStateProvider(
-    IClientState clientState,
     ICondition condition,
     ITargetManager targets,
     IObjectTable objects,
@@ -46,7 +45,7 @@ public sealed unsafe class GameStateProvider(
 
     public CombatSnapshot? Build(IJobRotation job, double now)
     {
-        var player = clientState.LocalPlayer;
+        var player = objects.LocalPlayer;
         if (player is null)
             return null;
 
@@ -95,7 +94,7 @@ public sealed unsafe class GameStateProvider(
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
         s.TargetInRange = battleTarget is not null
-            && ActionManager.Instance()->GetActionInRangeOrLoS(
+            && ActionManager.GetActionInRangeOrLoS(
                 job.SingleTargetButton.Id,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleTarget.Address) == 0;
@@ -125,7 +124,7 @@ public sealed unsafe class GameStateProvider(
             _self.Add(new StatusEntry(
                 status.StatusId,
                 status.RemainingTime < 0f ? float.PositiveInfinity : status.RemainingTime,
-                status.Param));
+                (byte)status.Param));
         }
 
         _target.Clear();
@@ -143,7 +142,7 @@ public sealed unsafe class GameStateProvider(
                 _target.Add(new StatusEntry(
                     status.StatusId,
                     status.RemainingTime < 0f ? float.PositiveInfinity : status.RemainingTime,
-                    status.Param));
+                    (byte)status.Param));
             }
         }
 
