@@ -123,4 +123,45 @@ public sealed class StabiliserTests
 
         Assert.Equal(A.BattleLitany.Id, immediate.Action.Id);
     }
+
+
+    /// <summary>
+    /// The two buttons are resolved one after the other, every frame, for as long as both
+    /// are on a hotbar. They used to share one held suggestion, so each handed its answer to
+    /// the other and the pair swapped every hold window. Reported as "the button just starts
+    /// changing rapidly without being pressed", and as never seeing the AoE rotation at all.
+    /// </summary>
+    [Fact]
+    public void OneButtonsSuggestionNeverLeaksIntoTheOther()
+    {
+        var session = Session(0.15f);
+        var actions = new FakeActionState();
+
+        // Five targets, so the AoE button has an AoE answer of its own rather than falling
+        // back to the single-target list.
+        CombatSnapshot Frame(double now) =>
+            new SnapshotBuilder().At(now).Gcd(0f).NoCombo().Enemies(5).Build();
+
+        var single = session.Resolve(RotationMode.SingleTarget, Frame(10.0), actions);
+        var aoe = session.Resolve(RotationMode.Aoe, Frame(10.0), actions);
+
+        Assert.NotEqual(single.Action.Id, aoe.Action.Id);
+
+        // Walk several frames across the hold window, alternating the way the game does.
+        for (var i = 1; i <= 20; i++)
+        {
+            var now = 10.0 + (i * 0.05);
+
+            var nextSingle = session.Resolve(RotationMode.SingleTarget, Frame(now), actions);
+            var nextAoe = session.Resolve(RotationMode.Aoe, Frame(now), actions);
+
+            Assert.True(
+                nextSingle.Action.Id == single.Action.Id,
+                $"frame {i}: the single-target button became {nextSingle.Action.Name}");
+
+            Assert.True(
+                nextAoe.Action.Id == aoe.Action.Id,
+                $"frame {i}: the AoE button became {nextAoe.Action.Name}");
+        }
+    }
 }

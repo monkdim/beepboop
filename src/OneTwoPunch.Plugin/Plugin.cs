@@ -499,7 +499,13 @@ public sealed class Plugin : IDalamudPlugin
         if (!_recorder.IsRecording)
             return;
 
-        var suggestion = _lastSuggestion.GetValueOrDefault(RotationMode.SingleTarget)
+        // Both buttons are resolved every frame, so "what was being suggested" has two
+        // answers and only one of them belongs to the key that was pressed. The one whose
+        // action actually went off is that key; without this an AoE pull reads as a wall of
+        // disagreements against the single-target list, which is how a recorded Doom Spike
+        // came out as "differs, suggested True Thrust".
+        var suggestion = MatchingSuggestion(actionId)
+                         ?? _lastSuggestion.GetValueOrDefault(RotationMode.SingleTarget)
                          ?? _lastSuggestion.GetValueOrDefault(RotationMode.Aoe);
 
         // Both names read out of the game's own sheet, so the two columns are directly
@@ -516,6 +522,18 @@ public sealed class Plugin : IDalamudPlugin
             suggestion?.Action.Id ?? 0,
             suggestion?.Note,
             DescribeState());
+    }
+
+    /// <summary>The button whose suggestion is what actually went off, if either.</summary>
+    private Suggestion? MatchingSuggestion(uint actionId)
+    {
+        foreach (var entry in _lastSuggestion)
+        {
+            if (entry.Value.Action.Id == actionId)
+                return entry.Value;
+        }
+
+        return null;
     }
 
     /// <summary>

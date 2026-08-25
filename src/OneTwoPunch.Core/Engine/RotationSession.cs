@@ -25,8 +25,19 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     private bool _openerAborted;
     private bool _wasInCombat;
 
-    private Suggestion? _held;
-    private double _heldSince;
+    /// <summary>
+    /// The held suggestion per button, not per session.
+    /// <para>
+    /// The game asks what every hotbar slot should cast every frame, so with both buttons
+    /// on the bar the two modes are resolved one after the other, over and over. A single
+    /// held suggestion shared between them made each button hand its answer to the other:
+    /// the AoE button would return the single-target ability, the single-target button
+    /// would return it back, and the pair swapped every hold window. Reported as "the
+    /// button just starts changing rapidly without being pressed", and as never seeing the
+    /// AoE rotation at all - both rows of the display were showing the same list.
+    /// </para>
+    /// </summary>
+    private readonly Dictionary<RotationMode, (Suggestion Suggestion, double Since)> _held = [];
 
     public IJobRotation Job => job;
 
@@ -59,8 +70,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _lastGcdRemaining = 0f;
         _openerStep = 0;
         _openerAborted = false;
-        _held = null;
-        _heldSince = 0d;
+        _held.Clear();
     }
 
     /// <summary>
@@ -98,7 +108,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         var fresh = extra is not null && !extra.RespectWeaveWindow
             ? ResolveSequence(context, plan, fallback)
             : ResolveFresh(context, plan, fallback, modeNote);
-        var stabilised = Stabilise(fresh, context, snapshot.Now);
+        var stabilised = Stabilise(fresh, context, snapshot.Now, mode);
 
         // The prompt is decided after stabilisation so it always reflects the window the
         // player is actually looking at.
@@ -364,29 +374,31 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// somebody is mid-reach for the key. The hold is dropped the moment the held action
     /// stops being usable, so it can never cause a dud press.
     /// </summary>
-    private Suggestion Stabilise(Suggestion fresh, RotationContext context, double now)
+    private Suggestion Stabilise(
+        Suggestion fresh,
+        RotationContext context,
+        double now,
+        RotationMode mode)
     {
         if (settings.SuggestionHoldSeconds <= 0f)
         {
-            _held = fresh;
-            _heldSince = now;
+            _held[mode] = (fresh, now);
             return fresh;
         }
 
-        if (_held is not null
-            && _held.Action.Id != fresh.Action.Id
-            && now - _heldSince < settings.SuggestionHoldSeconds
-            && context.Ready(_held.Action)
-            && (_held.Kind == ActionKind.Gcd || context.CanWeave))
+        var known = _held.TryGetValue(mode, out var current);
+
+        if (known
+            && current.Suggestion.Action.Id != fresh.Action.Id
+            && now - current.Since < settings.SuggestionHoldSeconds
+            && context.Ready(current.Suggestion.Action)
+            && (current.Suggestion.Kind == ActionKind.Gcd || context.CanWeave))
         {
-            return _held;
+            return current.Suggestion;
         }
 
-        if (_held is null || _held.Action.Id != fresh.Action.Id)
-        {
-            _held = fresh;
-            _heldSince = now;
-        }
+        if (!known || current.Suggestion.Action.Id != fresh.Action.Id)
+            _held[mode] = (fresh, now);
 
         return fresh;
     }
