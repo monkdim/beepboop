@@ -43,6 +43,58 @@ public sealed class NinjaRotation : JobRotationBase
     {
         BuildSingleTarget();
         BuildAoe();
+        BuildMudraButton();
+    }
+
+    /// <summary>
+    /// The third button: it walks a mudra sequence and then fires the ninjutsu.
+    /// <para>
+    /// No mudra state is tracked here, because the game already distinguishes it. Ten, Chi
+    /// and Jin each have two action ids - one the game accepts only at the start of a
+    /// sequence and one only once a sequence is running - and Ninjutsu itself is only
+    /// accepted once enough mudras are charged. So asking the game what it will accept, via
+    /// the same Ready() check every other rule uses, resolves the whole sequence with no
+    /// counter of ours to drift out of sync when somebody presses a mudra by hand.
+    /// </para>
+    /// <para>
+    /// This covers the two-mudra ninjutsu, which is nearly all of them in a fight: Raiton,
+    /// Katon, and both Kassatsu upgrades. The three-mudra ones (Suiton, Huton, Doton) can't
+    /// be driven this way, because after two mudras the game would happily fire the
+    /// two-mudra spell instead - telling those apart needs a real step counter, which is not
+    /// worth guessing at without being able to test it. Keep Suiton on its own keys.
+    /// </para>
+    /// </summary>
+    private void BuildMudraButton()
+    {
+        var p = AddExtraButton(
+            A.Ten1,
+            "Mudra",
+            "Walks a mudra sequence and fires the ninjutsu. Raiton on a single target, "
+            + "Katon on a group, and the Kassatsu upgrades automatically. Suiton, Huton and "
+            + "Doton still need their own keys.").Plan;
+
+        // Enough mudras are charged: fire it.
+        p.Gcd(A.Ninjutsu).Because("fire the ninjutsu");
+
+        // The game only accepts the first-mudra ids when no sequence is running, so this
+        // rule is self-gating and always means "start a new sequence".
+        p.OGcd(A.Chi1)
+            .When(c => c.Enemies >= 3)
+            .Because("Katon");
+
+        p.OGcd(A.Ten1)
+            .Because(c => c.Buff(A.KassatsuBuff) ? "Hyosho Ranryu" : "Raiton");
+
+        // Second mudra. Only accepted mid-sequence, so again the game does the gating.
+        p.OGcd(A.Ten2)
+            .When(c => c.Enemies >= 3)
+            .Because("Katon");
+
+        p.OGcd(A.Jin2)
+            .When(c => c.Buff(A.KassatsuBuff))
+            .Because("Hyosho Ranryu");
+
+        p.OGcd(A.Chi2).Because("Raiton");
     }
 
     private void BuildSingleTarget()

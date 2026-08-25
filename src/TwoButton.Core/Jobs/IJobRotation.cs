@@ -58,4 +58,10 @@ public interface IJobRotation
     RotationPlan SingleTarget { get; }
 
     RotationPlan Aoe { get; }
+
+    /// <summary>
+    /// Optional third and fourth buttons, for mechanics the two main buttons cannot express.
+    /// Empty for most jobs.
+    /// </summary>
+    IReadOnlyList<ExtraButton> ExtraButtons { get; }
 }

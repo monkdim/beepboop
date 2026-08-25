@@ -4,6 +4,7 @@ using TwoButton.Core.Jobs.Monk;
 using TwoButton.Core.Jobs.Ninja;
 using TwoButton.Core.Jobs.Reaper;
 using TwoButton.Core.Jobs.Samurai;
+using TwoButton.Core.Jobs.Viper;
 
 namespace TwoButton.Core.Jobs;
 
@@ -21,6 +22,7 @@ public static class JobRegistry
         JobRotationBase.Create<ReaperRotation>,
         JobRotationBase.Create<MonkRotation>,
         JobRotationBase.Create<NinjaRotation>,
+        JobRotationBase.Create<ViperRotation>,
     ];
 
     /// <summary>Builds a fresh instance of every supported rotation.</summary>

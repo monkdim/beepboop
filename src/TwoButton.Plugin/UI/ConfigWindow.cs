@@ -229,6 +229,26 @@ public sealed class ConfigWindow(
         ImGui.BulletText($"Single target:  {job.SingleTargetButton.Name}");
         ImGui.BulletText($"AoE:            {job.AoeButton.Name}");
 
+        foreach (var extra in job.ExtraButtons)
+            ImGui.BulletText($"{extra.Name}:{new string(' ', Math.Max(1, 15 - extra.Name.Length))}{extra.Host.Name}");
+
+        if (job.ExtraButtons.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextWrapped(
+                "This job needs more than two keys. Two cover almost everything, but some "
+                + "mechanics are genuinely several presses per cast and folding those into a "
+                + "changing icon would be worse than an extra key:");
+
+            foreach (var extra in job.ExtraButtons)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f), extra.Name);
+                ImGui.SameLine();
+                ImGui.TextWrapped(extra.Purpose);
+            }
+        }
+
         ImGui.Spacing();
         ImGui.TextWrapped(
             "Their icons will change as you play to show the action that is correct right now. "

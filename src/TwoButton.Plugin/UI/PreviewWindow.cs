@@ -68,6 +68,21 @@ public sealed class PreviewWindow(
         DrawRow("Single target", single, size);
         ImGui.Spacing();
         DrawRow("AoE", aoe, size);
+
+        var rotation = job();
+        if (rotation is null)
+            return;
+
+        for (var i = 0; i < rotation.ExtraButtons.Count; i++)
+        {
+            var mode = i == 0 ? RotationMode.Extra1 : RotationMode.Extra2;
+            var suggestion = current.GetValueOrDefault(mode);
+            if (suggestion is null)
+                continue;
+
+            ImGui.Spacing();
+            DrawRow(rotation.ExtraButtons[i].Name, suggestion, size);
+        }
     }
 
     private void DrawRow(string label, Suggestion? suggestion, float size)

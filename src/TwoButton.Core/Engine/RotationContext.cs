@@ -60,7 +60,9 @@ public sealed class RotationContext
     /// Enemy count to plan around. The single-target button always plans for one, so a
     /// stray add never rewrites the single-target rotation mid-pull.
     /// </summary>
-    public int Enemies => Mode == RotationMode.Aoe ? Math.Max(1, _snapshot.EnemiesInAoeRange) : 1;
+    public int Enemies => Mode == RotationMode.SingleTarget
+        ? 1
+        : Math.Max(1, _snapshot.EnemiesInAoeRange);
 
     /// <summary>True when burst should be held: boss untargetable, or nothing to hit.</summary>
     public bool Downtime =>

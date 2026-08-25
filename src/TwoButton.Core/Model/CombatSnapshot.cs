@@ -1,10 +1,20 @@
 namespace TwoButton.Core.Model;
 
-/// <summary>Which of the two buttons is being resolved.</summary>
+/// <summary>Which button is being resolved.</summary>
 public enum RotationMode
 {
     SingleTarget,
+
     Aoe,
+
+    /// <summary>
+    /// First optional extra button. Two keys cover most jobs, but not all: Ninja's mudras
+    /// are several presses per cast and cannot honestly be folded into one changing icon.
+    /// A job may declare extra buttons for exactly those mechanics.
+    /// </summary>
+    Extra1,
+
+    Extra2,
 }
 
 /// <summary>Positional requirement of a suggested action, surfaced to the HUD as a hint.</summary>

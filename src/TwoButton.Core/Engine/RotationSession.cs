@@ -85,16 +85,57 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         }
 
         var context = new RotationContext(snapshot, actions, settings, effectiveMode, _weavesThisWindow);
-        var plan = effectiveMode == RotationMode.Aoe ? job.Aoe : job.SingleTarget;
-        var fallback = mode == RotationMode.Aoe ? job.AoeButton : job.SingleTargetButton;
+        var extra = ExtraFor(mode);
 
-        var fresh = ResolveFresh(context, plan, fallback, modeNote);
+        var plan = extra?.Plan
+            ?? (effectiveMode == RotationMode.Aoe ? job.Aoe : job.SingleTarget);
+
+        var fallback = extra?.Host
+            ?? (mode == RotationMode.Aoe ? job.AoeButton : job.SingleTargetButton);
+
+        // An extra button drives its own sequence, so the global-cooldown split does not
+        // apply unless the job asks for it: first matching rule simply wins.
+        var fresh = extra is not null && !extra.RespectWeaveWindow
+            ? ResolveSequence(context, plan, fallback)
+            : ResolveFresh(context, plan, fallback, modeNote);
         var stabilised = Stabilise(fresh, context, snapshot.Now);
 
         // The prompt is decided after stabilisation so it always reflects the window the
         // player is actually looking at.
         stabilised.PotionPrompt = ShouldPromptPotion(context, stabilised);
         return stabilised;
+    }
+
+    /// <summary>The extra button for this mode, or null for the two main buttons.</summary>
+    private ExtraButton? ExtraFor(RotationMode mode)
+    {
+        var index = mode switch
+        {
+            RotationMode.Extra1 => 0,
+            RotationMode.Extra2 => 1,
+            _ => -1,
+        };
+
+        return index >= 0 && index < job.ExtraButtons.Count ? job.ExtraButtons[index] : null;
+    }
+
+    /// <summary>
+    /// Flat resolution for an extra button: the first rule whose action is usable and whose
+    /// condition holds, with no global-cooldown gating.
+    /// </summary>
+    private static Suggestion ResolveSequence(
+        RotationContext context,
+        RotationPlan plan,
+        ActionRef fallback)
+    {
+        foreach (var rule in plan.Rules)
+        {
+            var action = rule.Evaluate(context);
+            if (action is not null)
+                return new Suggestion(action, action, rule.NoteFor(context), rule.Positional);
+        }
+
+        return new Suggestion(fallback, fallback, "nothing to suggest");
     }
 
     private Suggestion ResolveFresh(
@@ -131,14 +172,14 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 return new Suggestion(
                     oGcdMatch.Value.action,
                     nextGcd,
-                    oGcdMatch.Value.rule.Note ?? "weave",
+                    oGcdMatch.Value.rule.NoteFor(context) ?? "weave",
                     positional);
             }
         }
 
         if (nextGcd is not null)
         {
-            var note = modeNote ?? gcdMatch?.rule.Note;
+            var note = modeNote ?? gcdMatch?.rule.NoteFor(context);
             return new Suggestion(nextGcd, nextGcd, note, positional);
         }
 

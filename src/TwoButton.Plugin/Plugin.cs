@@ -168,6 +168,12 @@ public sealed class Plugin : IDalamudPlugin
         if (actionId == _job.AoeButton.Id)
             return RotationMode.Aoe;
 
+        for (var i = 0; i < _job.ExtraButtons.Count; i++)
+        {
+            if (actionId == _job.ExtraButtons[i].Host.Id)
+                return i == 0 ? RotationMode.Extra1 : RotationMode.Extra2;
+        }
+
         return null;
     }
 
