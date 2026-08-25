@@ -54,6 +54,23 @@ public sealed class Plugin : IDalamudPlugin
     private uint _currentJobId;
     private double _now;
 
+    /// <summary>
+    /// Frame counter, used to answer the hook from cache.
+    /// <para>
+    /// The game asks what a hotbar slot should cast for every slot, every frame, just to
+    /// draw the icons - and a player with several bars showing the same action asks many
+    /// times over. Rebuilding the whole picture of the world for each of those calls meant
+    /// sweeping the object table dozens of times a frame. It is built once per frame now,
+    /// and every call after the first in the same frame is a dictionary lookup.
+    /// </para>
+    /// </summary>
+    private long _frame;
+
+    private CombatSnapshot? _frameSnapshot;
+    private long _frameSnapshotAt = -1;
+
+    private readonly Dictionary<RotationMode, (long Frame, Suggestion Suggestion)> _resolved = [];
+
     /// <summary>Last resolved suggestion per mode, for the heads-up display.</summary>
     private readonly Dictionary<RotationMode, Suggestion> _lastSuggestion = [];
 
@@ -113,6 +130,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         var delta = (float)framework.UpdateDelta.TotalSeconds;
         _now += delta;
+        _frame++;
 
         _movement.Update(Objects.LocalPlayer, delta);
         _state.Tick(delta);
@@ -135,6 +153,8 @@ public sealed class Plugin : IDalamudPlugin
         _job = null;
         _session = null;
         _lastSuggestion.Clear();
+        _resolved.Clear();
+        _frameSnapshotAt = -1;
         _movement.Reset();
         _useWatcher.Reset();
 
@@ -200,13 +220,26 @@ public sealed class Plugin : IDalamudPlugin
         if (_job is null || _session is null)
             return null;
 
-        var snapshot = _state.Build(_job, _now);
-        if (snapshot is null)
+        // Answered already this frame for this button.
+        if (_resolved.TryGetValue(mode, out var cached) && cached.Frame == _frame)
+            return cached.Suggestion;
+
+        // The world does not change between hook calls within a frame, and the snapshot does
+        // not depend on which button is being asked about, so both buttons share one.
+        if (_frameSnapshotAt != _frame)
+        {
+            _frameSnapshot = _state.Build(_job, _now);
+            _frameSnapshotAt = _frame;
+
+            if (_frameSnapshot is not null)
+                _actionState.BeginFrame(_frameSnapshot.Level);
+        }
+
+        if (_frameSnapshot is null)
             return null;
 
-        _actionState.BeginFrame(snapshot.Level);
-
-        var suggestion = _session.Resolve(mode, snapshot, _actionState);
+        var suggestion = _session.Resolve(mode, _frameSnapshot, _actionState);
+        _resolved[mode] = (_frame, suggestion);
         _lastSuggestion[mode] = suggestion;
         return suggestion;
     }
