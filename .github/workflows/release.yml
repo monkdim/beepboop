@@ -31,9 +31,37 @@ jobs:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud
         run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
 
-      # DalamudPackager fills in AssemblyVersion and DalamudApiLevel from the Dalamud we
-      # just built against, so the repo listing always matches the real API level rather
-      # than a number somebody remembered wrong.
+      # DalamudPackager fills in AssemblyVersion; the API level is overridden below with
+      # the value read off the assembly, because the packager stamps its own.
+      # DalamudPackager stamps the API level it was built against, not the one the Dalamud
+      # we just built against actually reports - and Dalamud silently hides any plugin whose
+      # level does not match, which looks exactly like a plugin that failed to publish. So
+      # read the real number off the assembly.
+      - name: Read Dalamud API level
+        id: apilevel
+        shell: pwsh
+        run: |
+          $asm = [System.Reflection.Assembly]::LoadFrom("$PWD/dalamud/Dalamud.dll")
+          $found = @()
+          foreach ($t in $asm.GetTypes()) {
+            $fields = $t.GetFields('Public,NonPublic,Static')
+            foreach ($f in $fields) {
+              if ($f.IsLiteral -and $f.FieldType -eq [int] -and $f.Name -match 'ApiLevel') {
+                $value = $f.GetRawConstantValue()
+                Write-Host "$($t.FullName).$($f.Name) = $value"
+                $found += [pscustomobject]@{ Name = $f.Name; Value = $value }
+              }
+            }
+          }
+
+          # Prefer the plain one; a "Testing" variant is a different number.
+          $pick = $found | Where-Object { $_.Name -notmatch 'Testing' } | Select-Object -First 1
+          if (-not $pick) { $pick = $found | Select-Object -First 1 }
+          if (-not $pick) { throw "Could not read Dalamud's API level - refusing to publish a listing Dalamud would hide" }
+
+          Write-Host "Using DalamudApiLevel $($pick.Value)"
+          "level=$($pick.Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Generate pluginmaster.json
         shell: pwsh
         run: |
@@ -48,6 +76,8 @@ jobs:
           $repo = "https://github.com/${{ github.repository }}"
           $dl = "$repo/releases/latest/download/latest.zip"
 
+          $manifest | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
+          $manifest | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $manifest | Add-Member -NotePropertyName RepoUrl -NotePropertyValue $repo -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $dl -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $dl -Force
