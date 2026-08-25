@@ -70,28 +70,10 @@ public static class MachinistActions
     public static readonly StatusRef TacticianBuff = new(1951, "Tactician");
     public static readonly StatusRef BioblasterBuff = new(1866, "Bioblaster");
     public static readonly StatusRef PelotonBuff = new(1199, "Peloton");
-    public static readonly StatusRef HeatPvP = new(3148, "Heat Pv P");
-    public static readonly StatusRef OverheatedPvP = new(3149, "Overheated Pv P");
     public static readonly StatusRef DrillPrimed = new(3150, "Drill Primed");
     public static readonly StatusRef BioblasterPrimed = new(3151, "Bioblaster Primed");
     public static readonly StatusRef AirAnchorPrimed = new(3152, "Air Anchor Primed");
     public static readonly StatusRef ChainSawPrimed = new(3153, "Cha in Saw Primed");
-    public static readonly StatusRef AnalysisPvP = new(3158, "Analysis Pv P");
-    public static readonly StatusRef WildfirePlayerPvP = new(2018, "Wildfire Player Pv P");
-    public static readonly StatusRef WildfireTargetPvP = new(1323, "Wildfire Target Pv P");
-    public static readonly StatusRef DervishEquippedPvP = new(4489, "Dervish Equipped Pv P");
-    public static readonly StatusRef BraveryEquippedPvP = new(4490, "Bravery Equipped Pv P");
-    public static readonly StatusRef EagleEyeShotEquippedPvP = new(4491, "Eagle Eye Shot Equipped Pv P");
-    public static readonly StatusRef GuardPvP = new(3054, "Guard Pv P");
-    public static readonly StatusRef SprintPvP = new(1342, "Sprint Pv P");
-    public static readonly StatusRef SilencePvP = new(1347, "Silence Pv P");
-    public static readonly StatusRef BindPvP = new(1345, "Bind Pv P");
-    public static readonly StatusRef StunPvP = new(1343, "Stun Pv P");
-    public static readonly StatusRef HalfAsleepPvP = new(3022, "Half Asleep Pv P");
-    public static readonly StatusRef SleepPvP = new(1348, "Sleep Pv P");
-    public static readonly StatusRef DeepFreezePvP = new(3219, "Deep Freeze Pv P");
-    public static readonly StatusRef HeavyPvP = new(1344, "Heavy Pv P");
-    public static readonly StatusRef UnguardedPvP = new(3021, "Unguarded Pv P");
 
     public static readonly IReadOnlyList<ActionRef> All =
     [
@@ -112,11 +94,6 @@ public static class MachinistActions
         Reassembled, Overheated, WildfirePlayer, WildfireTarget,
         Dismantled, Hypercharged, FlamethrowerBuff, ExcavatorReady,
         FullMetalMachinist, TacticianBuff, BioblasterBuff, PelotonBuff,
-        HeatPvP, OverheatedPvP, DrillPrimed, BioblasterPrimed,
-        AirAnchorPrimed, ChainSawPrimed, AnalysisPvP, WildfirePlayerPvP,
-        WildfireTargetPvP, DervishEquippedPvP, BraveryEquippedPvP, EagleEyeShotEquippedPvP,
-        GuardPvP, SprintPvP, SilencePvP, BindPvP,
-        StunPvP, HalfAsleepPvP, SleepPvP, DeepFreezePvP,
-        HeavyPvP, UnguardedPvP,
+        DrillPrimed, BioblasterPrimed, AirAnchorPrimed, ChainSawPrimed,
     ];
 }

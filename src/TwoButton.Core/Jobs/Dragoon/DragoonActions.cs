@@ -31,7 +31,7 @@ public static class DragoonActions
     public static readonly ActionRef ChaosThrust = new(88, "Chaos Thrust", ActionKind.Gcd, 50);
     public static readonly ActionRef DragonfireDive = new(96, "Dragonfire Dive", ActionKind.OGcd, 50);
     public static readonly ActionRef BattleLitany = new(3557, "Battle Litany", ActionKind.OGcd, 52);
-    public static readonly ActionRef FangAndClaw = new(3554, "Fang And Claw", ActionKind.Gcd, 56);
+    public static readonly ActionRef FangAndClaw = new(3554, "Fang and Claw", ActionKind.Gcd, 56);
     public static readonly ActionRef WheelingThrust = new(3556, "Wheeling Thrust", ActionKind.Gcd, 58);
     public static readonly ActionRef Geirskogul = new(3555, "Geirskogul", ActionKind.OGcd, 60);
     public static readonly ActionRef SonicThrust = new(7397, "Sonic Thrust", ActionKind.Gcd, 62);
@@ -46,7 +46,7 @@ public static class DragoonActions
     public static readonly ActionRef ChaoticSpring = new(25772, "Chaotic Spring", ActionKind.Gcd, 86);
     public static readonly ActionRef HeavensThrust = new(25771, "Heavens Thrust", ActionKind.Gcd, 86);
     public static readonly ActionRef WyrmwindThrust = new(25773, "Wyrmwind Thrust", ActionKind.OGcd, 90);
-    public static readonly ActionRef RiseOfTheDragon = new(36953, "Rise Of The Dragon", ActionKind.OGcd, 92);
+    public static readonly ActionRef RiseOfTheDragon = new(36953, "Rise of the Dragon", ActionKind.OGcd, 92);
     public static readonly ActionRef LanceBarrage = new(36954, "Lance Barrage", ActionKind.Gcd, 96);
     public static readonly ActionRef SpiralBlow = new(36955, "Spiral Blow", ActionKind.Gcd, 96);
     public static readonly ActionRef Starcross = new(36956, "Starcross", ActionKind.OGcd, 100);
@@ -63,8 +63,8 @@ public static class DragoonActions
     public static readonly StatusRef PowerSurge = new(2720, "Power Surge");
     public static readonly StatusRef ChaosThrustBuff = new(118, "Chaos Thrust");
     public static readonly StatusRef ChaoticSpringBuff = new(2719, "Chaotic Spring");
-    public static readonly StatusRef FangAndClawBared = new(802, "Fang And Claw Bared");
-    public static readonly StatusRef WheelInMotion = new(803, "Wheel In Motion");
+    public static readonly StatusRef FangAndClawBared = new(802, "Fang and Claw Bared");
+    public static readonly StatusRef WheelInMotion = new(803, "Wheel in Motion");
     public static readonly StatusRef DraconianFire = new(1863, "Draconian Fire");
     public static readonly StatusRef RightEye = new(1910, "Right Eye");
     public static readonly StatusRef DiveReady = new(1243, "Dive Ready");

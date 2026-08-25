@@ -57,7 +57,7 @@ public static class RedMageActions
     public static readonly ActionRef JoltIII = new(37004, "Jolt III", ActionKind.Gcd, 84);
     public static readonly ActionRef MagickBarrier = new(25857, "Magick Barrier", ActionKind.OGcd, 86);
     public static readonly ActionRef Resolution = new(25858, "Resolution", ActionKind.Gcd, 90);
-    public static readonly ActionRef ViceOfThorns = new(37005, "Vice Of Thorns", ActionKind.OGcd, 92);
+    public static readonly ActionRef ViceOfThorns = new(37005, "Vice of Thorns", ActionKind.OGcd, 92);
     public static readonly ActionRef GrandImpact = new(37006, "Gr and Impact", ActionKind.Gcd, 96);
     public static readonly ActionRef Prefulgence = new(37007, "Prefulgence", ActionKind.OGcd, 100);
     public static readonly ActionRef Addle = new(7560, "Addle", ActionKind.OGcd, 8);

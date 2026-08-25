@@ -37,7 +37,7 @@ public static class BlackMageActions
     public static readonly ActionRef LeyLines = new(3573, "Ley Lines", ActionKind.OGcd, 52);
     public static readonly ActionRef Blizzard4 = new(3576, "Blizzard IV", ActionKind.Gcd, 58);
     public static readonly ActionRef Fire4 = new(3577, "Fire IV", ActionKind.Gcd, 60);
-    public static readonly ActionRef BetweenTheLines = new(7419, "Between The Lines", ActionKind.OGcd, 62);
+    public static readonly ActionRef BetweenTheLines = new(7419, "Between the Lines", ActionKind.OGcd, 62);
     public static readonly ActionRef Thunder4 = new(7420, "Thunder IV", ActionKind.Gcd, 64);
     public static readonly ActionRef Triplecast = new(7421, "Triplecast", ActionKind.OGcd, 66);
     public static readonly ActionRef Foul = new(7422, "Foul", ActionKind.Gcd, 70);
@@ -63,7 +63,7 @@ public static class BlackMageActions
     public static readonly StatusRef ThunderIII = new(163, "Thunder III");
     public static readonly StatusRef ThunderIV = new(1210, "Thunder IV");
     public static readonly StatusRef LeyLinesBuff = new(737, "Ley Lines");
-    public static readonly StatusRef CircleOfPower = new(738, "Circle Of Power");
+    public static readonly StatusRef CircleOfPower = new(738, "Circle of Power");
     public static readonly StatusRef TriplecastBuff = new(1211, "Triplecast");
     public static readonly StatusRef Firestarter = new(165, "Firestarter");
     public static readonly StatusRef Thunderhead = new(3870, "Thunderhead");

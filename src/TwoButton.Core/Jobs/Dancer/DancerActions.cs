@@ -59,6 +59,9 @@ public static class DancerActions
     public static readonly ActionRef Tillana = new(25790, "Tillana", ActionKind.Gcd, 82);
     public static readonly ActionRef FanDanceIV = new(25791, "Fan Dance IV", ActionKind.OGcd, 86);
     public static readonly ActionRef StarfallDance = new(25792, "Starfall Dance", ActionKind.Gcd, 90);
+    public static readonly ActionRef LastDance = new(36983, "Last Dance", ActionKind.Gcd, 1);
+    public static readonly ActionRef FinishingMove = new(36984, "Finishing Move", ActionKind.Gcd, 1);
+    public static readonly ActionRef DanceOfTheDawn = new(36985, "Dance of the Dawn", ActionKind.Gcd, 1);
     public static readonly ActionRef LegGraze = new(7554, "Leg Graze", ActionKind.OGcd, 6);
     public static readonly ActionRef SecondWind = new(7541, "Second Wind", ActionKind.OGcd, 8);
     public static readonly ActionRef FootGraze = new(7553, "Foot Graze", ActionKind.OGcd, 10);
@@ -91,7 +94,7 @@ public static class DancerActions
     public static readonly StatusRef ClosedPositionBuff = new(1823, "Closed Position");
     public static readonly StatusRef LastDanceReady = new(3867, "Last Dance Ready");
     public static readonly StatusRef FinishingMoveReady = new(3868, "Finishing Move Ready");
-    public static readonly StatusRef DanceOfTheDawnReady = new(3869, "Dance Of The Dawn Ready");
+    public static readonly StatusRef DanceOfTheDawnReady = new(3869, "Dance of the Dawn Ready");
     public static readonly StatusRef PelotonBuff = new(1199, "Peloton");
 
     public static readonly IReadOnlyList<ActionRef> All =
@@ -106,8 +109,9 @@ public static class DancerActions
         DoubleTechnicalFinish, TripleTechnicalFinish, QuadrupleTechnicalFinish, SingleTechnicalFinish2,
         DoubleTechnicalFinish2, TripleTechnicalFinish2, QuadrupleTechnicalFinish2, Flourish,
         SaberDance, Improvisation, ImprovisedFinish, Tillana,
-        FanDanceIV, StarfallDance, LegGraze, SecondWind,
-        FootGraze, Peloton, HeadGraze, ArmsLength,
+        FanDanceIV, StarfallDance, LastDance, FinishingMove,
+        DanceOfTheDawn, LegGraze, SecondWind, FootGraze,
+        Peloton, HeadGraze, ArmsLength,
     ];
 
     public static readonly IReadOnlyList<StatusRef> AllStatuses =

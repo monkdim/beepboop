@@ -42,6 +42,7 @@ ENTRY = re.compile(r"^\s*(\w+)\s*=\s*(\d+)\s*,(?:\s*//\s*(.*))?\s*$")
 SHARED = re.compile(r"^\s*(\w+)\s*=\s*ClassShared\.(?:AID|SID)\.(\w+)\s*,")
 LEVEL = re.compile(r"\bL(\d+)\b")
 ROMAN = {"1": "", "2": " II", "3": " III", "4": " IV", "5": " V"}
+CONNECTORS = {"of", "the", "and", "in", "to", "for", "from"}
 
 # Cooldown group 57 is the global cooldown. A weaponskill with its own cooldown - Drill,
 # Air Anchor, Chain Saw - is listed as "(group 4/57)" and still rolls the GCD, so matching
@@ -74,18 +75,38 @@ def display_name(identifier):
     identifier = re.sub(r"(?<=[a-z])(of|the|and|in|to|for|from)(?=[A-Z])", r"_\1_", identifier)
 
     words = re.findall(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+", identifier)
+
+    # The game lowercases connectors mid-name - "Dance of the Dawn", not "Dance Of The
+    # Dawn". Verification is unaffected either way, but the HUD shows this text.
+    words = [
+        w.lower() if i > 0 and w.lower() in CONNECTORS else w
+        for i, w in enumerate(words)
+    ]
+
     return " ".join(words) + suffix
+
+
+def excluded(member):
+    """PvP has its own action set and its own rules; none of it belongs in a PvE rotation."""
+    return member == "None" or member.endswith("PvP")
 
 
 def parse(path, shared_actions, shared_statuses):
     text = path.read_text(encoding="utf-8-sig")
     actions, statuses = [], []
 
+    # Newer actions are sometimes listed with no annotation at all. They are still real, so
+    # they are kept: BossMod's own RegisterSpell calls say which roll the global cooldown,
+    # and the level is left at 1 because the game's unlock check - not this number - is what
+    # actually gates a rule. Dropping them instead cost Dancer its three level 100 actions.
+    registered_spells = set(re.findall(r"RegisterSpell\(AID\.(\w+)", text))
+
     for line in extract_enum(text, "AID"):
         shared = SHARED.match(line)
         if shared and shared.group(2) in shared_actions:
             member, (aid, level, kind) = shared.group(1), shared_actions[shared.group(2)]
-            actions.append((member, aid, level, kind))
+            if not excluded(member):
+                actions.append((member, aid, level, kind))
             continue
 
         entry = ENTRY.match(line)
@@ -94,23 +115,33 @@ def parse(path, shared_actions, shared_statuses):
 
         member, aid, comment = entry.group(1), int(entry.group(2)), entry.group(3) or ""
 
-
-        # Limit breaks have no level and are never part of a rotation.
-        level = LEVEL.search(comment)
-        if not level:
+        # "None = 0" is a sentinel, not an action.
+        if aid == 0 or excluded(member):
             continue
 
-        kind = "Gcd" if GCD_MARKER.search(comment) else "OGcd"
-        actions.append((member, aid, int(level.group(1)), kind))
+
+        level = LEVEL.search(comment)
+
+        if comment and not level:
+            # Annotated but with no level: a limit break, never part of a rotation.
+            continue
+
+        if level:
+            kind = "Gcd" if GCD_MARKER.search(comment) else "OGcd"
+            actions.append((member, aid, int(level.group(1)), kind))
+        else:
+            kind = "Gcd" if member in registered_spells else "OGcd"
+            actions.append((member, aid, 1, kind))
 
     for line in extract_enum(text, "SID"):
         shared = SHARED.match(line)
         if shared and shared.group(2) in shared_statuses:
-            statuses.append((shared.group(1), shared_statuses[shared.group(2)]))
+            if not excluded(shared.group(1)):
+                statuses.append((shared.group(1), shared_statuses[shared.group(2)]))
             continue
 
         entry = ENTRY.match(line)
-        if entry and int(entry.group(2)) != 0:
+        if entry and int(entry.group(2)) != 0 and not excluded(entry.group(1)):
             statuses.append((entry.group(1), int(entry.group(2))))
 
     return actions, statuses
