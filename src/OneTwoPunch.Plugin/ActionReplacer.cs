@@ -159,6 +159,19 @@ public sealed unsafe class ActionReplacer : IDisposable
     /// </summary>
     public long SuppressedReentrantCalls => _suppressed;
 
+    /// <summary>How many times the game has asked about one of our two buttons.</summary>
+    public long TimesAsked => _asked;
+
+    /// <summary>How many of those we answered with a replacement.</summary>
+    public long TimesAnswered => _answered;
+
+    /// <summary>The id of the last replacement handed back, for the status line.</summary>
+    public uint LastAnswer => _lastAnswer;
+
+    private long _asked;
+    private long _answered;
+    private uint _lastAnswer;
+
     private uint Detour(ActionManager* actionManager, uint actionId)
     {
         var hook = _hook;
@@ -189,9 +202,19 @@ public sealed unsafe class ActionReplacer : IDisposable
             var mode = _classify(actionId);
             if (mode is not null)
             {
+                // Counted because "the button fires the right ability but the icon never
+                // changes" is otherwise impossible to tell apart from "the game never asks".
+                // The hotbar draws itself from this same function, so a slot whose icon is
+                // frozen is a slot the game is not asking about - and that is a different
+                // problem from a wrong answer.
+                _asked++;
+
                 var suggestion = _resolve(mode.Value);
                 if (suggestion is not null && suggestion.Action.Id != 0)
                 {
+                    _lastAnswer = suggestion.Action.Id;
+                    _answered++;
+
                     // Hand the answer back through the game's own adjustment so upgrades and
                     // procs still resolve natively - True Thrust becoming Raiden Thrust, Heat
                     // Blast becoming Blazing Shot - instead of being duplicated here.

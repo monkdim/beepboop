@@ -82,9 +82,17 @@ public sealed class ReaperRotation : JobRotationBase
             .When(c => c.Rpr.Soul >= 50 && !c.Buff(A.SoulReaver) && !c.Buff(A.Executioner))
             .Because("two reavers for one spend");
 
+        // Ideal Host is a free Enshroud - Arcane Circle leaves it behind, and it does not
+        // care what the Shroud gauge says. Asking for 50 Shroud missed it every single time:
+        // a recorded pull has Ideal Host counting down from 29s to 3s untouched while the
+        // list built Soul instead, which is a whole Enshroud of damage dropped once every
+        // two minutes. Reported as "not using enshroud twice during the boost, using it once
+        // then holding and letting the second fall off".
         p.OGcd(A.Enshroud)
-            .When(c => c.Rpr.Shroud >= 50 && !c.Rpr.Enshrouded && !c.Buff(A.SoulReaver))
-            .Because("spend Shroud");
+            .When(c => (c.Rpr.Shroud >= 50 || c.Buff(A.IdealHost))
+                       && !c.Rpr.Enshrouded
+                       && !c.Buff(A.SoulReaver))
+            .Because(c => c.Buff(A.IdealHost) ? "free Enshroud, do not waste it" : "spend Shroud");
 
         p.OGcd(A.LemuresSlice)
             .When(c => c.Rpr.VoidShroud >= 2)
@@ -167,8 +175,11 @@ public sealed class ReaperRotation : JobRotationBase
         p.OGcd(A.Gluttony)
             .When(c => c.Rpr.Soul >= 50 && !c.Buff(A.SoulReaver) && !c.Buff(A.Executioner));
 
+        // See the single-target list: Ideal Host is a free Enshroud regardless of gauge.
         p.OGcd(A.Enshroud)
-            .When(c => c.Rpr.Shroud >= 50 && !c.Rpr.Enshrouded && !c.Buff(A.SoulReaver));
+            .When(c => (c.Rpr.Shroud >= 50 || c.Buff(A.IdealHost))
+                       && !c.Rpr.Enshrouded
+                       && !c.Buff(A.SoulReaver));
 
         p.OGcd(A.LemuresScythe).When(c => c.Rpr.VoidShroud >= 2);
 
