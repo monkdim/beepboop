@@ -55,6 +55,16 @@ jobs:
             'IClientState', 'IObjectTable', 'IBattleNpc', 'IGameObject',
             'BattleNpcSubKind', 'IDalamudTextureWrap', 'Status'
           )
+          # Every job gauge, so the mapping in GameStateProvider is written against the real
+          # member names rather than guessed at one build failure per job.
+          $asm.GetTypes() |
+            Where-Object { $_.Name -match 'Gauge$' -and $_.Namespace -match 'JobGauge' } |
+            ForEach-Object {
+              Write-Host "=== $($_.FullName) ==="
+              $_.GetProperties() | ForEach-Object {
+                Write-Host "  $($_.PropertyType.Name) $($_.Name)"
+              }
+            }
           foreach ($name in $wanted) {
             $types = $asm.GetTypes() | Where-Object { $_.Name -eq $name }
             foreach ($t in $types) {
