@@ -20,13 +20,28 @@ public sealed unsafe class PotionTracker
     /// <summary>HQ items are addressed as id + this offset when asking about cooldowns.</summary>
     private const uint HqOffset = 1_000_000;
 
-    private readonly List<PotionOption> _options = [];
+    private readonly IDataManager _data;
+    private List<PotionOption>? _options;
 
-    public PotionTracker(IDataManager data)
+    public PotionTracker(IDataManager data) => _data = data;
+
+    /// <summary>
+    /// The potions the player can choose from.
+    /// <para>
+    /// Built on first use rather than at construction. Finding them means reading every row
+    /// of the Item sheet and extracting its name - tens of thousands of string allocations
+    /// on the game thread - and nobody needs the list until they open the dropdown. Doing it
+    /// at load froze the game while the plugin installed.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<PotionOption> Options => _options ??= BuildOptions();
+
+    private List<PotionOption> BuildOptions()
     {
-        var items = data.GetExcelSheet<LuminaItem>();
+        var options = new List<PotionOption>();
+        var items = _data.GetExcelSheet<LuminaItem>();
         if (items is null)
-            return;
+            return options;
 
         foreach (var row in items)
         {
@@ -41,17 +56,21 @@ public sealed unsafe class PotionTracker
                 continue;
             }
 
-            _options.Add(new PotionOption(row.RowId, name));
+            options.Add(new PotionOption(row.RowId, name));
         }
 
         // Newest tiers last in the sheet; show them first.
-        _options.Reverse();
+        options.Reverse();
+        return options;
     }
-
-    public IReadOnlyList<PotionOption> Options => _options;
 
     public string NameOf(uint itemId)
     {
+        // Deliberately does not force the list to build: this is called every frame the
+        // settings window is open, long before anyone touches the dropdown.
+        if (_options is null)
+            return itemId == 0 ? "(none selected)" : $"item {itemId}";
+
         foreach (var option in _options)
         {
             if (option.ItemId == itemId)

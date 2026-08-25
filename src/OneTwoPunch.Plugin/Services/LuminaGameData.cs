@@ -13,50 +13,22 @@ namespace OneTwoPunch.Plugin.Services;
 public sealed class LuminaGameData : IGameDataLookup
 {
     private readonly IDataManager _data;
-    // Keyed by a normalised name so a table spelling "HeavensThrust" still finds
-    // "Heavens' Thrust". Matches ActionTableVerifier.Normalise.
-    private readonly Dictionary<string, uint> _actionsByName = [];
-    private readonly Dictionary<string, uint> _statusesByName = [];
 
-    public LuminaGameData(IDataManager data)
-    {
-        _data = data;
+    // Reverse name lookups, keyed by a normalised name so a table spelling "HeavensThrust"
+    // still finds "Heavens' Thrust". Matches ActionTableVerifier.Normalise.
+    //
+    // Built on first use, not at construction. Every row of the Action sheet has to be read
+    // and have its name extracted to build one, which is tens of thousands of string
+    // allocations on the game thread - and it is only ever needed to *repair* an id whose
+    // name did not match, which is rare and usually never. Paying that at load froze the
+    // game while the plugin installed.
+    private Dictionary<string, uint>? _actionsByName;
+    private Dictionary<string, uint>? _statusesByName;
 
-        var actions = data.GetExcelSheet<LuminaAction>();
-        if (actions is not null)
-        {
-            foreach (var row in actions)
-            {
-                var name = row.Name.ExtractText();
-                if (string.IsNullOrEmpty(name))
-                    continue;
+    // Icons are asked for once per heads-up row per frame, so they are remembered.
+    private readonly Dictionary<uint, uint> _iconCache = [];
 
-                // Player actions only, and keep the lowest id for a duplicated name so we
-                // land on the real action rather than an NPC copy of it.
-                if (!row.IsPlayerAction)
-                    continue;
-
-                var key = Normalise(name);
-                if (key.Length > 0 && !_actionsByName.ContainsKey(key))
-                    _actionsByName[key] = row.RowId;
-            }
-        }
-
-        var statuses = data.GetExcelSheet<LuminaStatus>();
-        if (statuses is not null)
-        {
-            foreach (var row in statuses)
-            {
-                var name = row.Name.ExtractText();
-                if (string.IsNullOrEmpty(name))
-                    continue;
-
-                var key = Normalise(name);
-                if (key.Length > 0 && !_statusesByName.ContainsKey(key))
-                    _statusesByName[key] = row.RowId;
-            }
-        }
-    }
+    public LuminaGameData(IDataManager data) => _data = data;
 
     public string? GetActionName(uint actionId)
     {
@@ -64,8 +36,33 @@ public sealed class LuminaGameData : IGameDataLookup
         return row?.Name.ExtractText();
     }
 
-    public uint? FindActionIdByName(string name) =>
-        _actionsByName.TryGetValue(Normalise(name), out var id) ? id : null;
+    public uint? FindActionIdByName(string name)
+    {
+        _actionsByName ??= BuildActionIndex();
+        return _actionsByName.TryGetValue(Normalise(name), out var id) ? id : null;
+    }
+
+    private Dictionary<string, uint> BuildActionIndex()
+    {
+        var index = new Dictionary<string, uint>();
+        var sheet = _data.GetExcelSheet<LuminaAction>();
+        if (sheet is null)
+            return index;
+
+        foreach (var row in sheet)
+        {
+            // Player actions only, and the lowest id wins for a duplicated name, so we land
+            // on the real action rather than an NPC copy of it.
+            if (!row.IsPlayerAction)
+                continue;
+
+            var key = Normalise(row.Name.ExtractText());
+            if (key.Length > 0)
+                index.TryAdd(key, row.RowId);
+        }
+
+        return index;
+    }
 
     public string? GetStatusName(uint statusId)
     {
@@ -73,8 +70,28 @@ public sealed class LuminaGameData : IGameDataLookup
         return row?.Name.ExtractText();
     }
 
-    public uint? FindStatusIdByName(string name) =>
-        _statusesByName.TryGetValue(Normalise(name), out var id) ? id : null;
+    public uint? FindStatusIdByName(string name)
+    {
+        _statusesByName ??= BuildStatusIndex();
+        return _statusesByName.TryGetValue(Normalise(name), out var id) ? id : null;
+    }
+
+    private Dictionary<string, uint> BuildStatusIndex()
+    {
+        var index = new Dictionary<string, uint>();
+        var sheet = _data.GetExcelSheet<LuminaStatus>();
+        if (sheet is null)
+            return index;
+
+        foreach (var row in sheet)
+        {
+            var key = Normalise(row.Name.ExtractText());
+            if (key.Length > 0)
+                index.TryAdd(key, row.RowId);
+        }
+
+        return index;
+    }
 
     private static string Normalise(string value)
     {
@@ -91,7 +108,12 @@ public sealed class LuminaGameData : IGameDataLookup
     /// <summary>Icon id for an action, for the heads-up display. Zero when unknown.</summary>
     public uint GetActionIcon(uint actionId)
     {
+        if (_iconCache.TryGetValue(actionId, out var cached))
+            return cached;
+
         var row = _data.GetExcelSheet<LuminaAction>()?.GetRowOrDefault(actionId);
-        return row?.Icon ?? 0u;
+        var icon = row?.Icon ?? 0u;
+        _iconCache[actionId] = icon;
+        return icon;
     }
 }

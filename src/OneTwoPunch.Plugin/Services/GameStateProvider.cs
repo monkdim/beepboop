@@ -24,11 +24,19 @@ public sealed unsafe class GameStateProvider(
     Configuration config)
 {
     private readonly CombatSnapshot _snapshot = new();
+    /// <summary>How often the object table is swept to count enemies.</summary>
+    private const double EnemyCountInterval = 0.2;
+
     private readonly List<StatusEntry> _self = [];
     private readonly List<StatusEntry> _target = [];
 
     private float _combatDuration;
     private bool _wasInCombat;
+
+    // Enemy counting walks the whole object table. Even at once per frame that is a lot of
+    // work for a number that changes on the timescale of a pull, not a frame.
+    private int _enemyCount;
+    private double _enemyCountedAt = double.NegativeInfinity;
 
     public void Tick(float deltaSeconds)
     {
@@ -95,11 +103,20 @@ public sealed unsafe class GameStateProvider(
 
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
-        s.TargetInRange = battleTarget is not null
+
+        // Both addresses are handed straight to the game as pointers. A target that was
+        // destroyed between frames leaves a live-looking wrapper around a null address, and
+        // dereferencing that in native code takes the whole process down - so they are
+        // checked here rather than trusted.
+        var playerAddress = player.Address;
+        var targetAddress = battleTarget?.Address ?? nint.Zero;
+
+        s.TargetInRange = playerAddress != nint.Zero
+            && targetAddress != nint.Zero
             && ActionManager.GetActionInRangeOrLoS(
                 job.SingleTargetButton.Id,
-                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address,
-                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleTarget.Address) == 0;
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)playerAddress,
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)targetAddress) == 0;
 
         s.TargetHpFraction = battleTarget is { MaxHp: > 0 }
             ? (float)battleTarget.CurrentHp / battleTarget.MaxHp
@@ -108,7 +125,13 @@ public sealed unsafe class GameStateProvider(
         // Nothing hostile and targetable means the boss is away: hold burst.
         s.InDowntime = battleTarget is null || !battleTarget.IsTargetable;
 
-        s.EnemiesInAoeRange = EnemyCounter.CountAround(objects, battleTarget, job.AoeRadius);
+        if (s.Now - _enemyCountedAt >= EnemyCountInterval)
+        {
+            _enemyCount = EnemyCounter.CountAround(objects, battleTarget, job.AoeRadius);
+            _enemyCountedAt = s.Now;
+        }
+
+        s.EnemiesInAoeRange = _enemyCount;
 
         s.Position = config.DetectPositionals && battleTarget is not null
             ? PositionMath.Relative(player, battleTarget)

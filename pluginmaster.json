@@ -4,7 +4,7 @@
     "Author": "monkdim",
     "Name": "One Two Punch",
     "InternalName": "OneTwoPunch",
-    "AssemblyVersion": "1.0.0.0",
+    "AssemblyVersion": "1.0.1.0",
     "Description": "Collapses each supported DPS job into a single-target button and an AoE button. The button shows the action that is correct right now given your cooldowns, gauge, buffs, target count and whether you are moving. It never presses anything for you: one keypress is always exactly one action.",
     "Punchline": "Two buttons. Your whole DPS rotation. You still throw the punches.",
     "ApplicableVersion": "any",

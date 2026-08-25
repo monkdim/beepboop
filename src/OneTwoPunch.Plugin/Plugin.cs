@@ -54,8 +54,34 @@ public sealed class Plugin : IDalamudPlugin
     private uint _currentJobId;
     private double _now;
 
+    /// <summary>
+    /// Frame counter, used to answer the hook from cache.
+    /// <para>
+    /// The game asks what a hotbar slot should cast for every slot, every frame, just to
+    /// draw the icons - and a player with several bars showing the same action asks many
+    /// times over. Rebuilding the whole picture of the world for each of those calls meant
+    /// sweeping the object table dozens of times a frame. It is built once per frame now,
+    /// and every call after the first in the same frame is a dictionary lookup.
+    /// </para>
+    /// </summary>
+    private long _frame;
+
+    private CombatSnapshot? _frameSnapshot;
+    private long _frameSnapshotAt = -1;
+
+    private readonly Dictionary<RotationMode, (long Frame, Suggestion Suggestion)> _resolved = [];
+
     /// <summary>Last resolved suggestion per mode, for the heads-up display.</summary>
     private readonly Dictionary<RotationMode, Suggestion> _lastSuggestion = [];
+
+    /// <summary>Consecutive failing frames after which the plugin switches itself off.</summary>
+    private const int FailureLimit = 20;
+
+    /// <summary>True once the hook is installed, which only happens in the world.</summary>
+    private bool _active;
+
+    private int _consecutiveFailures;
+    private bool _shutDown;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -73,8 +99,10 @@ public sealed class Plugin : IDalamudPlugin
         _windows.AddWindow(_configWindow);
         _windows.AddWindow(_previewWindow);
 
+        // Deliberately not enabled here. Plugins are constructed while the game is still
+        // starting up, and this one installs a hook into the action system - so it waits
+        // until there is a character standing in the world. See OnUpdate.
         _replacer = new ActionReplacer(Interop, Log, Classify, Resolve);
-        _replacer.Enable();
 
         _useWatcher.ActionUsed += OnActionUsed;
 
@@ -111,15 +139,60 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnUpdate(IFramework framework)
     {
+        if (_shutDown)
+            return;
+
+        try
+        {
+            Update(framework);
+            _consecutiveFailures = 0;
+        }
+        catch (Exception ex)
+        {
+            _consecutiveFailures++;
+            Log.Error(ex, "One Two Punch: update failed ({Count} in a row)", _consecutiveFailures);
+
+            // A fault that repeats every frame is not going to fix itself, and a plugin that
+            // keeps throwing inside the game's frame loop is worse than one that is off. Shut
+            // down for the rest of the session rather than making the player's game unusable.
+            if (_consecutiveFailures >= FailureLimit)
+            {
+                _shutDown = true;
+                Deactivate();
+                Chat.PrintError(
+                    "[One Two Punch] Switched off after repeated errors. Your hotbars are back to "
+                    + "normal. Please send the Dalamud log to the plugin author.");
+                Log.Error("One Two Punch: shut down after {Count} consecutive update failures.", _consecutiveFailures);
+            }
+        }
+    }
+
+    private void Update(IFramework framework)
+    {
+        var player = Objects.LocalPlayer;
+
+        // Not in the world: title screen, character select, a loading screen, a cutscene
+        // transition. Nothing here reads the game while that is true, and the hook is not
+        // installed - so the plugin cannot be the thing that breaks your login.
+        if (player is null)
+        {
+            if (_active)
+                Deactivate();
+
+            return;
+        }
+
+        if (!_active && !Activate())
+            return;
+
         var delta = (float)framework.UpdateDelta.TotalSeconds;
         _now += delta;
+        _frame++;
 
-        _movement.Update(Objects.LocalPlayer, delta);
+        _movement.Update(player, delta);
         _state.Tick(delta);
 
-        var player = Objects.LocalPlayer;
-        var jobId = player?.ClassJob.RowId ?? 0;
-
+        var jobId = player.ClassJob.RowId;
         if (jobId != _currentJobId)
         {
             _currentJobId = jobId;
@@ -130,11 +203,44 @@ public sealed class Plugin : IDalamudPlugin
             _useWatcher.Tick();
     }
 
+    /// <summary>
+    /// Installs the hook, now that there is definitely a character in the world. Returns
+    /// false if the hook is not available, in which case the plugin stays inert and tries
+    /// again next frame.
+    /// </summary>
+    private bool Activate()
+    {
+        if (!_replacer.Enable())
+            return false;
+
+        _active = true;
+        return true;
+    }
+
+    /// <summary>Removes the hook and forgets everything about the last character.</summary>
+    private void Deactivate()
+    {
+        _replacer.Disable();
+        _active = false;
+
+        _currentJobId = 0;
+        _job = null;
+        _session = null;
+        _lastSuggestion.Clear();
+        _resolved.Clear();
+        _frameSnapshotAt = -1;
+        _frameSnapshot = null;
+        _movement.Reset();
+        _useWatcher.Reset();
+    }
+
     private void SwitchJob(uint jobId)
     {
         _job = null;
         _session = null;
         _lastSuggestion.Clear();
+        _resolved.Clear();
+        _frameSnapshotAt = -1;
         _movement.Reset();
         _useWatcher.Reset();
 
@@ -200,13 +306,26 @@ public sealed class Plugin : IDalamudPlugin
         if (_job is null || _session is null)
             return null;
 
-        var snapshot = _state.Build(_job, _now);
-        if (snapshot is null)
+        // Answered already this frame for this button.
+        if (_resolved.TryGetValue(mode, out var cached) && cached.Frame == _frame)
+            return cached.Suggestion;
+
+        // The world does not change between hook calls within a frame, and the snapshot does
+        // not depend on which button is being asked about, so both buttons share one.
+        if (_frameSnapshotAt != _frame)
+        {
+            _frameSnapshot = _state.Build(_job, _now);
+            _frameSnapshotAt = _frame;
+
+            if (_frameSnapshot is not null)
+                _actionState.BeginFrame(_frameSnapshot.Level);
+        }
+
+        if (_frameSnapshot is null)
             return null;
 
-        _actionState.BeginFrame(snapshot.Level);
-
-        var suggestion = _session.Resolve(mode, snapshot, _actionState);
+        var suggestion = _session.Resolve(mode, _frameSnapshot, _actionState);
+        _resolved[mode] = (_frame, suggestion);
         _lastSuggestion[mode] = suggestion;
         return suggestion;
     }
