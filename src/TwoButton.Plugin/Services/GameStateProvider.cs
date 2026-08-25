@@ -20,6 +20,7 @@ public sealed unsafe class GameStateProvider(
     IObjectTable objects,
     IJobGauges gauges,
     MovementTracker movement,
+    PotionTracker potions,
     Configuration config)
 {
     private readonly CombatSnapshot _snapshot = new();
@@ -65,6 +66,7 @@ public sealed unsafe class GameStateProvider(
         FillStatuses(s, player);
         FillCombo(s);
         FillGauges(s, job);
+        FillPotion(s);
 
         return s;
     }
@@ -111,6 +113,20 @@ public sealed unsafe class GameStateProvider(
         s.Position = config.DetectPositionals && battleTarget is not null
             ? PositionMath.Relative(player, battleTarget)
             : RelativePosition.Unknown;
+    }
+
+    private void FillPotion(CombatSnapshot s)
+    {
+        if (!config.PotionEnabled || config.PotionItemId == 0)
+        {
+            s.PotionAvailable = false;
+            s.PotionCooldownRemaining = float.MaxValue;
+            return;
+        }
+
+        var remaining = potions.CooldownRemaining(config.PotionItemId, config.PotionPreferHq);
+        s.PotionCooldownRemaining = remaining;
+        s.PotionAvailable = remaining <= 0f;
     }
 
     private void FillStatuses(CombatSnapshot s, IPlayerCharacter player)

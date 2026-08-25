@@ -37,7 +37,13 @@ jobs:
       - name: Generate pluginmaster.json
         shell: pwsh
         run: |
-          $out = "src/TwoButton.Plugin/bin/x64/Release/TwoButton"
+          $zip = Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter latest.zip |
+                 Select-Object -First 1
+          if (-not $zip) { throw "DalamudPackager produced no latest.zip" }
+          $out = $zip.Directory.FullName
+          Write-Host "Packaged output: $out"
+          "PLUGIN_OUT=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
+
           $manifest = Get-Content "$out/TwoButton.json" -Raw | ConvertFrom-Json
           $repo = "https://github.com/${{ github.repository }}"
           $dl = "$repo/releases/latest/download/latest.zip"
@@ -72,6 +78,6 @@ jobs:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
           name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest build' }}
           files: |
-            src/TwoButton.Plugin/bin/x64/Release/TwoButton/latest.zip
+            ${{ env.PLUGIN_OUT }}/latest.zip
             pluginmaster.json
           fail_on_unmatched_files: true

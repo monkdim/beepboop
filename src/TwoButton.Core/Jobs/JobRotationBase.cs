@@ -30,6 +30,8 @@ public abstract class JobRotationBase : IJobRotation
 
     public virtual StatusRef? PositionalRescueStatus => null;
 
+    public virtual StatusRef? BurstStatus => null;
+
     public virtual Opener? Opener => null;
 
     public RotationPlan SingleTarget { get; }

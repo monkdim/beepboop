@@ -37,6 +37,20 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool DetectPositionals = true;
 
+    // ---- Potion ----------------------------------------------------------
+
+    public bool PotionEnabled;
+
+    /// <summary>Item id of the chosen potion. Zero means none picked yet.</summary>
+    public uint PotionItemId;
+
+    /// <summary>Use the high quality version when the player is carrying one.</summary>
+    public bool PotionPreferHq = true;
+
+    public bool PotionInOpener = true;
+
+    public bool PotionOnBurst = true;
+
     // ---- Heads-up display ------------------------------------------------
 
     public bool ShowPreview = true;
@@ -46,6 +60,9 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>Show the one-line reason the engine picked this action.</summary>
     public bool ShowReason = true;
+
+    /// <summary>Show a banner when it is the moment to pop a potion.</summary>
+    public bool ShowPotionPrompt = true;
 
     /// <summary>Icon scale for the preview window. Large by default; this is the point.</summary>
     public float PreviewScale = 1.6f;
@@ -67,6 +84,9 @@ public sealed class Configuration : IPluginConfiguration
         HoldBurstDuringDowntime = HoldBurstDuringDowntime,
         SuggestionHoldSeconds = SuggestionHoldSeconds,
         WeaveSafetyMargin = WeaveSafetyMargin,
+        PotionEnabled = PotionEnabled && PotionItemId != 0,
+        PotionInOpener = PotionInOpener,
+        PotionOnBurst = PotionOnBurst,
     };
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);

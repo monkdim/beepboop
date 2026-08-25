@@ -74,8 +74,12 @@ jobs:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud
         run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
 
+      - name: Show build output
+        shell: pwsh
+        run: Get-ChildItem src/TwoButton.Plugin/bin -Recurse | Select-Object -ExpandProperty FullName
+
       - uses: actions/upload-artifact@v4
         with:
           name: TwoButton
-          path: src/TwoButton.Plugin/bin/x64/Release/TwoButton/
+          path: src/TwoButton.Plugin/bin/Release/
           if-no-files-found: error

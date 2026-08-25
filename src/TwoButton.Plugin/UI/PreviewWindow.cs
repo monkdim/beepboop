@@ -50,9 +50,24 @@ public sealed class PreviewWindow(
         var current = suggestions();
         var size = 48f * config.PreviewScale;
 
-        DrawRow("Single target", current.GetValueOrDefault(RotationMode.SingleTarget), size);
+        var single = current.GetValueOrDefault(RotationMode.SingleTarget);
+        var aoe = current.GetValueOrDefault(RotationMode.Aoe);
+
+        // Deliberately at the top and loud: the potion window is short, and it is the one
+        // press the plugin cannot put on the button for you.
+        if (config.ShowPotionPrompt && (single?.PotionPrompt == true || aoe?.PotionPrompt == true))
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.85f, 0.3f, 1f));
+            ImGui.SetWindowFontScale(1.4f * config.PreviewScale);
+            ImGui.TextUnformatted("POTION NOW");
+            ImGui.SetWindowFontScale(1f);
+            ImGui.PopStyleColor();
+            ImGui.Separator();
+        }
+
+        DrawRow("Single target", single, size);
         ImGui.Spacing();
-        DrawRow("AoE", current.GetValueOrDefault(RotationMode.Aoe), size);
+        DrawRow("AoE", aoe, size);
     }
 
     private void DrawRow(string label, Suggestion? suggestion, float size)

@@ -89,7 +89,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         var fallback = mode == RotationMode.Aoe ? job.AoeButton : job.SingleTargetButton;
 
         var fresh = ResolveFresh(context, plan, fallback, modeNote);
-        return Stabilise(fresh, context, snapshot.Now);
+        var stabilised = Stabilise(fresh, context, snapshot.Now);
+
+        // The prompt is decided after stabilisation so it always reflects the window the
+        // player is actually looking at.
+        stabilised.PotionPrompt = ShouldPromptPotion(context);
+        return stabilised;
     }
 
     private Suggestion ResolveFresh(
@@ -138,6 +143,32 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         }
 
         return new Suggestion(fallback, fallback, modeNote ?? "nothing to suggest");
+    }
+
+    /// <summary>
+    /// Whether now is the moment to pop a potion. Requires a real weave window, so the
+    /// prompt never asks for a press that would clip the global cooldown.
+    /// </summary>
+    private bool ShouldPromptPotion(RotationContext context)
+    {
+        if (!settings.PotionEnabled || !context.Snapshot.PotionAvailable)
+            return false;
+
+        if (!context.InCombat || context.Downtime || !context.CanWeave)
+            return false;
+
+        if (settings.PotionInOpener
+            && OpenerActive
+            && job.Opener is not null
+            && job.Opener.PotionBeforeStep >= 0
+            && _openerStep == job.Opener.PotionBeforeStep)
+        {
+            return true;
+        }
+
+        return settings.PotionOnBurst
+            && job.BurstStatus is not null
+            && context.Buff(job.BurstStatus);
     }
 
     private static (Rule rule, ActionRef action)? FirstMatch(

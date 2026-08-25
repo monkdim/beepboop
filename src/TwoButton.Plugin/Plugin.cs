@@ -39,6 +39,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ActionUseWatcher _useWatcher = new();
     private readonly GameStateProvider _state;
     private readonly LuminaGameData _gameData;
+    private readonly PotionTracker _potions;
     private readonly ActionReplacer _replacer;
 
     private readonly Dictionary<uint, VerificationReport> _reports = [];
@@ -57,11 +58,12 @@ public sealed class Plugin : IDalamudPlugin
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         _gameData = new LuminaGameData(Data);
+        _potions = new PotionTracker(Data);
 
         _state = new GameStateProvider(
-            Condition, Targets, Objects, Gauges, _movement, _config);
+            Condition, Targets, Objects, Gauges, _movement, _potions, _config);
 
-        _configWindow = new ConfigWindow(_config, () => _job, () => _reports);
+        _configWindow = new ConfigWindow(_config, _potions, () => _job, () => _reports);
         _previewWindow = new PreviewWindow(_config, Textures, _gameData, () => _lastSuggestion, () => _job);
         _windows.AddWindow(_configWindow);
         _windows.AddWindow(_previewWindow);

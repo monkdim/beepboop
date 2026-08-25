@@ -30,11 +30,18 @@ public sealed class DragoonRotation : JobRotationBase
 
     public override StatusRef? PositionalRescueStatus => A.TrueNorthBuff;
 
+    /// <summary>Lance Charge is the clean marker for Dragoon's burst window.</summary>
+    public override StatusRef? BurstStatus => A.LanceChargeBuff;
+
     private static readonly Opener Sequence = new(
         "Dawntrail standard", 100,
         A.TrueThrust, A.SpiralBlow, A.LanceCharge, A.ChaoticSpring, A.BattleLitany,
         A.Geirskogul, A.WheelingThrust, A.HighJump, A.LifeSurge, A.Drakesbane,
-        A.DragonfireDive, A.RaidenThrust, A.Nastrond, A.Stardiver);
+        A.DragonfireDive, A.RaidenThrust, A.Nastrond, A.Stardiver)
+    {
+        // First real weave window of the opener, on Lance Charge.
+        PotionBeforeStep = 2,
+    };
 
     public override Opener? Opener => Sequence;
 

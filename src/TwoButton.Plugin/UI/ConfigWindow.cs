@@ -4,11 +4,13 @@ using Dalamud.Bindings.ImGui;
 using TwoButton.Core.Engine;
 using TwoButton.Core.Jobs;
 using TwoButton.Core.Model;
+using TwoButton.Plugin.Services;
 
 namespace TwoButton.Plugin.UI;
 
 public sealed class ConfigWindow(
     Configuration config,
+    PotionTracker potions,
     Func<IJobRotation?> currentJob,
     Func<IReadOnlyDictionary<uint, VerificationReport>> reports)
     : Window("Two Button", ImGuiWindowFlags.AlwaysAutoResize)
@@ -32,6 +34,12 @@ public sealed class ConfigWindow(
             if (ImGui.BeginTabItem("Rotation"))
             {
                 DrawRotationTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Potion"))
+            {
+                DrawPotionTab();
                 ImGui.EndTabItem();
             }
 
@@ -111,6 +119,71 @@ public sealed class ConfigWindow(
             + "changes which abilities the rotation picks.");
     }
 
+    private void DrawPotionTab()
+    {
+        ImGui.TextWrapped(
+            "A potion is an item, not an action, so the button cannot become one - and "
+            + "pressing it for you would make this an automation plugin. What it can do is "
+            + "tell you the exact weave window to pop it in, having already checked it is "
+            + "off cooldown and that it fits without clipping your global cooldown.");
+        ImGui.Spacing();
+        ImGui.TextDisabled("Bind your potion to one spare key. It is one press every few minutes.");
+        ImGui.Separator();
+
+        Toggle("Prompt me for a potion", ref config.PotionEnabled);
+
+        if (!config.PotionEnabled)
+            return;
+
+        var options = potions.Options;
+        var current = potions.NameOf(config.PotionItemId);
+
+        if (ImGui.BeginCombo("Potion", current))
+        {
+            _potionFilter ??= string.Empty;
+            ImGui.SetNextItemWidth(220f);
+            ImGui.InputTextWithHint("##potionfilter", "search", ref _potionFilter, 64);
+
+            var shown = 0;
+            foreach (var option in options)
+            {
+                if (_potionFilter.Length > 0
+                    && !option.Name.Contains(_potionFilter, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (shown++ > 60)
+                    break;
+
+                if (!ImGui.Selectable(option.Name, option.ItemId == config.PotionItemId))
+                    continue;
+
+                config.PotionItemId = option.ItemId;
+                config.Save();
+            }
+
+            ImGui.EndCombo();
+        }
+
+        Help("Read from the game's own item list, so a new tier appears here without a "
+             + "plugin update.");
+
+        Toggle("Prefer high quality", ref config.PotionPreferHq,
+            "Uses the HQ version when you are carrying one.");
+
+        Toggle("Prompt during the opener", ref config.PotionInOpener,
+            "Prompts at the job's opener potion point - the first weave window where it "
+            + "lines up with your burst.");
+
+        Toggle("Prompt on burst windows", ref config.PotionOnBurst,
+            "Prompts whenever your burst buff is up and the potion is off cooldown. Jobs "
+            + "whose burst is marked by a debuff on the target rather than a buff on you "
+            + "only use the opener prompt.");
+    }
+
+    private string? _potionFilter;
+
     private void DrawDisplayTab()
     {
         Toggle("Show the next-action display", ref config.ShowPreview,
@@ -121,6 +194,9 @@ public sealed class ConfigWindow(
 
         Toggle("Show the reason", ref config.ShowReason,
             "A short line explaining why the engine picked this action.");
+
+        Toggle("Show the potion prompt", ref config.ShowPotionPrompt,
+            "A large banner when it is the moment to pop your potion.");
 
         Toggle("Only show in combat", ref config.ShowPreviewOnlyInCombat);
 

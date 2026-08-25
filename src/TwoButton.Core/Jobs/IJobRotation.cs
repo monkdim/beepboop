@@ -40,6 +40,12 @@ public interface IJobRotation
     /// <summary>Status applied by <see cref="PositionalRescue"/>, so it is not double-pressed.</summary>
     StatusRef? PositionalRescueStatus { get; }
 
+    /// <summary>
+    /// The buff that marks this job's burst window. Used to time the potion prompt outside
+    /// the opener. Null if the job has no single clear burst marker.
+    /// </summary>
+    StatusRef? BurstStatus { get; }
+
     Opener? Opener { get; }
 
     RotationPlan SingleTarget { get; }

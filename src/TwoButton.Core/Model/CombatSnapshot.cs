@@ -118,6 +118,14 @@ public sealed class CombatSnapshot
     /// </summary>
     public IReadOnlyList<StatusEntry> TargetStatuses { get; set; } = [];
 
+    // ---- Potion ----------------------------------------------------------
+
+    /// <summary>True when the configured potion is off cooldown and in the inventory.</summary>
+    public bool PotionAvailable { get; set; }
+
+    /// <summary>Seconds until the potion comes off cooldown.</summary>
+    public float PotionCooldownRemaining { get; set; }
+
     // ---- Job gauges ------------------------------------------------------
 
     public JobGauges Gauges { get; } = new();
