@@ -136,17 +136,16 @@ jobs:
           $manifest = Get-Content "$out/OneTwoPunch.json" -Raw | ConvertFrom-Json
           $repo = "https://github.com/${{ github.repository }}"
 
-          # Served straight out of the repository rather than as a release asset.
+          # Served as a release asset, which is where the plugins that install without
+          # trouble on the reporting machine serve theirs.
           #
-          # A release asset URL is not one request. "releases/latest/download/..." is a 302
-          # to a tagged URL, which is a second 302 to a signed CDN host - and that signed URL
-          # answers a HEAD request with 401, so a client that looks before it downloads gets
-          # a failure that has nothing to do with the file. Three hops, two hosts and an
-          # expiring signature, in the one code path where the game sits waiting.
-          #
-          # raw.githubusercontent.com is one request to a host the listing already depends on
-          # for the icon. It is also how most Dalamud plugin repositories serve their builds.
-          $raw = "https://raw.githubusercontent.com/${{ github.repository }}/main/dist/latest.zip"
+          # This was moved to raw.githubusercontent.com on the theory that the release asset
+          # redirect chain was what froze the installer. That theory was wrong - HealAssist
+          # and BossMod Rewired both serve from releases/latest/download and both install
+          # fine on the same machine, and BossMod pulls seventeen megabytes that way. Since
+          # the move, this has been the only one of the three on a different host, and the
+          # only one that fails.
+          $raw = "https://github.com/${{ github.repository }}/releases/latest/download/latest.zip"
 
           $manifest | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $manifest | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
@@ -239,6 +238,20 @@ jobs:
 
           Write-Host "listing and packaged manifest agree: $($listing.InternalName) $($listing.AssemblyVersion), api level $level"
 
+      # Publishing comes before the served-content check now, because the build is served
+      # as a release asset: there is nothing at releases/latest/download to check until the
+      # release exists. Checking first would have compared against the previous version's
+      # asset for ever and never let a new one out.
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest build' }}
+          files: |
+            ${{ env.PLUGIN_OUT }}/latest.zip
+            pluginmaster.json
+          fail_on_unmatched_files: true
+
       # Second: is the right content actually being served? Asking only whether the URL
       # answers is what let a run go green while the CDN was still handing out the previous
       # listing - a listing with no api level in it, which is exactly the state that makes
@@ -305,13 +318,3 @@ jobs:
 
             Start-Sleep -Seconds 20
           }
-
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
-          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest build' }}
-          files: |
-            ${{ env.PLUGIN_OUT }}/latest.zip
-            pluginmaster.json
-          fail_on_unmatched_files: true
