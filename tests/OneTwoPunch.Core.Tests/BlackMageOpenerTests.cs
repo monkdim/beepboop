@@ -1,3 +1,4 @@
+using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Jobs;
 using OneTwoPunch.Core.Jobs.BlackMage;
 using OneTwoPunch.Core.Model;
