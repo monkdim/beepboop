@@ -121,12 +121,65 @@ public sealed unsafe class ActionReplacer : IDisposable
         }
     }
 
+    /// <summary>
+    /// True while this thread is already inside the detour.
+    /// <para>
+    /// This is the difference between a plugin and a frozen game, and it is worth being
+    /// plain about why. Working out what to suggest means asking the game questions -
+    /// GetActionStatus, GetRecastTime, GetMaxCharges, GetActionInRangeOrLoS - and every one
+    /// of those resolves the action's upgrade first, by calling GetAdjustedActionId. Which
+    /// is the function this hook sits on. So answering the question re-asks it, and each
+    /// re-ask asks again: unbounded recursion, one core pinned, the game thread never
+    /// returning.
+    /// </para>
+    /// <para>
+    /// Caching the answer per frame does not help, because the cache is only written once
+    /// the answer exists and the recursion happens while computing it. The only thing that
+    /// works is refusing to re-enter: a nested call is the game asking on our behalf, and it
+    /// wants the game's own answer, not ours.
+    /// </para>
+    /// <para>
+    /// Thread static rather than a plain field: the game may ask from more than one thread,
+    /// and one thread's work must not suppress another's.
+    /// </para>
+    /// </summary>
+    [ThreadStatic]
+    private static bool _inDetour;
+
+    private long _suppressed;
+    private bool _reportedSuppression;
+
+    /// <summary>
+    /// How many nested calls have been turned away. Non-zero means the recursion this guard
+    /// exists to stop is genuinely happening on this machine.
+    /// </summary>
+    public long SuppressedReentrantCalls => _suppressed;
+
     private uint Detour(ActionManager* actionManager, uint actionId)
     {
         var hook = _hook;
         if (hook is null)
             return actionId;
 
+        // Already inside: this call is one of ours, asked on our behalf. Answer it with the
+        // game's own adjustment and do not start over.
+        if (_inDetour)
+        {
+            // Counted, and reported once. Without the guard this is the path that recursed
+            // without end, so seeing a number here is the confirmation that it was real.
+            _suppressed++;
+            if (!_reportedSuppression)
+            {
+                _reportedSuppression = true;
+                _log.Information(
+                    "One Two Punch: nested GetAdjustedActionId suppressed. This is expected - "
+                    + "asking the game about an action makes it resolve that action's id.");
+            }
+
+            return hook.Original(actionManager, actionId);
+        }
+
+        _inDetour = true;
         try
         {
             var mode = _classify(actionId);
@@ -146,6 +199,10 @@ public sealed unsafe class ActionReplacer : IDisposable
         {
             // Never let a bug in the rotation take the player's hotbar with it.
             _log.Error(ex, "One Two Punch: resolve failed, passing the action through unchanged");
+        }
+        finally
+        {
+            _inDetour = false;
         }
 
         return hook.Original(actionManager, actionId);
