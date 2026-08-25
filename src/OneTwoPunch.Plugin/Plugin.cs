@@ -708,6 +708,19 @@ public sealed class Plugin : IDalamudPlugin
         Chat.Print(
             $"[One Two Punch] Loaded in {_loadMilliseconds}ms. "
             + $"Nested action lookups turned away: {_replacer.SuppressedReentrantCalls}.");
+
+        // The hotbar draws its icons from the same function the replacement runs in, so a
+        // slot whose icon never changes is either a slot the game is not asking about, or
+        // one we are declining to answer. These two numbers say which.
+        var lastAnswer = _replacer.LastAnswer == 0
+            ? "nothing yet"
+            : _gameData.GetActionName(_replacer.LastAnswer) ?? $"action {_replacer.LastAnswer}";
+
+        Chat.Print(
+            $"[One Two Punch] The game asked about your buttons {_replacer.TimesAsked} times, "
+            + $"answered {_replacer.TimesAnswered}, last answer {lastAnswer}. "
+            + "Both numbers climbing while you play means the hotbar is being told; "
+            + "an icon that still will not change is the game's drawing, not ours.");
         Chat.Print("[One Two Punch] Checking every job's action ids against the game's data...");
 
         // On a worker thread for the same reason job switching is: a single mismatched id
