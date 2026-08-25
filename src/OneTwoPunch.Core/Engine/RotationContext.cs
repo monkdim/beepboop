@@ -169,7 +169,20 @@ public sealed class RotationContext
     /// genuinely on a long cooldown of its own from being suggested.
     /// </para>
     /// </param>
-    public bool Ready(ActionRef action, bool byNextGcd = false)
+    /// <summary>
+    /// Readiness judged the way the action itself is used: a global as of the next global,
+    /// an off-global as of right now.
+    /// <para>
+    /// This overload is what rule conditions call, and it defaulting to "right now" was
+    /// wrong for globals in the same way the gate was. A rule reading
+    /// <c>!c.Ready(Fire4)</c> means "there is no mana left for another Fire IV" - but with
+    /// the instant meaning it read "the global is still rolling", which is true for most of
+    /// every global, so Despair fired immediately after a Manafont had refilled the bar.
+    /// </para>
+    /// </summary>
+    public bool Ready(ActionRef action) => Ready(action, action.Kind == ActionKind.Gcd);
+
+    public bool Ready(ActionRef action, bool byNextGcd)
     {
         if (!Has(action))
             return false;

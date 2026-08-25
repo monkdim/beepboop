@@ -125,7 +125,12 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
             .Because("full mana, open in Astral Fire");
 
-        p.Gcd(A.Blizzard3).When(c => !c.Blm.InAstralFire).Because("into Umbral Ice");
+        // Anything that is not already ice goes to ice, and that has to include Astral Fire
+        // itself. This asked for !InAstralFire, so a Black Mage who ran the bar dry in fire
+        // had no rule left that could match: Fire IV and Despair both want mana, and the one
+        // rule that could have escaped refused to fire precisely because it was in fire. The
+        // list fell through to its fallback and cast Fire I for ever.
+        p.Gcd(A.Blizzard3).When(c => !c.Blm.InUmbralIce).Because("into Umbral Ice");
 
         p.Gcd(A.Fire1);
     }
@@ -166,7 +171,7 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("full mana, open in Astral Fire");
 
         p.Gcd(c => c.Has(A.HighBlizzard2) ? A.HighBlizzard2 : A.Blizzard2)
-            .When(c => !c.Blm.InAstralFire)
+            .When(c => !c.Blm.InUmbralIce)
             .Because("into Umbral Ice");
 
         p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2);
