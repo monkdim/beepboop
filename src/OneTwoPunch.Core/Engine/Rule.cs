@@ -54,6 +54,32 @@ public sealed class Rule
     internal string? NoteFor(RotationContext context) =>
         _noteResolver is not null ? _noteResolver(context) : Note;
 
+    /// <summary>
+    /// Whether this off-global is worth pressing with the global already up.
+    /// <para>
+    /// Off-globals are normally only offered inside a weave window, which is the right rule
+    /// for damage: an ability squeezed in beside a global costs nothing. But a few exist to
+    /// unblock the global that follows rather than to add to it, and for those the weave
+    /// window is exactly the wrong moment. Swiftcast and Triplecast are the case: you need
+    /// them when the global is up and you are moving and about to hard-cast into nothing.
+    /// Gated behind CanWeave they could only ever be suggested while a global was still
+    /// rolling - which is when you are not about to cast anything.
+    /// </para>
+    /// <para>
+    /// It costs the ability's own animation lock and delays the global by that much, so it
+    /// is worth it only when the alternative is a cast that will not happen. Rules that say
+    /// this must say when.
+    /// </para>
+    /// </summary>
+    public bool BeatsTheGlobal { get; private set; }
+
+    /// <summary>See <see cref="BeatsTheGlobal"/>. Use sparingly.</summary>
+    public Rule EvenWithTheGlobalUp()
+    {
+        BeatsTheGlobal = true;
+        return this;
+    }
+
     /// <summary>Marks the action as wanting a positional, so the HUD can hint it.</summary>
     public Rule Needs(PositionalHint positional)
     {
