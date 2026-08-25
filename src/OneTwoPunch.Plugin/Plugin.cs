@@ -467,6 +467,9 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void PrintVerification()
     {
+        Chat.Print(
+            $"[One Two Punch] Loaded in {_loadMilliseconds}ms. "
+            + $"Nested action lookups turned away: {_replacer.SuppressedReentrantCalls}.");
         Chat.Print("[One Two Punch] Checking every job's action ids against the game's data...");
 
         // On a worker thread for the same reason job switching is: a single mismatched id
