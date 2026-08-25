@@ -255,7 +255,25 @@ public sealed class Plugin : IDalamudPlugin
             SwitchJob(jobId);
         }
 
-        // Nothing to poll: uses arrive from the UseActionLocation hook.
+        // Work out both buttons every frame, whether or not the game has asked.
+        //
+        // This used to happen only inside the hook, which means only when the game felt like
+        // redrawing a hotbar slot - and out of combat, standing still, it does not. A
+        // recorded Reaper pull proves it: the very first line is the pre-pull Harpe with
+        // "no snapshot" beside it and no suggestion at all, because nothing had ever asked.
+        // The heads-up display is the whole accessibility feature and it was reading state
+        // that only existed as a side effect of the game drawing an icon.
+        //
+        // Costs one snapshot a frame, which is what already happened whenever the hook was
+        // live; both buttons share it and everything after the first call is a cache hit.
+        Resolve(RotationMode.SingleTarget);
+        Resolve(RotationMode.Aoe);
+
+        var extras = _job?.ExtraButtons.Count ?? 0;
+        for (var i = 0; i < extras; i++)
+            Resolve(i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
+
+        // Nothing else to poll: uses arrive from the UseActionLocation hook.
     }
 
     /// <summary>
