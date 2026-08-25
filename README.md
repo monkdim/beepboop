@@ -62,10 +62,12 @@ Then find **Two Button** in the plugin installer.
 > looks exactly like a failed publish. The URL points at the newest release, so it never
 > changes. To publish an update, run the **Release** workflow from the Actions tab.
 
-**Not seeing it in the installer?** Almost always an API level mismatch. Open the
-`pluginmaster.json` above in a browser and compare its `DalamudApiLevel` to the one your
-Dalamud reports in `/xlsettings` → Experimental. If they differ, re-run the Release
-workflow — it reads the level from whatever Dalamud it builds against.
+**Not seeing it in the installer?** Almost always an API level mismatch, and it fails
+silently — the plugin simply never appears. Dalamud computes its own API level as the
+major version of `Dalamud.dll`, and the installer lists a plugin only when the two match
+*exactly*. Open the `pluginmaster.json` above in a browser and compare its
+`DalamudApiLevel` to your Dalamud's major version. If they differ, re-run the Release
+workflow — it derives the level from whatever Dalamud it builds against.
 
 ## Setup
 

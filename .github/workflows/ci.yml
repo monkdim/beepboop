@@ -79,6 +79,15 @@ jobs:
             }
           }
 
+      # Same derivation the release uses, printed on every push so a Dalamud bump that
+      # changes the API level is visible here rather than as a plugin that stops appearing
+      # in anyone's installer.
+      - name: Report Dalamud API level
+        shell: pwsh
+        run: |
+          $version = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $PWD "dalamud/Dalamud.dll")).Version
+          Write-Host "Dalamud.dll version $version -> API level $($version.Major)"
+
       - name: Build
         env:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud
