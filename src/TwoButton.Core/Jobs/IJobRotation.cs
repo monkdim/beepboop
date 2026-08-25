@@ -41,10 +41,17 @@ public interface IJobRotation
     StatusRef? PositionalRescueStatus { get; }
 
     /// <summary>
-    /// The buff that marks this job's burst window. Used to time the potion prompt outside
-    /// the opener. Null if the job has no single clear burst marker.
+    /// The buff that marks this job's burst window, if it has one. Used to time the potion
+    /// prompt outside the opener.
     /// </summary>
     StatusRef? BurstStatus { get; }
+
+    /// <summary>
+    /// The ability that opens this job's burst. The potion prompt also fires when this is
+    /// what the button has become - which works for every job, including the many whose
+    /// burst is not marked by a buff on the player.
+    /// </summary>
+    ActionRef? BurstAction { get; }
 
     Opener? Opener { get; }
 

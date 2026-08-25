@@ -32,6 +32,8 @@ public abstract class JobRotationBase : IJobRotation
 
     public virtual StatusRef? BurstStatus => null;
 
+    public virtual ActionRef? BurstAction => null;
+
     public virtual Opener? Opener => null;
 
     public RotationPlan SingleTarget { get; }

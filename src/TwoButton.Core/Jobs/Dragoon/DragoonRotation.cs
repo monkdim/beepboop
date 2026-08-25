@@ -33,6 +33,8 @@ public sealed class DragoonRotation : JobRotationBase
     /// <summary>Lance Charge is the clean marker for Dragoon's burst window.</summary>
     public override StatusRef? BurstStatus => A.LanceChargeBuff;
 
+    public override ActionRef? BurstAction => A.LanceCharge;
+
     private static readonly Opener Sequence = new(
         "Dawntrail standard", 100,
         A.TrueThrust, A.SpiralBlow, A.LanceCharge, A.ChaoticSpring, A.BattleLitany,

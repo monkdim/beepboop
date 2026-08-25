@@ -93,7 +93,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
         // The prompt is decided after stabilisation so it always reflects the window the
         // player is actually looking at.
-        stabilised.PotionPrompt = ShouldPromptPotion(context);
+        stabilised.PotionPrompt = ShouldPromptPotion(context, stabilised);
         return stabilised;
     }
 
@@ -149,7 +149,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// Whether now is the moment to pop a potion. Requires a real weave window, so the
     /// prompt never asks for a press that would clip the global cooldown.
     /// </summary>
-    private bool ShouldPromptPotion(RotationContext context)
+    private bool ShouldPromptPotion(RotationContext context, Suggestion suggestion)
     {
         if (!settings.PotionEnabled || !context.Snapshot.PotionAvailable)
             return false;
@@ -166,9 +166,15 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return true;
         }
 
-        return settings.PotionOnBurst
-            && job.BurstStatus is not null
-            && context.Buff(job.BurstStatus);
+        if (!settings.PotionOnBurst)
+            return false;
+
+        // Either the job's burst buff is up, or the button has just become the ability that
+        // opens its burst - so the potion lands in the same window as the damage it buffs.
+        if (job.BurstStatus is not null && context.Buff(job.BurstStatus))
+            return true;
+
+        return job.BurstAction is not null && suggestion.Action.Id == job.BurstAction.Id;
     }
 
     private static (Rule rule, ActionRef action)? FirstMatch(
