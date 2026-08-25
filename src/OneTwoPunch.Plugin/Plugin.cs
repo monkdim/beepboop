@@ -86,6 +86,23 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Jobs whose verification is in flight, so it is not started twice.</summary>
     private readonly HashSet<uint> _verifying = [];
 
+    /// <summary>
+    /// Whether the plugin is allowed to touch the game at all.
+    /// <para>
+    /// Starts false, every session, and is deliberately not saved. Installing this plugin
+    /// has repeatedly frozen the game, and the cause has not been found - so installing it
+    /// must not be the thing that runs it. Loading now does nothing but register two
+    /// commands; the hook is not installed and the frame handler returns immediately until
+    /// somebody types /otp arm.
+    /// </para>
+    /// <para>
+    /// Not saved, on purpose: whatever state an armed session gets into, restarting the
+    /// game always comes back inert. There is no way to end up stuck in a game that will
+    /// not start.
+    /// </para>
+    /// </summary>
+    private bool _armed;
+
     /// <summary>How long the constructor took, reported once the player can read chat.</summary>
     private readonly long _loadMilliseconds;
 
@@ -134,6 +151,8 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     HelpMessage =
                         "Open One Two Punch settings.\n"
+                        + "/otp arm - let it run, this session only (it starts inert)\n"
+                        + "/otp disarm - stop it and remove the hook\n"
                         + "/otp verify - check every action id against the game's own data\n"
                         + "/otp hud - toggle the next-action display\n"
                         + "/otp on|off - master switch",
@@ -186,6 +205,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private void Update(IFramework framework)
     {
+        // Disarmed: not a single thing happens. No hook, no reads, no work.
+        if (!_armed)
+            return;
+
         var player = Objects.LocalPlayer;
 
         // Not in the world: title screen, character select, a loading screen, a cutscene
@@ -225,6 +248,45 @@ public sealed class Plugin : IDalamudPlugin
     /// false if the hook is not available, in which case the plugin stays inert and tries
     /// again next frame.
     /// </summary>
+    /// <summary>
+    /// Lets the plugin start working, for this session only. This is the moment the hook
+    /// goes in - deliberately a thing you do on purpose, rather than a thing that happens
+    /// to you because you installed something.
+    /// </summary>
+    private void Arm()
+    {
+        if (_armed)
+        {
+            Chat.Print("[One Two Punch] Already running this session.");
+            return;
+        }
+
+        _armed = true;
+        _shutDown = false;
+        _consecutiveFailures = 0;
+
+        Chat.Print(
+            $"[One Two Punch] Armed. Loaded in {_loadMilliseconds}ms. "
+            + "It is off again next time the game starts - /otp disarm to stop it now.");
+    }
+
+    /// <summary>Stops everything and takes the hook back out. Hotbars return to normal.</summary>
+    private void Disarm()
+    {
+        if (!_armed)
+        {
+            Chat.Print("[One Two Punch] Already inert.");
+            return;
+        }
+
+        _armed = false;
+        Deactivate();
+
+        Chat.Print(
+            $"[One Two Punch] Stopped, hotbars back to normal. "
+            + $"Nested action lookups turned away while running: {_replacer.SuppressedReentrantCalls}.");
+    }
+
     private bool Activate()
     {
         if (!_replacer.Enable())
@@ -448,11 +510,23 @@ public sealed class Plugin : IDalamudPlugin
                 Chat.Print($"[One Two Punch] Next-action display {(_config.ShowPreview ? "on" : "off")}.");
                 break;
 
+            case "arm":
+                Arm();
+                break;
+
+            case "disarm":
+                Disarm();
+                break;
+
             case "on":
             case "off":
                 _config.Enabled = args.Trim().Equals("on", StringComparison.OrdinalIgnoreCase);
                 _config.Save();
                 Chat.Print($"[One Two Punch] {(_config.Enabled ? "Enabled" : "Disabled")}.");
+
+                if (_config.Enabled && !_armed)
+                    Chat.Print("[One Two Punch] Still inert this session - type /otp arm to let it run.");
+
                 break;
 
             default:
