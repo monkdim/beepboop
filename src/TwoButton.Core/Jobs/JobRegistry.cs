@@ -1,3 +1,5 @@
+using TwoButton.Core.Jobs.Bard;
+using TwoButton.Core.Jobs.Dancer;
 using TwoButton.Core.Jobs.Dragoon;
 using TwoButton.Core.Jobs.Machinist;
 using TwoButton.Core.Jobs.Monk;
@@ -23,6 +25,8 @@ public static class JobRegistry
         JobRotationBase.Create<MonkRotation>,
         JobRotationBase.Create<NinjaRotation>,
         JobRotationBase.Create<ViperRotation>,
+        JobRotationBase.Create<BardRotation>,
+        JobRotationBase.Create<DancerRotation>,
     ];
 
     /// <summary>Builds a fresh instance of every supported rotation.</summary>
