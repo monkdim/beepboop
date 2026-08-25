@@ -98,6 +98,21 @@ jobs:
           New-Item -ItemType Directory -Force -Path $hooks | Out-Null
           Copy-Item dalamud/* $hooks -Recurse -Force
 
+      # Create<T> builds an instance of T. Passing the plugin's own type from inside its
+      # constructor builds another plugin, and another, for ever - the constructor never
+      # returns, and Dalamud builds plugins on the game's frame thread, so the game stops
+      # dead with a core pinned and nothing in the log but "Creating plugin instance".
+      # That shipped for six releases. It does not get to come back.
+      - name: Refuse a self-referential Create<T>
+        shell: pwsh
+        run: |
+          $hits = Select-String -Path src/OneTwoPunch.Plugin/*.cs -Pattern 'Create<\s*Plugin\s*>'
+          if ($hits) {
+            $hits | ForEach-Object { Write-Host $_.Line.Trim() }
+            throw "Create<Plugin>() inside the plugin constructs itself without end. Use Create<Svc>()."
+          }
+          Write-Host "no self-referential Create<T>"
+
       - name: Build
         run: dotnet build src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj -c Release
 
