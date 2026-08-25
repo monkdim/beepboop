@@ -72,7 +72,9 @@ public sealed class Rule
         if (action is null)
             return null;
 
-        if (!context.Ready(action))
+        // Globals are judged as of the next global, off-globals as of right now: an
+        // off-global has to be usable in this weave window to be worth suggesting.
+        if (!context.Ready(action, Kind == ActionKind.Gcd))
             return null;
 
         if (_condition is not null && !_condition(context))
