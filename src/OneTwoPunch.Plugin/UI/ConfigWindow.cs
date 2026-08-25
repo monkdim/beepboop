@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
@@ -12,7 +13,8 @@ public sealed class ConfigWindow(
     Configuration config,
     PotionTracker potions,
     Func<IJobRotation?> currentJob,
-    Func<IReadOnlyDictionary<uint, VerificationReport>> reports)
+    Func<IReadOnlyDictionary<uint, VerificationReport>> reports,
+    Func<bool> isArmed)
     : Window("One Two Punch", ImGuiWindowFlags.AlwaysAutoResize)
 {
     public override void Draw()
@@ -217,9 +219,28 @@ public sealed class ConfigWindow(
 
         if (job is null)
         {
-            ImGui.TextWrapped(
-                "Your current job is not supported yet. One Two Punch only touches jobs it has a "
-                + "rotation for - everything else behaves exactly as it always did.");
+            // These are three different situations and telling them apart matters: the first
+            // is something you fix in one keystroke, and it used to be reported as the third.
+            if (!isArmed())
+            {
+                ImGui.TextWrapped(
+                    "Not running yet. Type /otp arm in chat to start it for this session - it "
+                    + "deliberately does nothing until you do, and is inert again next time the "
+                    + "game starts.");
+            }
+            else if (reports().Values.Any(r => !r.IsSafeToRun))
+            {
+                ImGui.TextWrapped(
+                    "This job is switched off because some of its action ids could not be matched "
+                    + "against the game's own data. Run /otp verify for the list.");
+            }
+            else
+            {
+                ImGui.TextWrapped(
+                    "Your current job is not supported yet. One Two Punch only touches jobs it has a "
+                    + "rotation for - everything else behaves exactly as it always did.");
+            }
+
             return;
         }
 

@@ -64,6 +64,15 @@ public sealed class LuminaGameData : IGameDataLookup
         return index;
     }
 
+    /// <summary>Whether the id is a real, pressable player action.</summary>
+    public bool IsPlayerAction(uint actionId)
+    {
+        var row = _data.GetExcelSheet<LuminaAction>()?.GetRowOrDefault(actionId);
+        return row is not null
+            && row.Value.IsPlayerAction
+            && !string.IsNullOrEmpty(row.Value.Name.ExtractText());
+    }
+
     public string? GetStatusName(uint statusId)
     {
         var row = _data.GetExcelSheet<LuminaStatus>()?.GetRowOrDefault(statusId);

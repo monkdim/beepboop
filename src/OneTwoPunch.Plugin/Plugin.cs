@@ -129,7 +129,7 @@ public sealed class Plugin : IDalamudPlugin
         _state = new GameStateProvider(
             Condition, Targets, Objects, Gauges, _movement, _potions, _config);
 
-        _configWindow = new ConfigWindow(_config, _potions, () => _job, () => _reports);
+        _configWindow = new ConfigWindow(_config, _potions, () => _job, () => _reports, () => _armed);
         _previewWindow = new PreviewWindow(_config, Textures, _gameData, () => _lastSuggestion, () => _job);
         _windows.AddWindow(_configWindow);
         _windows.AddWindow(_previewWindow);

@@ -17,6 +17,12 @@ public interface IGameDataLookup
     string? GetStatusName(uint statusId);
 
     uint? FindStatusIdByName(string name);
+
+    /// <summary>
+    /// Whether the id belongs to something a player can actually press. Used to tell a table
+    /// name that is merely a label from an id that points at nothing real.
+    /// </summary>
+    bool IsPlayerAction(uint actionId);
 }
 
 public enum VerificationOutcome
@@ -26,6 +32,21 @@ public enum VerificationOutcome
 
     /// <summary>Seeded id was wrong and has been rebound by name.</summary>
     Repaired,
+
+    /// <summary>
+    /// The id resolves to a real entry, but the game calls it something other than the name
+    /// in the table. The id is kept and the game's name adopted for display.
+    /// <para>
+    /// This is the normal state for entries whose table name is a label rather than a name.
+    /// The action tables are generated from BossMod, which has to tell apart several things
+    /// the game gives the same name: ids 18873, 18874 and 18875 are all "Fuma Shuriken" to
+    /// the game, and BossMod calls them Fuma Ten, Fuma Chi and Fuma Jin so they can be
+    /// referred to separately. Ten II is "Ten", TCJ Raiton is "Raiton", and The Warden's
+    /// Paean loses its "The". None of those are wrong ids; they are the same id under a
+    /// working name.
+    /// </para>
+    /// </summary>
+    Aliased,
 
     /// <summary>Neither the id nor the name could be resolved. The job is unsafe to run.</summary>
     Unresolved,
@@ -47,6 +68,9 @@ public sealed class VerificationReport(string jobName)
     public IReadOnlyList<VerificationEntry> Entries => _entries;
 
     public int RepairedCount => _entries.Count(e => e.Outcome == VerificationOutcome.Repaired);
+
+    /// <summary>Entries kept under the game's own name. Harmless - see the outcome's note.</summary>
+    public int AliasedCount => _entries.Count(e => e.Outcome == VerificationOutcome.Aliased);
 
     public int UnresolvedCount => _entries.Count(e => e.Outcome == VerificationOutcome.Unresolved);
 
@@ -77,6 +101,9 @@ public sealed class VerificationReport(string jobName)
         if (RepairedCount > 0)
             sb.Append(", ").Append(RepairedCount).Append(" repaired by name");
 
+        if (AliasedCount > 0)
+            sb.Append(", ").Append(AliasedCount).Append(" under the game's own name");
+
         if (UnresolvedCount > 0)
         {
             sb.Append(", ").Append(UnresolvedCount).Append(" unresolved");
@@ -87,7 +114,8 @@ public sealed class VerificationReport(string jobName)
 
         foreach (var entry in _entries)
         {
-            if (entry.Outcome == VerificationOutcome.Ok)
+            // Aliases are expected and numerous; listing them buries the real problems.
+            if (entry.Outcome is VerificationOutcome.Ok or VerificationOutcome.Aliased)
                 continue;
 
             sb.AppendLine();
@@ -163,16 +191,29 @@ public static class ActionTableVerifier
                 continue;
             }
 
+            // Repair by name first, so a genuinely mistyped id still gets corrected.
             var byName = lookup.FindActionIdByName(action.Name);
-            if (byName is null)
+            if (byName is not null)
             {
-                report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Unresolved, true));
+                action.Bind(byName.Value);
+                report.Add(new VerificationEntry(
+                    action.Name, seeded, byName.Value, VerificationOutcome.Repaired, true));
                 continue;
             }
 
-            action.Bind(byName.Value);
-            report.Add(new VerificationEntry(
-                action.Name, seeded, byName.Value, VerificationOutcome.Repaired, true));
+            // The name is not in the sheet at all, but the id points at a real player action.
+            // That is a table name being a label rather than a name - see VerificationOutcome
+            // .Aliased. Keep the id; it is the identity here, and it is not a reason to
+            // switch a whole job off.
+            if (lookup.IsPlayerAction(seeded))
+            {
+                action.Bind(seeded);
+                report.Add(new VerificationEntry(
+                    action.Name, seeded, seeded, VerificationOutcome.Aliased, true));
+                continue;
+            }
+
+            report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Unresolved, true));
         }
 
         foreach (var status in job.AllStatuses)
@@ -188,15 +229,24 @@ public static class ActionTableVerifier
             }
 
             var byName = lookup.FindStatusIdByName(status.Name);
-            if (byName is null)
+            if (byName is not null)
             {
-                report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Unresolved, false));
+                status.Bind(byName.Value);
+                report.Add(new VerificationEntry(
+                    status.Name, seeded, byName.Value, VerificationOutcome.Repaired, false));
                 continue;
             }
 
-            status.Bind(byName.Value);
-            report.Add(new VerificationEntry(
-                status.Name, seeded, byName.Value, VerificationOutcome.Repaired, false));
+            // Same as for actions: a real status under a working name.
+            if (!string.IsNullOrEmpty(sheetName))
+            {
+                status.Bind(seeded);
+                report.Add(new VerificationEntry(
+                    status.Name, seeded, seeded, VerificationOutcome.Aliased, false));
+                continue;
+            }
+
+            report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Unresolved, false));
         }
 
         return report;
