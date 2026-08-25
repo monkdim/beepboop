@@ -37,7 +37,9 @@ public sealed class GcdReadinessTests
         // Two seconds left on the global, and this weaponskill is on exactly that recast.
         var context = Context(gcdRemaining: 2.0f, actionCooldown: 2.0f);
 
-        Assert.False(context.Ready(Weaponskill), "not usable this instant, which is correct");
+        // Spelled out, because the plain Ready(action) overload now derives the question
+        // from the action's kind - so for a global it already means "as of the next global".
+        Assert.False(context.Ready(Weaponskill, byNextGcd: false), "not usable this instant");
         Assert.True(context.Ready(Weaponskill, byNextGcd: true), "but it is what to press next");
     }
 
@@ -61,5 +63,37 @@ public sealed class GcdReadinessTests
 
         Assert.True(context.Ready(Weaponskill));
         Assert.True(context.Ready(Weaponskill, byNextGcd: true));
+    }
+
+    private static readonly ActionRef Ability = new(9002, "Test Ability", ActionKind.OGcd, 1);
+
+    /// <summary>
+    /// The overload rule conditions call has to follow the action's own kind. Twenty-one
+    /// conditions across eight jobs read "!c.Ready(someGlobal)" meaning "there is not the
+    /// resource for another one" - with the instant meaning they read "the global is still
+    /// rolling", which is true for most of every global. Black Mage fired Despair straight
+    /// off a Manafont that had just refilled the bar.
+    /// </summary>
+    [Fact]
+    public void AConditionAboutAGlobalIsJudgedAsOfTheNextGlobal()
+    {
+        var context = Context(gcdRemaining: 2.0f, actionCooldown: 2.0f);
+
+        Assert.True(context.Ready(Weaponskill), "a global, so judged as of the next global");
+    }
+
+    /// <summary>
+    /// And an off-global must not be: "is Bunshin off cooldown" has to keep meaning exactly
+    /// that, or every job holding a resource for an ability would spend it early.
+    /// </summary>
+    [Fact]
+    public void AConditionAboutAnOffGlobalIsStillJudgedRightNow()
+    {
+        var snapshot = new SnapshotBuilder().Gcd(2.0f).Build();
+        var actions = new FakeActionState().OnCooldown(Ability.Id, 2.0f);
+        var context = new RotationContext(
+            snapshot, actions, new RotationSettings(), RotationMode.SingleTarget, 0);
+
+        Assert.False(context.Ready(Ability));
     }
 }
