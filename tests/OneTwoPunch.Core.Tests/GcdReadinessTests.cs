@@ -37,7 +37,9 @@ public sealed class GcdReadinessTests
         // Two seconds left on the global, and this weaponskill is on exactly that recast.
         var context = Context(gcdRemaining: 2.0f, actionCooldown: 2.0f);
 
-        Assert.False(context.Ready(Weaponskill), "not usable this instant, which is correct");
+        // Spelled out, because the plain Ready(action) overload now derives the question
+        // from the action's kind - so for a global it already means "as of the next global".
+        Assert.False(context.Ready(Weaponskill, byNextGcd: false), "not usable this instant");
         Assert.True(context.Ready(Weaponskill, byNextGcd: true), "but it is what to press next");
     }
 
