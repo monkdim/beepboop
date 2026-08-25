@@ -1,7 +1,13 @@
 name: Release
 
 on:
+  # Publishing on every merge to main, rather than only when somebody remembers to press
+  # the button. Three separate fixes in a row shipped as "merged, but not actually
+  # published", because the merge and the publish were different actions and only one of
+  # them was automatic. The repository has one consumer - the plugin listing - and it should
+  # always describe the newest build on main.
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
