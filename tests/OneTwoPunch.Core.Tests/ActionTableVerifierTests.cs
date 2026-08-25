@@ -29,6 +29,24 @@ public sealed class ActionTableVerifierTests
             return this;
         }
 
+        /// <summary>
+        /// Makes an id vanish from the game's data entirely, which is what genuinely
+        /// unresolvable means: not merely under a different name, but not there. Renaming an
+        /// id no longer models this - a real id under a name the table does not use is an
+        /// alias, and aliases are expected.
+        /// </summary>
+        public StubLookup MissingAction(uint id)
+        {
+            _actions.Remove(id);
+            return this;
+        }
+
+        public StubLookup MissingStatus(uint id)
+        {
+            _statuses.Remove(id);
+            return this;
+        }
+
         /// <summary>Registers every id/name pair the job currently believes in.</summary>
         public StubLookup FromJob(IJobRotation job)
         {
@@ -115,8 +133,9 @@ public sealed class ActionTableVerifierTests
     {
         var job = JobRotationBase.Create<DragoonRotation>();
 
+        // Not "under another name" - gone. That is the case worth switching a job off for.
         var lookup = new StubLookup().FromJob(job);
-        lookup.Action(DragoonActions.Drakesbane.Id, "Not Drakesbane");
+        lookup.MissingAction(DragoonActions.Drakesbane.Id);
 
         var report = ActionTableVerifier.Verify(job, lookup);
 
@@ -136,7 +155,7 @@ public sealed class ActionTableVerifierTests
         var job = JobRotationBase.Create<DragoonRotation>();
 
         var lookup = new StubLookup().FromJob(job);
-        lookup.Status(DragoonActions.PowerSurge.Id, "Not Power Surge");
+        lookup.MissingStatus(DragoonActions.PowerSurge.Id);
 
         var report = ActionTableVerifier.Verify(job, lookup);
 
@@ -237,5 +256,29 @@ public sealed class ActionTableVerifierTests
         // And crucially the ids are untouched - an alias must never rebind.
         Assert.Equal(18875u, NinjaActions.FumaJin.Id);
         Assert.Equal(18873u, NinjaActions.FumaTen.Id);
+    }
+
+    /// <summary>
+    /// The counterpart to the test above, and the distinction the whole change rests on: a
+    /// real id under a name the table does not use is an alias and must keep running, where
+    /// an id that is not in the game's data at all still switches the job off.
+    /// </summary>
+    [Fact]
+    public void ARealIdUnderAnotherNameAliasesInsteadOfDisablingTheJob()
+    {
+        var job = JobRotationBase.Create<DragoonRotation>();
+        var seeded = DragoonActions.Drakesbane.Id;
+
+        var lookup = new StubLookup().FromJob(job);
+        lookup.Action(seeded, "Something The Game Calls It Instead");
+
+        var report = ActionTableVerifier.Verify(job, lookup);
+
+        Assert.True(report.IsSafeToRun, report.Summarise());
+        Assert.Equal(0, report.UnresolvedCount);
+        Assert.Contains(report.Entries, e => e.Outcome == VerificationOutcome.Aliased);
+
+        // The id is kept exactly as seeded - aliasing must never rebind.
+        Assert.Equal(seeded, DragoonActions.Drakesbane.Id);
     }
 }
