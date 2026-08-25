@@ -101,6 +101,35 @@ public sealed class VerificationReport(string jobName)
 /// </summary>
 public static class ActionTableVerifier
 {
+    /// <summary>
+    /// Compares names ignoring case, punctuation and spacing, so a table that spells an
+    /// action <c>HeavensThrust</c> still matches the sheet's <c>Heavens' Thrust</c>, and
+    /// <c>Fang And Claw</c> matches <c>Fang and Claw</c>. Without this every apostrophe and
+    /// lowercase connector in the game's naming would read as a mismatch.
+    /// </summary>
+    private static bool NamesMatch(string? sheetName, string tableName)
+    {
+        if (sheetName is null)
+            return false;
+
+        if (string.Equals(sheetName, tableName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return Normalise(sheetName).Equals(Normalise(tableName), StringComparison.Ordinal);
+    }
+
+    private static string Normalise(string value)
+    {
+        var buffer = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetterOrDigit(c))
+                buffer.Append(char.ToLowerInvariant(c));
+        }
+
+        return buffer.ToString();
+    }
+
     public static VerificationReport Verify(IJobRotation job, IGameDataLookup lookup)
     {
         var report = new VerificationReport(job.Name);
@@ -110,7 +139,7 @@ public static class ActionTableVerifier
             var seeded = action.Id;
             var sheetName = lookup.GetActionName(seeded);
 
-            if (string.Equals(sheetName, action.Name, StringComparison.OrdinalIgnoreCase))
+            if (NamesMatch(sheetName, action.Name))
             {
                 action.Bind(seeded);
                 report.Add(new VerificationEntry(action.Name, seeded, seeded, VerificationOutcome.Ok));
@@ -134,7 +163,7 @@ public static class ActionTableVerifier
             var seeded = status.Id;
             var sheetName = lookup.GetStatusName(seeded);
 
-            if (string.Equals(sheetName, status.Name, StringComparison.OrdinalIgnoreCase))
+            if (NamesMatch(sheetName, status.Name))
             {
                 status.Bind(seeded);
                 report.Add(new VerificationEntry(status.Name, seeded, seeded, VerificationOutcome.Ok));

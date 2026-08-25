@@ -146,7 +146,7 @@ public sealed class MachinistRotation : JobRotationBase
         p.Gcd(A.ChainSaw).When(c => !c.Downtime);
 
         p.Gcd(A.Bioblaster)
-            .When(c => c.Enemies >= 3 && c.DotExpiring(A.BioblasterDot))
+            .When(c => c.Enemies >= 3 && c.DotExpiring(A.BioblasterBuff))
             .Because("dot the pack");
 
         p.Gcd(A.AirAnchor).When(c => c.Enemies <= 3 && !c.Downtime);

@@ -182,6 +182,6 @@ public sealed class DragoonRotation : JobRotationBase
 
     private static bool DotExpiring(RotationContext c) =>
         c.Has(A.ChaoticSpring)
-            ? c.DotExpiring(A.ChaoticSpringDot)
-            : c.DotExpiring(A.ChaosThrustDot);
+            ? c.DotExpiring(A.ChaoticSpringBuff)
+            : c.DotExpiring(A.ChaosThrustBuff);
 }
