@@ -502,11 +502,18 @@ public sealed class Plugin : IDalamudPlugin
         var suggestion = _lastSuggestion.GetValueOrDefault(RotationMode.SingleTarget)
                          ?? _lastSuggestion.GetValueOrDefault(RotationMode.Aoe);
 
+        // Both names read out of the game's own sheet, so the two columns are directly
+        // comparable by eye as well as by id.
+        var suggested = suggestion is null
+            ? null
+            : _gameData.GetActionName(suggestion.Action.Id) ?? suggestion.Action.Name;
+
         _recorder.Cast(
             _now,
             _gameData.GetActionName(actionId) ?? $"action {actionId}",
             actionId,
-            suggestion?.Action.Name,
+            suggested,
+            suggestion?.Action.Id ?? 0,
             suggestion?.Note,
             DescribeState());
     }
