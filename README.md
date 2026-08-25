@@ -69,6 +69,9 @@ major version of `Dalamud.dll`, and the installer lists a plugin only when the t
 `DalamudApiLevel` to your Dalamud's major version. If they differ, re-run the Release
 workflow — it derives the level from whatever Dalamud it builds against.
 
+Every merge to `main` republishes automatically, so the listing always describes the
+newest build. The **Release** workflow can also be run by hand from the Actions tab.
+
 ## Setup
 
 Open `/twobutton` → **Setup**. It tells you the two actions to put on your hotbar for your
