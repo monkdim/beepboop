@@ -1,10 +1,12 @@
 {
-  "Author": "monkdim",
   "Name": "One Two Punch",
   "InternalName": "OneTwoPunch",
+  "Author": "monkdim",
   "Punchline": "Two buttons. Your whole DPS rotation. You still throw the punches.",
   "Description": "Collapses each supported DPS job into a single-target button and an AoE button. The button shows the action that is correct right now given your cooldowns, gauge, buffs, target count and whether you are moving. It never presses anything for you: one keypress is always exactly one action.\n\nBuilt for players who cannot sustain a full hotbar - limited hand mobility, chronic pain, tremor, fatigue, one-handed play - who want to keep playing themselves rather than hand the fight to an automation plugin.",
   "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "RepoUrl": "https://github.com/monkdim/beepboop",
   "Tags": [
     "dps",
     "rotation",
@@ -14,6 +16,6 @@
   "CategoryTags": [
     "jobs"
   ],
-  "AcceptsFeedback": true,
-  "IconUrl": "https://raw.githubusercontent.com/monkdim/beepboop/main/assets/icon.png"
+  "LoadPriority": 0,
+  "AcceptsFeedback": true
 }

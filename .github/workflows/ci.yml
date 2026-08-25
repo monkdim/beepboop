@@ -88,9 +88,17 @@ jobs:
           $version = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $PWD "dalamud/Dalamud.dll")).Version
           Write-Host "Dalamud.dll version $version -> API level $($version.Major)"
 
+      # Dalamud.NET.Sdk resolves its reference assemblies from the XIVLauncher hooks path
+      # by default, which is where they live on a real install - so they are unpacked there
+      # rather than pointed at with DALAMUD_HOME.
+      - name: Stage Dalamud where the SDK looks for it
+        shell: pwsh
+        run: |
+          $hooks = "$env:AppData\XIVLauncher\addon\Hooks\dev"
+          New-Item -ItemType Directory -Force -Path $hooks | Out-Null
+          Copy-Item dalamud/* $hooks -Recurse -Force
+
       - name: Build
-        env:
-          DALAMUD_HOME: ${{ github.workspace }}/dalamud
         run: dotnet build src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj -c Release
 
       - name: Show build output
