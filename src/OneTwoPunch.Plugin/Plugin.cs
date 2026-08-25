@@ -1,6 +1,5 @@
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
-using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using OneTwoPunch.Core.Engine;
@@ -20,19 +19,22 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private static readonly string[] CommandNames = ["/otp", "/onetwopunch"];
 
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-    [PluginService] internal static ICondition Condition { get; private set; } = null!;
-    [PluginService] internal static ITargetManager Targets { get; private set; } = null!;
-    [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
-    [PluginService] internal static IJobGauges Gauges { get; private set; } = null!;
-    [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] internal static IGameInteropProvider Interop { get; private set; } = null!;
-    [PluginService] internal static ICommandManager Commands { get; private set; } = null!;
-    [PluginService] internal static IDataManager Data { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider Textures { get; private set; } = null!;
-    [PluginService] internal static IChatGui Chat { get; private set; } = null!;
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    // Forwarders, so the rest of the plugin reads the same as it always did. The services
+    // themselves live on Svc - see the note there, which is the whole reason this plugin
+    // used to freeze the game on load.
+    internal static IDalamudPluginInterface PluginInterface => Svc.PluginInterface;
+    internal static IClientState ClientState => Svc.ClientState;
+    internal static ICondition Condition => Svc.Condition;
+    internal static ITargetManager Targets => Svc.Targets;
+    internal static IObjectTable Objects => Svc.Objects;
+    internal static IJobGauges Gauges => Svc.Gauges;
+    internal static IFramework Framework => Svc.Framework;
+    internal static IGameInteropProvider Interop => Svc.Interop;
+    internal static ICommandManager Commands => Svc.Commands;
+    internal static IDataManager Data => Svc.Data;
+    internal static ITextureProvider Textures => Svc.Textures;
+    internal static IChatGui Chat => Svc.Chat;
+    internal static IPluginLog Log => Svc.Log;
 
     private readonly Configuration _config;
     private readonly WindowSystem _windows = new("OneTwoPunch");
@@ -116,7 +118,9 @@ public sealed class Plugin : IDalamudPlugin
         // this plugin's loading that did it.
         var started = Environment.TickCount64;
 
-        pluginInterface.Create<Plugin>();
+        // Svc, never Plugin. Create<T> builds an instance of T, so passing the type whose
+        // constructor you are standing in builds another one, and another, without end.
+        pluginInterface.Create<Svc>();
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         _gameData = new LuminaGameData(Data);
