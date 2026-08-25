@@ -22,7 +22,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
         float Cooldown,
         int Charges,
         int MaxCharges,
-        bool Usable);
+        bool Usable,
+        bool UsableIgnoringRecast);
 
     /// <summary>Drops the cache. Called once per resolve.</summary>
     public void BeginFrame(byte level, ulong targetId)
@@ -40,7 +41,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
     public int MaxCharges(uint actionId) => Lookup(actionId).MaxCharges;
 
-    public bool CanUse(uint actionId) => Lookup(actionId).Usable;
+    public bool CanUse(uint actionId, bool ignoreRecast = false) =>
+        ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable;
 
     private Entry Lookup(uint actionId)
     {
@@ -56,7 +58,7 @@ public sealed unsafe class ActionStateAdapter : IActionState
     {
         var manager = ActionManager.Instance();
         if (manager is null || actionId == 0)
-            return new Entry(false, float.MaxValue, 0, 1, false);
+            return new Entry(false, float.MaxValue, 0, 1, false, false);
 
         var maxCharges = (int)ActionManager.GetMaxCharges(actionId, _level);
         if (maxCharges < 1)
@@ -89,12 +91,17 @@ public sealed unsafe class ActionStateAdapter : IActionState
         // whether a targeted action is usable on nothing always answers no, which silently
         // made every rule in every job unmatchable and left the button on its base attack.
         var status = manager->GetActionStatus(ActionType.Action, actionId, _targetId);
+
+        // The same question with the recast check switched off. Choosing the next global
+        // means asking "would this be legal apart from the cooldown I am waiting out".
+        var statusIgnoringRecast =
+            manager->GetActionStatus(ActionType.Action, actionId, _targetId, checkRecastActive: false);
         var usable = status == 0;
 
         // 572 is "you have not learned this action"; treat anything that is purely a
         // targeting problem as still unlocked so range rules can see it.
         var unlocked = status != 572;
 
-        return new Entry(unlocked, remaining, charges, maxCharges, usable);
+        return new Entry(unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0);
     }
 }

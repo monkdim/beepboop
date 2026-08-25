@@ -52,5 +52,5 @@ public sealed class FakeActionState : IActionState
     public int MaxCharges(uint actionId) =>
         _maxCharges.TryGetValue(actionId, out var max) ? max : 1;
 
-    public bool CanUse(uint actionId) => !_unusable.Contains(actionId);
+    public bool CanUse(uint actionId, bool ignoreRecast = false) => !_unusable.Contains(actionId);
 }

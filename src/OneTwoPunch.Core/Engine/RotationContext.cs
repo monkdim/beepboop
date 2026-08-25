@@ -153,16 +153,37 @@ public sealed class RotationContext
     /// <summary>Current MP.</summary>
     public uint Mp => _snapshot.Mp;
 
-    public bool Ready(ActionRef action)
+    /// <param name="byNextGcd">
+    /// Judge readiness as of the next global cooldown rather than this instant.
+    /// <para>
+    /// A global's cooldown <em>is</em> the shared global, so asking whether one is off
+    /// cooldown right now is asking whether the global is up - and while it is rolling the
+    /// answer is no for every global in the job. That left no rule able to match for most of
+    /// every single global, so the button fell back to the base attack, and since the game
+    /// queues a press made during the recast, that base attack is what got queued.
+    /// </para>
+    /// <para>
+    /// So for globals the cooldown is allowed to be anything that will have elapsed by the
+    /// time the global comes up. Everything else - target, range, resources, combo step,
+    /// level - is still checked exactly as before, which is what keeps an action that is
+    /// genuinely on a long cooldown of its own from being suggested.
+    /// </para>
+    /// </param>
+    public bool Ready(ActionRef action, bool byNextGcd = false)
     {
         if (!Has(action))
             return false;
 
-        var hasCharge = MaxCharges(action) > 1
-            ? Charges(action) > 0
-            : Cd(action) <= Settings.GcdReadyThreshold;
+        var allowance = byNextGcd
+            ? Math.Max(Settings.GcdReadyThreshold, _snapshot.GcdRemaining)
+            : Settings.GcdReadyThreshold;
 
-        return hasCharge && _actions.CanUse(action.Id);
+        var cd = Cd(action);
+        var hasCharge = MaxCharges(action) > 1
+            ? Charges(action) > 0 || cd <= allowance
+            : cd <= allowance;
+
+        return hasCharge && _actions.CanUse(action.Id, byNextGcd);
     }
 
     /// <summary>True if the action comes up within <paramref name="seconds"/>.</summary>

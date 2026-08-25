@@ -21,5 +21,12 @@ public interface IActionState
     /// True when the game itself would accept the action right now: in range, facing,
     /// resources available, target valid. Mirrors <c>GetActionStatus() == 0</c>.
     /// </summary>
-    bool CanUse(uint actionId);
+    /// <param name="ignoreRecast">
+    /// When true, every check is made except whether the recast has finished. This is how a
+    /// global cooldown is chosen: the engine is picking what to press <em>next</em>, while
+    /// the current global is still rolling, so requiring the recast to be over would mean no
+    /// global could ever be chosen - the caller checks separately that it will be ready in
+    /// time.
+    /// </param>
+    bool CanUse(uint actionId, bool ignoreRecast = false);
 }
