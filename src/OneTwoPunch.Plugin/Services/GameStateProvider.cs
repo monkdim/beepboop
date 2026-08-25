@@ -103,11 +103,20 @@ public sealed unsafe class GameStateProvider(
 
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
-        s.TargetInRange = battleTarget is not null
+
+        // Both addresses are handed straight to the game as pointers. A target that was
+        // destroyed between frames leaves a live-looking wrapper around a null address, and
+        // dereferencing that in native code takes the whole process down - so they are
+        // checked here rather than trusted.
+        var playerAddress = player.Address;
+        var targetAddress = battleTarget?.Address ?? nint.Zero;
+
+        s.TargetInRange = playerAddress != nint.Zero
+            && targetAddress != nint.Zero
             && ActionManager.GetActionInRangeOrLoS(
                 job.SingleTargetButton.Id,
-                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address,
-                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleTarget.Address) == 0;
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)playerAddress,
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)targetAddress) == 0;
 
         s.TargetHpFraction = battleTarget is { MaxHp: > 0 }
             ? (float)battleTarget.CurrentHp / battleTarget.MaxHp
