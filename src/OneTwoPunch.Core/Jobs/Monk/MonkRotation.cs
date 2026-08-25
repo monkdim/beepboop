@@ -35,6 +35,34 @@ public sealed class MonkRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.Brotherhood;
 
+    /// <summary>
+    /// The Balance's "Solar Lunar - DK Opener (5s Buffs)" for Monk level 100, Dawntrail
+    /// patch 7.0. Perfect Balance after the first Dragon Kick feeds the solar blitz at
+    /// step 5; the second one feeds Elixir Burst at step 13.
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance solar-lunar DK", 100,
+        A.DragonKick, A.PerfectBalance,
+        A.TwinSnakes,
+        A.Demolish, A.Brotherhood, A.RiddleOfFire,
+        A.LeapingOpo, A.ForbiddenChakra, A.RiddleOfWind,
+        A.RisingPhoenix,
+        A.DragonKick,
+        A.WindsReply,
+        A.FiresReply,
+        A.LeapingOpo, A.PerfectBalance,
+        A.DragonKick,
+        A.LeapingOpo,
+        A.DragonKick,
+        A.ElixirBurst,
+        A.LeapingOpo)
+    {
+        // The chart drinks in Twin Snakes' weave window, so the prompt belongs on Demolish.
+        PotionBeforeStep = 3,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

@@ -29,6 +29,32 @@ public sealed class BardRotation : JobRotationBase
 
     public override ActionRef? BurstAction => A.RagingStrikes;
 
+    /// <summary>
+    /// The Balance's "Adjusted Standard Opener (2.48 GCD ideal)" for Bard level 100,
+    /// Dawntrail patch 7.0. Heartbreak Shot is the pull, so the charge is not sitting
+    /// overcapped while the two bleeds go up.
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance adjusted standard", 100,
+        A.HeartbreakShot,
+        A.Stormbite, A.WanderersMinuet, A.EmpyrealArrow,
+        A.CausticBite, A.BattleVoice,
+        A.BurstShot, A.RadiantFinale, A.RagingStrikes,
+        A.BurstShot, A.Barrage,
+        A.RefulgentArrow, A.Sidewinder,
+        A.RadiantEncore,
+        A.ResonantArrow, A.EmpyrealArrow,
+        A.RefulgentArrow,
+        A.BurstShot,
+        A.IronJaws,
+        A.BurstShot, A.PitchPerfect)
+    {
+        // Drunk alongside Battle Voice, in Caustic Bite's weave window.
+        PotionBeforeStep = 5,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

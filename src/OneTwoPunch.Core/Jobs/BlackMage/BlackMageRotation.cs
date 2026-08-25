@@ -41,6 +41,59 @@ public sealed class BlackMageRotation : JobRotationBase
     /// </summary>
     private const uint NeutralFireMp = 7200;
 
+    /// <summary>
+    /// The Balance's Standard "5+7" opener, Black Mage level 100, Dawntrail patch 7.2,
+    /// transcribed step for step from their chart rather than reasoned out.
+    /// <para>
+    /// Off-globals sit immediately after the global they are woven into, which is how the
+    /// chart draws them: Swiftcast and Amplifier after High Thunder, the potion and Ley
+    /// Lines after the first Fire IV, Manafont after Xenoglossy, Transpose and Triplecast
+    /// after Despair, and the second Transpose between the two Paradoxes.
+    /// </para>
+    /// <para>
+    /// The name is the shape of it - five Fire IVs before Xenoglossy, seven after - and the
+    /// tail is the transition back to ice, ending on the Firestarter proc.
+    /// </para>
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance standard 5+7", 100,
+        A.Fire3,                                    //  1
+        A.HighThunder,                              //  2
+        A.Swiftcast, A.Amplifier,                   //     woven
+        A.Fire4,                                    //  3
+        A.LeyLines,                                 //     woven, with the potion
+        A.Fire4,                                    //  4
+        A.Fire4,                                    //  5
+        A.Fire4,                                    //  6
+        A.Fire4,                                    //  7
+        A.Xenoglossy,                               //  8
+        A.Manafont,                                 //     woven
+        A.Fire4,                                    //  9
+        A.FlareStar,                                // 10
+        A.Fire4,                                    // 11
+        A.Fire4,                                    // 12
+        A.HighThunder,                              // 13
+        A.Fire4,                                    // 14
+        A.Fire4,                                    // 15
+        A.Fire4,                                    // 16
+        A.Fire4,                                    // 17
+        A.FlareStar,                                // 18
+        A.Despair,                                  // 19
+        A.Transpose, A.Triplecast,                  //     woven
+        A.Blizzard3,                                // 20
+        A.Blizzard4,                                // 21
+        A.Paradox,                                  // 22
+        A.Transpose,                                //     woven
+        A.Paradox,                                  // 23
+        A.Fire3)                                    // 24, the Firestarter proc
+    {
+        // The chart puts Gemdraught of Intelligence in the same weave window as Ley Lines,
+        // which is the step after the first Fire IV.
+        PotionBeforeStep = 5,
+    };
+
+    public override Opener? Opener => Sequence;
+
     protected override void Build()
     {
         BuildSingleTarget();

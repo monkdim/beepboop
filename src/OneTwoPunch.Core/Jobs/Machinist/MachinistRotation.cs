@@ -30,13 +30,32 @@ public sealed class MachinistRotation : JobRotationBase
     // player, so there is no self-buff to key off - the burst ability serves instead.
     public override ActionRef? BurstAction => A.Wildfire;
 
+    /// <summary>
+    /// The Balance's "Standard Opener (AA)" for Machinist level 100, Dawntrail patch 7.0.
+    /// The first Reassemble goes on Air Anchor five seconds before the pull; the second
+    /// comes back in time for the Drill that Wildfire is weaved into.
+    /// </summary>
     private static readonly Opener Sequence = new(
-        "Dawntrail standard", 100,
-        A.Reassemble, A.AirAnchor, A.Drill, A.ChainSaw, A.Excavator,
-        A.BarrelStabilizer, A.Wildfire, A.Hypercharge, A.FullMetalField)
+        "The Balance standard, Air Anchor first", 100,
+        A.Reassemble,
+        A.AirAnchor, A.Checkmate, A.DoubleCheck,
+        A.Drill, A.BarrelStabilizer,
+        A.ChainSaw,
+        A.Excavator, A.AutomatonQueen, A.Reassemble,
+        A.Drill, A.Checkmate, A.Wildfire,
+        A.FullMetalField, A.DoubleCheck, A.Hypercharge,
+        A.BlazingShot, A.Checkmate,
+        A.BlazingShot, A.DoubleCheck,
+        A.BlazingShot, A.Checkmate,
+        A.BlazingShot, A.DoubleCheck,
+        A.BlazingShot, A.Checkmate,
+        A.Drill, A.DoubleCheck, A.Checkmate,
+        A.HeatedSplitShot, A.DoubleCheck,
+        A.HeatedSlugShot,
+        A.HeatedCleanShot)
     {
-        // Just before Wildfire, so the potion covers the burst it opens.
-        PotionBeforeStep = 6,
+        // Two seconds before the pull, after the pre-pull Reassemble.
+        PotionBeforeStep = 1,
     };
 
     public override Opener? Opener => Sequence;
