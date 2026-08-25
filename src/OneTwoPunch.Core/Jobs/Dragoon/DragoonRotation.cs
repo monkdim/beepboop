@@ -69,11 +69,16 @@ public sealed class DragoonRotation : JobRotationBase
 
         // Life Surge guarantees a crit, so it is only worth spending on the two biggest
         // hits in the chain, and only under Lance Charge.
+        // Life Surge is consumed by the next weaponskill, so the only thing that matters is
+        // that the next global is one of the big ones - any weave slot in this window works.
+        // It used to also demand GcdImminent, which narrowed it to about half a second, and
+        // Lance Charge, which meant the second charge was never spent outside burst. Between
+        // them it effectively never fired. Burst is still preferred; the charge is spent
+        // outside it only to avoid throwing one away by overcapping.
         p.OGcd(A.LifeSurge)
             .When(c => !c.Buff(A.LifeSurgeBuff)
-                       && c.Buff(A.LanceChargeBuff)
-                       && c.GcdImminent
-                       && c.NextGcdIsAny(A.Drakesbane, A.HeavensThrust, A.FullThrust))
+                       && c.NextGcdIsAny(A.Drakesbane, A.HeavensThrust, A.FullThrust)
+                       && (c.Buff(A.LanceChargeBuff) || c.Charges(A.LifeSurge) >= 2))
             .Because("guaranteed crit on the big hit");
 
         p.OGcd(A.Geirskogul).When(c => !c.Downtime);

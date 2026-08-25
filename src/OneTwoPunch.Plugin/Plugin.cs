@@ -48,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly LuminaGameData _gameData;
     private readonly PotionTracker _potions;
     private readonly ActionReplacer _replacer;
+    private readonly SessionRecorder _recorder = new();
 
     private readonly Dictionary<uint, VerificationReport> _reports = [];
 
@@ -131,6 +132,13 @@ public sealed class Plugin : IDalamudPlugin
 
         _configWindow = new ConfigWindow(_config, _potions, () => _job, () => _reports, () => _armed);
         _previewWindow = new PreviewWindow(_config, Textures, _gameData, () => _lastSuggestion, () => _job);
+        // Dalamud's WindowSystem only draws a window whose IsOpen is true; DrawConditions
+        // is an extra gate on top of that, not a replacement. This was never set, so the
+        // whole heads-up display - next action, positional banner, potion prompt - has
+        // never once been drawn. It is a permanent HUD, so it is simply always open, and
+        // DrawConditions decides when it actually has anything to say.
+        _previewWindow.IsOpen = true;
+
         _windows.AddWindow(_configWindow);
         _windows.AddWindow(_previewWindow);
 
@@ -156,6 +164,7 @@ public sealed class Plugin : IDalamudPlugin
                     HelpMessage =
                         "Open One Two Punch settings.\n"
                         + "/otp arm - let it run, this session only (it starts inert)\n"
+                        + "/otp record - start or stop recording a pull to your Downloads\n"
                         + "/otp disarm - stop it and remove the hook\n"
                         + "/otp verify - check every action id against the game's own data\n"
                         + "/otp hud - toggle the next-action display\n"
@@ -257,6 +266,39 @@ public sealed class Plugin : IDalamudPlugin
     /// goes in - deliberately a thing you do on purpose, rather than a thing that happens
     /// to you because you installed something.
     /// </summary>
+    /// <summary>
+    /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
+    /// so the two can be read against a known-good rotation afterwards - which is the only
+    /// way to tell "the engine was wrong" from "the engine was right and got ignored".
+    /// </summary>
+    private void ToggleRecording()
+    {
+        if (_recorder.IsRecording)
+        {
+            var path = _recorder.Stop(_now);
+
+            if (path is null)
+            {
+                Chat.Print("[One Two Punch] Recording stopped - nothing was cast, so nothing was written.");
+                return;
+            }
+
+            Chat.Print($"[One Two Punch] Recording stopped. Written to {path}");
+            Log.Information("One Two Punch: recording written to {Path}", path);
+            return;
+        }
+
+        if (_job is null)
+        {
+            Chat.PrintError("[One Two Punch] Nothing to record - no supported job is running. /otp arm first.");
+            return;
+        }
+
+        var version = PluginInterface.Manifest.AssemblyVersion.ToString();
+        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now);
+        Chat.Print("[One Two Punch] Recording. Do your pull, then /otp record again to write it out.");
+    }
+
     private void Arm()
     {
         if (_armed)
@@ -284,6 +326,14 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         _armed = false;
+
+        if (_recorder.IsRecording)
+        {
+            var path = _recorder.Stop(_now);
+            if (path is not null)
+                Chat.Print($"[One Two Punch] Recording written to {path}");
+        }
+
         Deactivate();
 
         Chat.Print(
@@ -436,7 +486,23 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.Track(rotation);
     }
 
-    private void OnActionUsed(uint actionId) => _session?.NotifyActionUsed(actionId);
+    private void OnActionUsed(uint actionId)
+    {
+        _session?.NotifyActionUsed(actionId);
+
+        if (!_recorder.IsRecording)
+            return;
+
+        var suggestion = _lastSuggestion.GetValueOrDefault(RotationMode.SingleTarget)
+                         ?? _lastSuggestion.GetValueOrDefault(RotationMode.Aoe);
+
+        _recorder.Cast(
+            _now,
+            _gameData.GetActionName(actionId) ?? $"action {actionId}",
+            actionId,
+            suggestion?.Action.Name,
+            suggestion?.Note);
+    }
 
     // ---- The two buttons -------------------------------------------------
 
@@ -512,6 +578,10 @@ public sealed class Plugin : IDalamudPlugin
                 _config.ShowPreview = !_config.ShowPreview;
                 _config.Save();
                 Chat.Print($"[One Two Punch] Next-action display {(_config.ShowPreview ? "on" : "off")}.");
+                break;
+
+            case "record":
+                ToggleRecording();
                 break;
 
             case "arm":
