@@ -61,6 +61,61 @@ jobs:
 
           "level=$level" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      # DalamudPackager also writes the API level into the manifest it packages *inside*
+      # latest.zip, and Dalamud checks that one when loading an installed plugin - a stale
+      # value there means the plugin lists in the installer and then refuses to load, which
+      # is an even more confusing failure than not listing at all. Correct both copies.
+      - name: Stamp the API level into the packaged manifest
+        shell: pwsh
+        run: |
+          $level = [int]"${{ steps.apilevel.outputs.level }}"
+          $zip = Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter latest.zip | Select-Object -First 1
+          if (-not $zip) { throw "DalamudPackager produced no latest.zip" }
+
+          # The loose manifests beside the build output.
+          Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter TwoButton.json | ForEach-Object {
+            $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            $m | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue $level -Force
+            $m | ConvertTo-Json -Depth 10 | Set-Content $_.FullName -Encoding utf8
+            Write-Host "stamped $($_.FullName)"
+          }
+
+          # And the copy sealed inside the zip, which is the one that actually ships.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::Open($zip.FullName, 'Update')
+          try {
+            $entry = $archive.Entries | Where-Object { $_.Name -eq 'TwoButton.json' } | Select-Object -First 1
+            if (-not $entry) { throw "latest.zip contains no TwoButton.json" }
+
+            $reader = New-Object System.IO.StreamReader($entry.Open())
+            $json = $reader.ReadToEnd()
+            $reader.Dispose()
+
+            $m = $json | ConvertFrom-Json
+            $m | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue $level -Force
+
+            $stream = $entry.Open()
+            $stream.SetLength(0)
+            $writer = New-Object System.IO.StreamWriter($stream)
+            $writer.Write(($m | ConvertTo-Json -Depth 10))
+            $writer.Flush()
+            $writer.Dispose()
+          } finally {
+            $archive.Dispose()
+          }
+
+          # Read it back from the zip rather than trusting the write.
+          $check = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          try {
+            $e = $check.Entries | Where-Object { $_.Name -eq 'TwoButton.json' } | Select-Object -First 1
+            $r = New-Object System.IO.StreamReader($e.Open())
+            $packaged = ($r.ReadToEnd() | ConvertFrom-Json).DalamudApiLevel
+            $r.Dispose()
+          } finally { $check.Dispose() }
+
+          Write-Host "packaged manifest now reports DalamudApiLevel $packaged"
+          if ($packaged -ne $level) { throw "packaged manifest says $packaged, expected $level" }
+
       - name: Generate pluginmaster.json
         shell: pwsh
         run: |
