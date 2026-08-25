@@ -90,6 +90,35 @@ single stationary frame mid-strafe cannot make the button flicker.
 and it lets the engine offer True North when you are standing in the wrong place. Declare
 `PositionalRescue` and `PositionalRescueStatus` on the job for that to work.
 
+### Extra buttons
+
+Two buttons cover twelve of the thirteen DPS jobs. If a job has a mechanic that is
+genuinely several presses per cast, it may declare a third or fourth:
+
+```csharp
+protected override void Build()
+{
+    BuildSingleTarget();
+    BuildAoe();
+
+    var p = AddExtraButton(A.Ten1, "Mudra", "Walks a mudra sequence and fires the ninjutsu.").Plan;
+    p.Gcd(A.Ninjutsu).Because("fire the ninjutsu");
+    p.OGcd(A.Ten1);
+    p.OGcd(A.Chi2);
+}
+```
+
+Extra buttons resolve **flat** — first matching rule wins, with no global-cooldown or weave
+gating — because they drive their own sequence. Mudras are pressed back to back and do not
+roll the GCD, so a closed weave window must not silence the button. Pass
+`respectWeaveWindow: true` if a job genuinely wants the normal rules.
+
+Reach for one only after checking the gauge. Dancer's dances look like the same problem as
+mudras, but its gauge names the next step outright as an action id, so the main buttons walk
+the dance and no extra key is needed. An extra key is a real cost to the people this plugin
+is for; the `Purpose` string is shown in the setup panel and should say plainly why it
+exists.
+
 ### Openers
 
 ```csharp
