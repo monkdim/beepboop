@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generates TwoButton.Core job action tables from BossMod's ActionQueue definitions.
+Generates OneTwoPunch.Core job action tables from BossMod's ActionQueue definitions.
 
 BossMod (BSD 3-Clause, https://github.com/awgil/ffxiv_bossmod) keeps per-job action and
 status id tables that are regenerated from the game's own data every patch. Those ids are
@@ -197,9 +197,9 @@ def dedupe(rows, key_index):
 
 def emit(job, job_id, actions, statuses, is_melee):
     lines = [
-        "using TwoButton.Core.Model;",
+        "using OneTwoPunch.Core.Model;",
         "",
-        f"namespace TwoButton.Core.Jobs.{job};",
+        f"namespace OneTwoPunch.Core.Jobs.{job};",
         "",
         "/// <summary>",
         f"/// {job} action and status ids.",
@@ -258,7 +258,7 @@ def main():
         sys.exit(__doc__)
 
     root = pathlib.Path(sys.argv[1]) / "BossMod" / "ActionQueue"
-    out_root = pathlib.Path(__file__).resolve().parent.parent / "src" / "TwoButton.Core" / "Jobs"
+    out_root = pathlib.Path(__file__).resolve().parent.parent / "src" / "OneTwoPunch.Core" / "Jobs"
 
     shared_actions, shared_statuses = parse_shared(root / "ClassShared.cs")
 

@@ -6,7 +6,7 @@ The game constantly asks itself `GetAdjustedActionId(slot)` — *"what should th
 slot actually cast?"* That is how one button becomes the next step of a combo, and how
 Heat Blast becomes Blazing Shot at level 86.
 
-Two Button hooks that question and answers it. That is the whole trick, and it is what
+One Two Punch hooks that question and answers it. That is the whole trick, and it is what
 makes this a rotation *helper* rather than an automation plugin:
 
 - The plugin is **asked**, it does not act. It runs when the game renders an icon.
@@ -20,7 +20,7 @@ makes this a rotation *helper* rather than an automation plugin:
 
 ## Why the engine has no Dalamud dependency
 
-`TwoButton.Core` is plain C# and references nothing from the game. Everything it is allowed
+`OneTwoPunch.Core` is plain C# and references nothing from the game. Everything it is allowed
 to know arrives as a `CombatSnapshot` plus an `IActionState`.
 
 That is not tidiness for its own sake. It means the rotation logic — the part that is
@@ -97,7 +97,7 @@ So the id is treated as a guess and **the name is the real identity**:
 - A name that cannot be resolved at all **disables the job** with a message. Guessing is
   worse than being off.
 
-`/twobutton verify` re-runs the whole check and prints it, which is the thing to run after
+`/otp verify` re-runs the whole check and prints it, which is the thing to run after
 a patch and the thing to paste into a bug report.
 
 The action tables are `static readonly`, which makes them process-global mutable state
