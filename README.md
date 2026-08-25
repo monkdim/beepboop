@@ -53,7 +53,7 @@ icon updates; your finger does the rest.
 Add this to Dalamud → Settings → Experimental → Custom Plugin Repositories:
 
 ```
-https://github.com/monkdim/beepboop/releases/latest/download/pluginmaster.json
+https://raw.githubusercontent.com/monkdim/beepboop/main/pluginmaster.json
 ```
 
 Then find **One Two Punch** in the plugin installer.

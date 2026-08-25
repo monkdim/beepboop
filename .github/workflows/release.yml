@@ -128,22 +128,87 @@ jobs:
 
           $manifest = Get-Content "$out/OneTwoPunch.json" -Raw | ConvertFrom-Json
           $repo = "https://github.com/${{ github.repository }}"
-          $dl = "$repo/releases/latest/download/latest.zip"
+
+          # Served straight out of the repository rather than as a release asset.
+          #
+          # A release asset URL is not one request. "releases/latest/download/..." is a 302
+          # to a tagged URL, which is a second 302 to a signed CDN host - and that signed URL
+          # answers a HEAD request with 401, so a client that looks before it downloads gets
+          # a failure that has nothing to do with the file. Three hops, two hosts and an
+          # expiring signature, in the one code path where the game sits waiting.
+          #
+          # raw.githubusercontent.com is one request to a host the listing already depends on
+          # for the icon. It is also how most Dalamud plugin repositories serve their builds.
+          $raw = "https://raw.githubusercontent.com/${{ github.repository }}/main/dist/latest.zip"
 
           $manifest | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $manifest | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $icon = "https://raw.githubusercontent.com/${{ github.repository }}/main/assets/icon.png"
           $manifest | Add-Member -NotePropertyName IconUrl -NotePropertyValue $icon -Force
           $manifest | Add-Member -NotePropertyName RepoUrl -NotePropertyValue $repo -Force
-          $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $dl -Force
-          $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $dl -Force
-          $manifest | Add-Member -NotePropertyName DownloadLinkTesting -NotePropertyValue $dl -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $raw -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $raw -Force
+          $manifest | Add-Member -NotePropertyName DownloadLinkTesting -NotePropertyValue $raw -Force
           $manifest | Add-Member -NotePropertyName IsHide -NotePropertyValue $false -Force
           $manifest | Add-Member -NotePropertyName IsTestingExclusive -NotePropertyValue $false -Force
           $manifest | Add-Member -NotePropertyName LastUpdate -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Force
 
           ConvertTo-Json @($manifest) -Depth 10 | Set-Content pluginmaster.json -Encoding utf8
           Get-Content pluginmaster.json
+
+      # The listing and the build live in the repository, so installing is a plain file
+      # fetch. The GitHub release is still published below as an archive of each build.
+      - name: Commit the listing and the build into the repository
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "$env:PLUGIN_OUT/latest.zip" dist/latest.zip -Force
+
+          git config user.name "monkdim"
+          git config user.email "cdimaggio2@gmail.com"
+
+          git add dist/latest.zip pluginmaster.json
+          if (git diff --cached --quiet) {
+            Write-Host "Nothing changed."
+            exit 0
+          }
+
+          $version = (Get-Content pluginmaster.json -Raw | ConvertFrom-Json)[0].AssemblyVersion
+
+          # [skip ci] so publishing does not trigger another publish.
+          git commit -m "Publish $version [skip ci]"
+
+          # main moves under long builds; rebase rather than fail the release.
+          for ($i = 1; $i -le 4; $i++) {
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "push failed (attempt $i), rebasing onto main"
+            git pull --rebase origin main
+            Start-Sleep -Seconds ([Math]::Pow(2, $i))
+          }
+
+          throw "Could not push the published listing to main"
+
+      - name: Verify the published listing is actually fetchable
+        shell: pwsh
+        run: |
+          $listing = (Get-Content pluginmaster.json -Raw | ConvertFrom-Json)[0]
+          foreach ($url in @($listing.DownloadLinkInstall, $listing.IconUrl)) {
+            Write-Host "checking $url"
+            $attempt = 0
+            while ($true) {
+              $attempt++
+              try {
+                $r = Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -ErrorAction Stop
+                Write-Host "  $($r.StatusCode), $($r.Headers['Content-Length']) bytes, no redirect"
+                break
+              } catch {
+                if ($attempt -ge 6) { throw "$url is not fetchable after $attempt attempts: $_" }
+                # raw.githubusercontent takes a moment to see a fresh commit.
+                Start-Sleep -Seconds 10
+              }
+            }
+          }
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

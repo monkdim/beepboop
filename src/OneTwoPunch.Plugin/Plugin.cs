@@ -83,8 +83,22 @@ public sealed class Plugin : IDalamudPlugin
     private int _consecutiveFailures;
     private bool _shutDown;
 
+    /// <summary>Jobs whose verification is in flight, so it is not started twice.</summary>
+    private readonly HashSet<uint> _verifying = [];
+
+    /// <summary>How long the constructor took, reported once the player can read chat.</summary>
+    private readonly long _loadMilliseconds;
+
+    private bool _saidHello;
+
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
+        // Timed and reported, because a plugin that is slow to load is felt as the game
+        // hanging and there is no way to tell from the outside whose fault it is. If the
+        // number below is small and the game still stalled while installing, it was not
+        // this plugin's loading that did it.
+        var started = Environment.TickCount64;
+
         pluginInterface.Create<Plugin>();
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -133,6 +147,9 @@ public sealed class Plugin : IDalamudPlugin
                 Log.Warning(ex, "One Two Punch: could not register {Command}", name);
             }
         }
+
+        _loadMilliseconds = Environment.TickCount64 - started;
+        Log.Information("One Two Punch: loaded in {Elapsed}ms.", _loadMilliseconds);
     }
 
     // ---- Frame loop ------------------------------------------------------
@@ -214,6 +231,13 @@ public sealed class Plugin : IDalamudPlugin
             return false;
 
         _active = true;
+
+        if (!_saidHello)
+        {
+            _saidHello = true;
+            Chat.Print($"[One Two Punch] Ready. Loaded in {_loadMilliseconds}ms. /otp for settings.");
+        }
+
         return true;
     }
 
@@ -234,6 +258,11 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.Reset();
     }
 
+    /// <summary>
+    /// Puts the plugin back to knowing nothing about the current job, and starts working
+    /// out the new one. The work itself happens off the game's thread - see
+    /// <see cref="VerifyInBackground"/>.
+    /// </summary>
     private void SwitchJob(uint jobId)
     {
         _job = null;
@@ -241,28 +270,96 @@ public sealed class Plugin : IDalamudPlugin
         _lastSuggestion.Clear();
         _resolved.Clear();
         _frameSnapshotAt = -1;
+        _frameSnapshot = null;
         _movement.Reset();
         _useWatcher.Reset();
 
+        if (!JobRegistry.IsSupported(jobId))
+            return;
+
+        // Already checked out this session: nothing to do but switch it on.
+        if (_reports.TryGetValue(jobId, out var known))
+        {
+            Adopt(jobId, known);
+            return;
+        }
+
+        VerifyInBackground(jobId);
+    }
+
+    /// <summary>
+    /// Checks a job's action table against the game's data on a worker thread, then hands
+    /// the result back to the framework thread to be adopted.
+    /// <para>
+    /// This is off the game's thread because it is the one piece of start-up work with no
+    /// upper bound. If a single action id fails to match its name - after a patch shuffles
+    /// them, say - the verifier asks for a lookup by name, and building that lookup means
+    /// reading every row of the game's Action sheet. Doing that between two frames is how
+    /// you stop the game dead.
+    /// </para>
+    /// </summary>
+    private void VerifyInBackground(uint jobId)
+    {
+        if (!_verifying.Add(jobId))
+            return;
+
+        Task.Run(() =>
+        {
+            try
+            {
+                var rotation = JobRegistry.Create(jobId);
+                if (rotation is null)
+                {
+                    Framework.RunOnFrameworkThread(() => _verifying.Remove(jobId));
+                    return;
+                }
+
+                var started = Environment.TickCount64;
+                var report = ActionTableVerifier.Verify(rotation, _gameData);
+                var elapsed = Environment.TickCount64 - started;
+
+                Framework.RunOnFrameworkThread(() =>
+                {
+                    _verifying.Remove(jobId);
+                    _reports[jobId] = report;
+
+                    if (report.RepairedCount > 0 || report.UnresolvedCount > 0 || _config.VerboseLogging)
+                        Log.Information("One Two Punch: {Summary}", report.Summarise());
+
+                    Log.Information(
+                        "One Two Punch: verified {Job} in {Elapsed}ms (off the framework thread).",
+                        rotation.Name, elapsed);
+
+                    // The player may have changed job again while this ran.
+                    if (_currentJobId == jobId)
+                        Adopt(jobId, report);
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "One Two Punch: verifying job {JobId} failed", jobId);
+
+                // _verifying is only ever touched on the framework thread.
+                Framework.RunOnFrameworkThread(() => _verifying.Remove(jobId));
+            }
+        });
+    }
+
+    /// <summary>
+    /// Switches a verified job on. Never run a job whose action table did not check out:
+    /// guessing an id means pressing the wrong ability in a raid, which is worse than the
+    /// plugin being off.
+    /// </summary>
+    private void Adopt(uint jobId, VerificationReport report)
+    {
         var rotation = JobRegistry.Create(jobId);
         if (rotation is null)
             return;
 
-        // Never run a job whose action table did not check out. Guessing an id means
-        // pressing the wrong ability in a raid, which is worse than the plugin being off.
-        if (!_reports.TryGetValue(jobId, out var report))
-        {
-            report = ActionTableVerifier.Verify(rotation, _gameData);
-            _reports[jobId] = report;
-
-            if (report.RepairedCount > 0 || report.UnresolvedCount > 0 || _config.VerboseLogging)
-                Log.Information("One Two Punch: {Summary}", report.Summarise());
-        }
-
         if (!report.IsSafeToRun)
         {
             Chat.PrintError(
-                $"[One Two Punch] {rotation.Name} is switched off: {report.UnresolvedCount} action id(s) "
+                $"[One Two Punch] {rotation.Name} is switched off: {report.UnresolvedActionCount} action id(s) "
                 + "could not be matched against the game's data. Run /otp verify for the list.");
             return;
         }
@@ -370,22 +467,52 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void PrintVerification()
     {
-        _reports.Clear();
+        Chat.Print("[One Two Punch] Checking every job's action ids against the game's data...");
 
-        foreach (var rotation in JobRegistry.CreateAll())
+        // On a worker thread for the same reason job switching is: a single mismatched id
+        // sends the verifier to a lookup built by reading the whole Action sheet, and doing
+        // that thirteen times between two frames would stop the game.
+        Task.Run(() =>
         {
-            var report = ActionTableVerifier.Verify(rotation, _gameData);
-            _reports[rotation.JobId] = report;
+            var lines = new List<string>();
+            var fresh = new Dictionary<uint, VerificationReport>();
 
-            Chat.Print($"[One Two Punch] {report.Summarise()}");
-            Log.Information("One Two Punch verify: {Summary}", report.Summarise());
-        }
+            try
+            {
+                foreach (var rotation in JobRegistry.CreateAll())
+                {
+                    var report = ActionTableVerifier.Verify(rotation, _gameData);
+                    fresh[rotation.JobId] = report;
+                    lines.Add(report.Summarise());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "One Two Punch: verification sweep failed");
+                Framework.RunOnFrameworkThread(
+                    () => Chat.PrintError("[One Two Punch] Verification failed - see the Dalamud log."));
+                return;
+            }
 
-        // Rebuild the current session so any repaired id takes effect immediately.
-        var jobId = _currentJobId;
-        _currentJobId = 0;
-        SwitchJob(jobId);
-        _currentJobId = jobId;
+            Framework.RunOnFrameworkThread(() =>
+            {
+                _reports.Clear();
+                foreach (var pair in fresh)
+                    _reports[pair.Key] = pair.Value;
+
+                foreach (var line in lines)
+                {
+                    Chat.Print($"[One Two Punch] {line}");
+                    Log.Information("One Two Punch verify: {Summary}", line);
+                }
+
+                // Rebuild the current session so any repaired id takes effect immediately.
+                var jobId = _currentJobId;
+                _currentJobId = 0;
+                SwitchJob(jobId);
+                _currentJobId = jobId;
+            });
+        });
     }
 
     private void ToggleConfig() => _configWindow.Toggle();
