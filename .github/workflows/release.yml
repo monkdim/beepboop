@@ -162,6 +162,30 @@ jobs:
           ConvertTo-Json @($manifest) -Depth 10 | Set-Content pluginmaster.json -Encoding utf8
           Get-Content pluginmaster.json
 
+      # Dalamud decides whether an update exists by comparing AssemblyVersion, so a new
+      # build published under a version that is already live is invisible: the installer
+      # offers nothing and the work reaches nobody. That has happened - 1.0.12.0 shipped
+      # twice, the second time carrying a merge nobody could install. The version lives in
+      # <Version> in the plugin csproj and has to move with the change; failing here is
+      # the only way that is noticed at the time rather than a day later.
+      - name: Refuse to republish a version that is already live
+        shell: pwsh
+        run: |
+          $new = (Get-Content pluginmaster.json -Raw | ConvertFrom-Json)[0].AssemblyVersion
+
+          $raw = (git show HEAD:pluginmaster.json 2>$null) | Out-String
+          if ($LASTEXITCODE -ne 0 -or -not $raw.Trim()) {
+            Write-Host "no listing in the repository yet - first publish of $new"
+            exit 0
+          }
+
+          $previous = ($raw | ConvertFrom-Json)[0].AssemblyVersion
+          Write-Host "publishing $new, currently live: $previous"
+
+          if ($new -eq $previous) {
+            throw "AssemblyVersion is still $new. Bump <Version> in src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj - Dalamud only offers an update when the version changes, so republishing $new would reach nobody."
+          }
+
       # The listing and the build live in the repository, so installing is a plain file
       # fetch. The GitHub release is still published below as an archive of each build.
       - name: Commit the listing and the build into the repository
