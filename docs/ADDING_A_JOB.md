@@ -4,7 +4,7 @@ A job is two files and one line. You do not need to touch the engine.
 
 ## 1. The action table
 
-`src/TwoButton.Core/Jobs/<Job>/<Job>Actions.cs`
+`src/OneTwoPunch.Core/Jobs/<Job>/<Job>Actions.cs`
 
 ```csharp
 public static readonly ActionRef TrueThrust = new(75, "True Thrust", ActionKind.Gcd, 1);
@@ -21,7 +21,7 @@ public static readonly StatusRef PowerSurge = new(2720, "Power Surge");
 
 ## 2. The rotation
 
-`src/TwoButton.Core/Jobs/<Job>/<Job>Rotation.cs`
+`src/OneTwoPunch.Core/Jobs/<Job>/<Job>Rotation.cs`
 
 ```csharp
 public sealed class ReaperRotation : JobRotationBase
@@ -131,7 +131,7 @@ the moment the player does something else, and never starts one mid-fight.
 
 ## 3. Register it
 
-`src/TwoButton.Core/Jobs/JobRegistry.cs`
+`src/OneTwoPunch.Core/Jobs/JobRegistry.cs`
 
 ```csharp
 JobRotationBase.Create<ReaperRotation>,
@@ -139,7 +139,7 @@ JobRotationBase.Create<ReaperRotation>,
 
 ## 4. Test it
 
-Tests run without the game. Copy the shape from `tests/TwoButton.Core.Tests`:
+Tests run without the game. Copy the shape from `tests/OneTwoPunch.Core.Tests`:
 
 ```csharp
 [Fact]

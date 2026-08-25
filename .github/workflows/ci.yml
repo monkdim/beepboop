@@ -16,10 +16,10 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # TwoButton.Core has no Dalamud dependency on purpose, so the rotation logic is
+      # OneTwoPunch.Core has no Dalamud dependency on purpose, so the rotation logic is
       # testable without the game. This is where the rotations are actually verified.
       - name: Test
-        run: dotnet test tests/TwoButton.Core.Tests/TwoButton.Core.Tests.csproj -c Release --logger "console;verbosity=normal"
+        run: dotnet test tests/OneTwoPunch.Core.Tests/OneTwoPunch.Core.Tests.csproj -c Release --logger "console;verbosity=normal"
 
   plugin:
     name: Plugin (build)
@@ -91,14 +91,14 @@ jobs:
       - name: Build
         env:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud
-        run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
+        run: dotnet build src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj -c Release
 
       - name: Show build output
         shell: pwsh
-        run: Get-ChildItem src/TwoButton.Plugin/bin -Recurse | Select-Object -ExpandProperty FullName
+        run: Get-ChildItem src/OneTwoPunch.Plugin/bin -Recurse | Select-Object -ExpandProperty FullName
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TwoButton
-          path: src/TwoButton.Plugin/bin/Release/
+          name: OneTwoPunch
+          path: src/OneTwoPunch.Plugin/bin/Release/
           if-no-files-found: error

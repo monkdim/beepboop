@@ -35,7 +35,7 @@ jobs:
       - name: Build
         env:
           DALAMUD_HOME: ${{ github.workspace }}/dalamud
-        run: dotnet build src/TwoButton.Plugin/TwoButton.Plugin.csproj -c Release
+        run: dotnet build src/OneTwoPunch.Plugin/OneTwoPunch.Plugin.csproj -c Release
 
       # DalamudPackager fills in AssemblyVersion; the API level is overridden below with
       # the value read off the assembly, because the packager stamps its own.
@@ -69,11 +69,11 @@ jobs:
         shell: pwsh
         run: |
           $level = [int]"${{ steps.apilevel.outputs.level }}"
-          $zip = Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter latest.zip | Select-Object -First 1
+          $zip = Get-ChildItem src/OneTwoPunch.Plugin/bin -Recurse -Filter latest.zip | Select-Object -First 1
           if (-not $zip) { throw "DalamudPackager produced no latest.zip" }
 
           # The loose manifests beside the build output.
-          Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter TwoButton.json | ForEach-Object {
+          Get-ChildItem src/OneTwoPunch.Plugin/bin -Recurse -Filter OneTwoPunch.json | ForEach-Object {
             $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
             $m | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue $level -Force
             $m | ConvertTo-Json -Depth 10 | Set-Content $_.FullName -Encoding utf8
@@ -84,8 +84,8 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [System.IO.Compression.ZipFile]::Open($zip.FullName, 'Update')
           try {
-            $entry = $archive.Entries | Where-Object { $_.Name -eq 'TwoButton.json' } | Select-Object -First 1
-            if (-not $entry) { throw "latest.zip contains no TwoButton.json" }
+            $entry = $archive.Entries | Where-Object { $_.Name -eq 'OneTwoPunch.json' } | Select-Object -First 1
+            if (-not $entry) { throw "latest.zip contains no OneTwoPunch.json" }
 
             $reader = New-Object System.IO.StreamReader($entry.Open())
             $json = $reader.ReadToEnd()
@@ -107,7 +107,7 @@ jobs:
           # Read it back from the zip rather than trusting the write.
           $check = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
           try {
-            $e = $check.Entries | Where-Object { $_.Name -eq 'TwoButton.json' } | Select-Object -First 1
+            $e = $check.Entries | Where-Object { $_.Name -eq 'OneTwoPunch.json' } | Select-Object -First 1
             $r = New-Object System.IO.StreamReader($e.Open())
             $packaged = ($r.ReadToEnd() | ConvertFrom-Json).DalamudApiLevel
             $r.Dispose()
@@ -119,19 +119,21 @@ jobs:
       - name: Generate pluginmaster.json
         shell: pwsh
         run: |
-          $zip = Get-ChildItem src/TwoButton.Plugin/bin -Recurse -Filter latest.zip |
+          $zip = Get-ChildItem src/OneTwoPunch.Plugin/bin -Recurse -Filter latest.zip |
                  Select-Object -First 1
           if (-not $zip) { throw "DalamudPackager produced no latest.zip" }
           $out = $zip.Directory.FullName
           Write-Host "Packaged output: $out"
           "PLUGIN_OUT=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          $manifest = Get-Content "$out/TwoButton.json" -Raw | ConvertFrom-Json
+          $manifest = Get-Content "$out/OneTwoPunch.json" -Raw | ConvertFrom-Json
           $repo = "https://github.com/${{ github.repository }}"
           $dl = "$repo/releases/latest/download/latest.zip"
 
           $manifest | Add-Member -NotePropertyName DalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
           $manifest | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue ([int]"${{ steps.apilevel.outputs.level }}") -Force
+          $icon = "https://raw.githubusercontent.com/${{ github.repository }}/main/assets/icon.png"
+          $manifest | Add-Member -NotePropertyName IconUrl -NotePropertyValue $icon -Force
           $manifest | Add-Member -NotePropertyName RepoUrl -NotePropertyValue $repo -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkInstall -NotePropertyValue $dl -Force
           $manifest | Add-Member -NotePropertyName DownloadLinkUpdate -NotePropertyValue $dl -Force
