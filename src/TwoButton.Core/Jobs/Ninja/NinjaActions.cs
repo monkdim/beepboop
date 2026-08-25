@@ -65,7 +65,7 @@ public static class NinjaActions
     public static readonly ActionRef GokaMekkyaku = new(16491, "Goka Mekkyaku", ActionKind.Gcd, 76);
     public static readonly ActionRef Bunshin = new(16493, "Bunshin", ActionKind.OGcd, 80);
     public static readonly ActionRef PhantomKamaitachi = new(25774, "Phantom Kamaitachi", ActionKind.Gcd, 82);
-    public static readonly ActionRef HollowNozuchi = new(25776, "Hollow Nozuchi", ActionKind.OGcd, 86);
+    public static readonly ActionRef HollowNozuchi = new(25776, "Hollow Nozuchi", ActionKind.Gcd, 86);
     public static readonly ActionRef FleetingRaiju = new(25778, "Fleeting Raiju", ActionKind.Gcd, 90);
     public static readonly ActionRef ForkedRaiju = new(25777, "Forked Raiju", ActionKind.Gcd, 90);
     public static readonly ActionRef KunaisBane = new(36958, "Kunais Bane", ActionKind.OGcd, 92);

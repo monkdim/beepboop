@@ -48,10 +48,10 @@ public static class DancerActions
     public static readonly ActionRef DoubleTechnicalFinish = new(16194, "Double Technical Finish", ActionKind.Gcd, 70);
     public static readonly ActionRef TripleTechnicalFinish = new(16195, "Triple Technical Finish", ActionKind.Gcd, 70);
     public static readonly ActionRef QuadrupleTechnicalFinish = new(16196, "Quadruple Technical Finish", ActionKind.Gcd, 70);
-    public static readonly ActionRef SingleTechnicalFinish2 = new(33215, "Single Technical Finish II", ActionKind.OGcd, 70);
-    public static readonly ActionRef DoubleTechnicalFinish2 = new(33216, "Double Technical Finish II", ActionKind.OGcd, 70);
-    public static readonly ActionRef TripleTechnicalFinish2 = new(33217, "Triple Technical Finish II", ActionKind.OGcd, 70);
-    public static readonly ActionRef QuadrupleTechnicalFinish2 = new(33218, "Quadruple Technical Finish II", ActionKind.OGcd, 70);
+    public static readonly ActionRef SingleTechnicalFinish2 = new(33215, "Single Technical Finish II", ActionKind.Gcd, 70);
+    public static readonly ActionRef DoubleTechnicalFinish2 = new(33216, "Double Technical Finish II", ActionKind.Gcd, 70);
+    public static readonly ActionRef TripleTechnicalFinish2 = new(33217, "Triple Technical Finish II", ActionKind.Gcd, 70);
+    public static readonly ActionRef QuadrupleTechnicalFinish2 = new(33218, "Quadruple Technical Finish II", ActionKind.Gcd, 70);
     public static readonly ActionRef Flourish = new(16013, "Flourish", ActionKind.OGcd, 72);
     public static readonly ActionRef SaberDance = new(16005, "Saber Dance", ActionKind.Gcd, 76);
     public static readonly ActionRef Improvisation = new(16014, "Improvisation", ActionKind.OGcd, 80);

@@ -60,7 +60,7 @@ public static class PictomancerActions
     public static readonly ActionRef MawMotif = new(34667, "Maw Motif", ActionKind.Gcd, 96);
     public static readonly ActionRef ClawMotif = new(34666, "Claw Motif", ActionKind.Gcd, 96);
     public static readonly ActionRef StarPrism = new(34681, "Star Prism", ActionKind.Gcd, 100);
-    public static readonly ActionRef StarPrism2 = new(34682, "Star Prism II", ActionKind.OGcd, 100);
+    public static readonly ActionRef StarPrism2 = new(34682, "Star Prism II", ActionKind.Gcd, 100);
     public static readonly ActionRef Addle = new(7560, "Addle", ActionKind.OGcd, 8);
     public static readonly ActionRef Sleep = new(25880, "Sleep", ActionKind.Gcd, 10);
     public static readonly ActionRef LucidDreaming = new(7562, "Lucid Dreaming", ActionKind.OGcd, 14);

@@ -50,6 +50,9 @@ CONNECTORS = {"of", "the", "and", "in", "to", "for", "from"}
 # to weave them.
 GCD_MARKER = re.compile(r",\s*GCD\b|\bgroup\s+\d+/57\b|\bgroup\s+57\b")
 
+# An entry that names a cooldown is an off-global.
+HAS_COOLDOWN = re.compile(r"CD \(group")
+
 
 def extract_enum(text, name):
     """Returns the body of `enum <name>` as a list of lines."""
@@ -86,6 +89,26 @@ def display_name(identifier):
     return " ".join(words) + suffix
 
 
+def classify(comment):
+    """
+    Whether an action rolls the global cooldown.
+
+    An explicit "GCD" marker, or membership of cooldown group 57, settles it. Otherwise the
+    deciding fact is whether BossMod named a cooldown at all: a real off-global always has
+    one and BossMod always annotates it, so an entry with a level and no recast information
+    is a weaponskill whose recast simply is the GCD. Every such entry across the DPS jobs is
+    one - Monk's entire kit, the Blitz line, Fire's and Wind's Reply, Dancer's technical
+    finishes, and Dancer's three unannotated level 100 actions.
+
+    Getting this backwards is not cosmetic: a GCD classed as an off-global makes the engine
+    try to weave it, and makes the weave counter increment where it should have reset.
+    """
+    if GCD_MARKER.search(comment):
+        return "Gcd"
+
+    return "OGcd" if HAS_COOLDOWN.search(comment) else "Gcd"
+
+
 def excluded(member):
     """PvP has its own action set and its own rules; none of it belongs in a PvE rotation."""
     return member == "None" or member.endswith("PvP")
@@ -95,11 +118,6 @@ def parse(path, shared_actions, shared_statuses):
     text = path.read_text(encoding="utf-8-sig")
     actions, statuses = [], []
 
-    # Newer actions are sometimes listed with no annotation at all. They are still real, so
-    # they are kept: BossMod's own RegisterSpell calls say which roll the global cooldown,
-    # and the level is left at 1 because the game's unlock check - not this number - is what
-    # actually gates a rule. Dropping them instead cost Dancer its three level 100 actions.
-    registered_spells = set(re.findall(r"RegisterSpell\(AID\.(\w+)", text))
 
     for line in extract_enum(text, "AID"):
         shared = SHARED.match(line)
@@ -126,12 +144,9 @@ def parse(path, shared_actions, shared_statuses):
             # Annotated but with no level: a limit break, never part of a rotation.
             continue
 
-        if level:
-            kind = "Gcd" if GCD_MARKER.search(comment) else "OGcd"
-            actions.append((member, aid, int(level.group(1)), kind))
-        else:
-            kind = "Gcd" if member in registered_spells else "OGcd"
-            actions.append((member, aid, 1, kind))
+        # The level is left at 1 for unannotated entries, because the game's unlock check -
+        # not this number - is what actually gates a rule.
+        actions.append((member, aid, int(level.group(1)) if level else 1, classify(comment)))
 
     for line in extract_enum(text, "SID"):
         shared = SHARED.match(line)
@@ -159,8 +174,7 @@ def parse_shared(path):
         level = LEVEL.search(comment)
         if not level:
             continue
-        kind = "Gcd" if GCD_MARKER.search(comment) else "OGcd"
-        actions[entry.group(1)] = (int(entry.group(2)), int(level.group(1)), kind)
+        actions[entry.group(1)] = (int(entry.group(2)), int(level.group(1)), classify(comment))
 
     for line in extract_enum(text, "SID"):
         entry = ENTRY.match(line)

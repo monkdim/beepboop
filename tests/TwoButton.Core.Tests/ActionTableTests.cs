@@ -3,6 +3,7 @@ using TwoButton.Core.Model;
 using Xunit;
 using Drg = TwoButton.Core.Jobs.Dragoon.DragoonActions;
 using Mch = TwoButton.Core.Jobs.Machinist.MachinistActions;
+using Mnk = TwoButton.Core.Jobs.Monk.MonkActions;
 
 namespace TwoButton.Core.Tests;
 
@@ -27,6 +28,23 @@ public sealed class ActionTableTests
         Assert.Equal(ActionKind.Gcd, Mch.HeatBlast.Kind);
     }
 
+    /// <summary>
+    /// BossMod does not annotate a recast for actions whose recast simply is the GCD, so
+    /// these carry no "GCD" marker and no cooldown group at all. Reading that absence as
+    /// "off-global" made the engine try to weave Monk's entire kit.
+    /// </summary>
+    [Fact]
+    public void ActionsWithNoAnnotatedRecastAreGlobals()
+    {
+        Assert.Equal(ActionKind.Gcd, Mnk.MasterfulBlitz.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.PhantomRush.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.ElixirBurst.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.FiresReply.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.WindsReply.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.LeapingOpo.Kind);
+        Assert.Equal(ActionKind.Gcd, Mnk.DragonKick.Kind);
+    }
+
     [Fact]
     public void RealOffGlobalsAreStillOffGlobals()
     {
@@ -35,6 +53,12 @@ public sealed class ActionTableTests
         Assert.Equal(ActionKind.OGcd, Drg.TrueNorth.Kind);
         Assert.Equal(ActionKind.OGcd, Mch.Reassemble.Kind);
         Assert.Equal(ActionKind.OGcd, Mch.Hypercharge.Kind);
+
+        // Monk's own off-globals must not have been swept up by the rule above.
+        Assert.Equal(ActionKind.OGcd, Mnk.PerfectBalance.Kind);
+        Assert.Equal(ActionKind.OGcd, Mnk.Brotherhood.Kind);
+        Assert.Equal(ActionKind.OGcd, Mnk.RiddleOfFire.Kind);
+        Assert.Equal(ActionKind.OGcd, Mnk.ForbiddenChakra.Kind);
     }
 
     /// <summary>
