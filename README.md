@@ -81,10 +81,16 @@ untouched — the plugin only ever answers for those two slots.
 
 ## Supported jobs
 
-| Job | Single target | AoE | Opener |
-|---|---|---|---|
-| Dragoon | yes | yes | yes |
-| Machinist | yes | yes | yes |
+Action and status tables — ids, names, levels, and whether each action rolls the global
+cooldown — are generated for **all thirteen DPS jobs**. Rotations are written per job:
+
+| Job | Rotation | Notes |
+|---|---|---|
+| Dragoon | yes | ST + AoE + opener |
+| Machinist | yes | ST + AoE + opener |
+| Monk, Ninja, Samurai, Reaper, Viper | table only | rotation to come |
+| Bard, Dancer | table only | rotation to come |
+| Black Mage, Summoner, Red Mage, Pictomancer | table only | rotation to come |
 
 More jobs are a pair of files each — see [docs/ADDING_A_JOB.md](docs/ADDING_A_JOB.md). The
 rotations are ordinary priority lists that read like the guide they came from, so they can
@@ -116,6 +122,20 @@ cannot be resolved at all is **switched off with a message** rather than run on 
 Third-party plugins are not supported by Square Enix and using them is against the FFXIV
 terms of service. This one sends no input, automates nothing, and reads only what the game
 already puts on your screen — but that does not change the terms. Your call to make.
+
+## Credits
+
+Action and status ids are generated from [BossMod](https://github.com/awgil/ffxiv_bossmod)'s
+`ActionQueue` definitions (BSD 3-Clause), which are regenerated from the game's own data each
+patch. Only the id, name, level and global-cooldown facts are taken; the rotation engine and
+priority lists here are this project's own. Regenerate with:
+
+```
+python3 tools/generate_action_tables.py /path/to/ffxiv_bossmod
+```
+
+That transcription is not trusted blindly either — every id is still verified against the
+game's own sheets at startup, which is how four wrong Dragoon values were caught.
 
 ## Licence
 
