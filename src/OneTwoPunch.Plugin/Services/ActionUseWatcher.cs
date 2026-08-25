@@ -1,3 +1,4 @@
+using System.Numerics;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -9,24 +10,41 @@ namespace OneTwoPunch.Plugin.Services;
 /// Notices when the player actually uses an action, so the engine's weave budget and opener
 /// stay in step with what was really pressed.
 /// <para>
-/// This used to watch cooldowns instead of hooking: a recast that was zero last frame and
-/// is not zero now looked like a use, and needed no signature. It was wrong, and badly.
-/// Every global cooldown shares one recast timer, so casting a single global made all of
-/// them jump at once and the watcher reported the entire job's action list as used - fifty
-/// or more spurious uses per cast, each one advancing the opener and spending weave budget.
-/// A recorded pull showed twenty-six "casts" at a single timestamp.
+/// Two earlier attempts at this were wrong in the same way - they reported things that had
+/// not happened, and the opener paid for it.
 /// </para>
 /// <para>
-/// So it hooks UseAction, which is what BossMod does, through FFXIVClientStructs' own
-/// resolved address and generated delegate. The detour observes and never changes the
-/// outcome: the original is called first and its answer returned untouched, so this cannot
-/// affect what the game does with a press.
+/// The first watched cooldowns: a recast that was zero last frame and is not zero now
+/// looked like a use. But every global cooldown shares one recast timer, so casting a
+/// single global made all of them jump at once and the whole job's action list was reported
+/// used - a recorded pull showed twenty-six "casts" at one timestamp.
+/// </para>
+/// <para>
+/// The second hooked UseAction, which is the function a keypress enters, not the one an
+/// action leaves by. It is called with the id on the hotbar - our own button - before the
+/// game resolves what that button currently is, and it returns true for a press that was
+/// merely queued behind the running global. So a recorded pull showed "Doom Spike" for
+/// every press on a Dragoon whose button was being replaced with the whole rotation, and
+/// the opener aborted on the very first one: step one is True Thrust, the watcher said Doom
+/// Spike, and the engine concluded the player had gone off script before the fight had
+/// started. Neither of the two logs that found this ever ran an opener past step one.
+/// </para>
+/// <para>
+/// So it hooks UseActionLocation, which is where both paths - pressed now, or dequeued a
+/// moment later - converge, and which is called with the action the game has already
+/// resolved. LastUsedActionSequence moving across the call is the game saying an action
+/// really left the client; the return value alone only means the request was accepted. This
+/// is what BossMod does, and it is the only signal here that means what it says.
+/// </para>
+/// <para>
+/// The detour observes and never changes the outcome: the original is called first and its
+/// answer returned untouched, so this cannot affect what the game does with a press.
 /// </para>
 /// </summary>
 public sealed unsafe class ActionUseWatcher : IDisposable
 {
     private readonly IPluginLog _log;
-    private Hook<ActionManager.Delegates.UseAction>? _hook;
+    private Hook<ActionManager.Delegates.UseActionLocation>? _hook;
     private bool _unavailable;
 
     public ActionUseWatcher(IPluginLog log) => _log = log;
@@ -43,11 +61,11 @@ public sealed unsafe class ActionUseWatcher : IDisposable
         {
             if (_hook is null)
             {
-                var address = ActionManager.Addresses.UseAction.Value;
+                var address = ActionManager.Addresses.UseActionLocation.Value;
                 if (address == 0)
                     return false;
 
-                _hook = interop.HookFromAddress<ActionManager.Delegates.UseAction>(address, Detour);
+                _hook = interop.HookFromAddress<ActionManager.Delegates.UseActionLocation>(address, Detour);
             }
 
             if (!_hook.IsEnabled)
@@ -58,7 +76,7 @@ public sealed unsafe class ActionUseWatcher : IDisposable
         catch (Exception ex)
         {
             _unavailable = true;
-            _log.Error(ex, "One Two Punch: could not hook UseAction; opener and weave tracking are off.");
+            _log.Error(ex, "One Two Punch: could not hook UseActionLocation; opener and weave tracking are off.");
             return false;
         }
     }
@@ -70,17 +88,18 @@ public sealed unsafe class ActionUseWatcher : IDisposable
         ActionType actionType,
         uint actionId,
         ulong targetId,
+        Vector3* location,
         uint extraParam,
-        ActionManager.UseActionMode mode,
-        uint comboRouteId,
-        bool* outOptAreaTargeted)
+        byte mode)
     {
-        var used = _hook!.Original(
-            self, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
+        var before = self->LastUsedActionSequence;
 
-        // Only a press the game actually accepted, and only a real action - not an item,
-        // not a mount. A rejected press must not advance the opener.
-        if (used && actionType == ActionType.Action)
+        var used = _hook!.Original(self, actionType, actionId, targetId, location, extraParam, mode);
+
+        // The sequence number moving is the game saying this action went out. A press it
+        // declined, or swallowed into the queue, leaves it where it was - and must not
+        // advance the opener.
+        if (actionType == ActionType.Action && self->LastUsedActionSequence != before)
         {
             try
             {
