@@ -147,6 +147,51 @@ public sealed class ReaperShroudTests
         Assert.Equal(A.Enshroud.Id, suggestion);
     }
 
+    /// <summary>
+    /// The hole the cap release leaves, and the reason for it: Plentiful Harvest's own fifty
+    /// Shroud is what pushes the gauge to a hundred, so the release above would fire a paid
+    /// Enshroud on exactly the global the free one was meant for. Enshroud's fifteen second
+    /// cooldown then swallows Ideal Host for most of the buff window.
+    /// </summary>
+    [Fact]
+    public void AFullGaugeIsStillHeldWhilePlentifulHarvestIsWaiting()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow()
+                    .Buff(A.ArcaneCircleBuff.Id, 14f)
+                    .Buff(A.ImmortalSacrifice.Id, 26f)
+                    .Gauge(s => s.Gauges.Reaper.Shroud = 100)
+                    .Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 112f))
+            .Action.Id;
+
+        Assert.NotEqual(A.Enshroud.Id, suggestion);
+    }
+
+    /// <summary>
+    /// And the hold lets go the moment the free one is actually in hand, rather than waiting
+    /// for the stacks to time out.
+    /// </summary>
+    [Fact]
+    public void TheHoldEndsOnceIdealHostIsUp()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow()
+                    .Buff(A.ArcaneCircleBuff.Id, 12f)
+                    .Buff(A.ImmortalSacrifice.Id, 24f)
+                    .Buff(A.IdealHost.Id, 29f)
+                    .Gauge(s => s.Gauges.Reaper.Shroud = 100)
+                    .Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 112f))
+            .Action.Id;
+
+        Assert.Equal(A.Enshroud.Id, suggestion);
+    }
+
     /// <summary>Inside the buff, saving is over - that is what it was saved for.</summary>
     [Fact]
     public void ShroudIsSpentInsideTheBurst()

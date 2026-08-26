@@ -236,9 +236,27 @@ public sealed class ReaperRotation : JobRotationBase
     /// </para>
     /// </summary>
     private static bool PoolingForBurst(RotationContext c) =>
-        !c.Buff(A.ArcaneCircleBuff)
-        && c.Rpr.Shroud < 100
-        && c.ReadyIn(A.ArcaneCircle, ShroudPoolWindow);
+        FreeEnshroudIsComing(c)
+        || (!c.Buff(A.ArcaneCircleBuff)
+            && c.Rpr.Shroud < 100
+            && c.ReadyIn(A.ArcaneCircle, ShroudPoolWindow));
+
+    /// <summary>
+    /// Whether the free Enshroud is close enough that paying for one now would waste it.
+    /// <para>
+    /// Immortal Sacrifice means Plentiful Harvest is waiting, and Plentiful Harvest is what
+    /// leaves Ideal Host behind. Enshroud has a fifteen second cooldown, so paying for one in
+    /// the seconds before that lands does not buy an extra Enshroud - it blocks the free one
+    /// for most of the buff window and usually loses it outright.
+    /// </para>
+    /// <para>
+    /// This is the case the hundred-Shroud release above would otherwise walk straight into:
+    /// Plentiful Harvest's own fifty Shroud is what pushes the gauge to a hundred, and the
+    /// release fires a paid Enshroud on exactly the GCD the free one was meant for.
+    /// </para>
+    /// </summary>
+    private static bool FreeEnshroudIsComing(RotationContext c) =>
+        c.Buff(A.ImmortalSacrifice) && !c.Buff(A.IdealHost);
 
     /// <summary>Soul and Shroud are the whole rotation, so the recorder gets to see them.</summary>
     public override string DescribeGauge(CombatSnapshot snapshot)
