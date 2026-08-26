@@ -42,6 +42,20 @@ public sealed class BlackMageRotation : JobRotationBase
     private const uint NeutralFireMp = 7200;
 
     /// <summary>
+    /// Mana at which Umbral Ice has done everything it is for and the phase can end. Short of
+    /// a full bar on purpose: waiting for the exact cap costs a global for the last few
+    /// hundred mana that Paradox is about to hand back anyway.
+    /// </summary>
+    private const uint IceExitMp = 9600;
+
+    /// <summary>
+    /// How close to expiry the dot has to be before an instant refresh is worth taking during
+    /// movement. Wider than the standing refresh window - moving is the one time spending a
+    /// global on the dot early is defensible - but not so wide that a fresh dot gets clipped.
+    /// </summary>
+    private const float MovementRefreshWindow = 10f;
+
+    /// <summary>
     /// The Balance's Standard "5+7" opener, Black Mage level 100, Dawntrail patch 7.2,
     /// transcribed step for step from their chart rather than reasoned out.
     /// <para>
@@ -108,9 +122,35 @@ public sealed class BlackMageRotation : JobRotationBase
         p.OGcd(A.LeyLines).When(c => !c.Downtime && !c.Moving).Because("damage window");
         p.OGcd(A.Amplifier).When(c => c.Blm.PolyglotStacks < 2).Because("do not overcap Polyglot");
 
+        // Held until Despair has actually been cast. Manafont refills the bar, so spending it
+        // while there is still enough mana for a Despair buys nothing and costs the Despair
+        // that mana would have paid for - a recorded fight has this six times in one pull,
+        // reported as "Manafont was used before Despair". Despair being uncastable is the
+        // signal that the bar is spent, and it accounts for the mana cost by itself.
         p.OGcd(A.Manafont)
-            .When(c => c.Blm.InAstralFire && !c.Downtime)
-            .Because("refill mana without leaving Astral Fire");
+            .When(c => c.Blm.InAstralFire && !c.Downtime && !c.Ready(A.Despair))
+            .Because("the bar is spent, refill it without leaving Astral Fire");
+
+        // ---- Leaving a phase ---------------------------------------------
+        // Transpose was never suggested at all, and both weakened casts in the log come from
+        // that one omission. Blizzard III cast in Astral Fire and Fire III cast in Umbral Ice
+        // are both damage-penalised; Transpose crosses the same gap for free, off the global.
+        // A recorded fight has nine of each.
+        p.OGcd(A.Transpose)
+            .When(c => c.Blm.InAstralFire
+                       && c.Blm.AstralSoulStacks < 6
+                       && !c.Blm.ParadoxActive
+                       && !c.Buff(A.Firestarter)
+                       && !c.Ready(A.Fire4)
+                       && !c.Ready(A.Despair))
+            .Because("fire is spent, cross to ice without a weakened Blizzard III");
+
+        p.OGcd(A.Transpose)
+            .When(c => c.Blm.InUmbralIce
+                       && c.Blm.UmbralHearts >= 3
+                       && !c.Blm.ParadoxActive
+                       && c.Mp >= IceExitMp)
+            .Because("ice has done its job, cross without a weakened Fire III");
 
         // Triplecast and Swiftcast are deliberately not suggested at all.
         //
@@ -133,15 +173,17 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => StuckMoving(c) && c.Blm.ParadoxActive)
             .Because("instant, you are moving");
 
+        // Only when the dot is actually near the end. This used to fire on any movement with
+        // a proc up, which refreshes a dot that has twenty-five seconds left - an average of
+        // 12.6 seconds of High Thunder clipped per minute in a recorded fight. Moving with a
+        // healthy dot now falls through to the hard casts, which is what slidecasting is for.
         p.Gcd(c => ThunderAction(c))
-            .When(c => StuckMoving(c) && c.Buff(A.Thunderhead))
+            .When(c => StuckMoving(c) && c.Buff(A.Thunderhead) && ThunderIsRunningOut(c, MovementRefreshWindow))
             .Because("instant, you are moving");
 
         // The dot, refreshed on its proc so it never costs a cast.
         p.Gcd(c => ThunderAction(c))
-            .When(c => c.Buff(A.Thunderhead)
-                       && !c.Downtime
-                       && (c.DotExpiring(A.HighThunderBuff, 3f) && c.DotExpiring(A.ThunderIII, 3f)))
+            .When(c => c.Buff(A.Thunderhead) && !c.Downtime && ThunderIsRunningOut(c, 3f))
             .Because("refresh the dot");
 
         // Polyglot caps, and each stack lost is a free instant thrown away.
@@ -157,6 +199,14 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(A.Despair)
             .When(c => c.Blm.InAstralFire && c.Blm.AstralSoulStacks < 6 && !c.Ready(A.Fire4))
             .Because("last cast before Umbral Ice");
+
+        // Above Fire IV on purpose. A marker made in Astral Fire - by Manafont, or by crossing
+        // into fire - had no rule that could spend it, so the next one overwrote it: nine
+        // times in one recorded fight. It is instant, it refreshes the timer, and it leaves
+        // Firestarter behind for a free Fire III.
+        p.Gcd(A.Paradox)
+            .When(c => c.Blm.InAstralFire && c.Blm.ParadoxActive)
+            .Because("spend Paradox before it is overwritten");
 
         p.Gcd(A.Fire4).When(c => c.Blm.InAstralFire);
 
@@ -258,4 +308,14 @@ public sealed class BlackMageRotation : JobRotationBase
 
     private static ActionRef ThunderAction(RotationContext c) =>
         c.Has(A.HighThunder) ? A.HighThunder : A.Thunder3;
+
+    /// <summary>
+    /// Whether the thunder dot is within <paramref name="within"/> seconds of dropping.
+    /// <para>
+    /// Both forms are asked about because which one is on the target depends on level, and a
+    /// dot that is not there at all reads as zero - which is correctly "running out".
+    /// </para>
+    /// </summary>
+    private static bool ThunderIsRunningOut(RotationContext c, float within) =>
+        c.DotExpiring(A.HighThunderBuff, within) && c.DotExpiring(A.ThunderIII, within);
 }
