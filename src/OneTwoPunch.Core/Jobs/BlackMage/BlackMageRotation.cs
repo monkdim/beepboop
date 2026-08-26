@@ -230,6 +230,20 @@ public sealed class BlackMageRotation : JobRotationBase
     }
 
     /// <summary>The thunder the player actually has, which upgrades twice.</summary>
+    /// <summary>Element, timer and the two resources every rule here turns on.</summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.BlackMage;
+
+        var element = g.AstralFire > 0 ? $"fire {g.AstralFire}"
+            : g.UmbralIce > 0 ? $"ice {g.UmbralIce}"
+            : "neutral";
+
+        return $"{element} {g.ElementTimeRemaining:0.0}s | hearts {g.UmbralHearts} "
+               + $"| polyglot {g.PolyglotStacks} | soul {g.AstralSoulStacks}"
+               + (g.ParadoxActive ? " | paradox" : string.Empty);
+    }
+
     /// <summary>
     /// Moving, with nothing that would make the next cast instant.
     /// <para>

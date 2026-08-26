@@ -579,6 +579,14 @@ public sealed class Plugin : IDalamudPlugin
 
         text.Append($" | enemies {s.EnemiesInAoeRange}");
 
+        // The job's own gauge, when it has one worth saying. Soul and Shroud, Astral Fire
+        // and Polyglot - the numbers whole rotations turn on - left no trace anywhere before
+        // this, so a log could show every buff and cooldown and still not say why a rule
+        // declined.
+        var gauge = _job?.DescribeGauge(s);
+        if (!string.IsNullOrEmpty(gauge))
+            text.Append(" | ").Append(gauge);
+
         if (s.InDowntime)
             text.Append(" | downtime");
 

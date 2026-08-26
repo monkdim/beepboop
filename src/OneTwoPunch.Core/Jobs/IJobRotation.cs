@@ -53,6 +53,17 @@ public interface IJobRotation
     /// </summary>
     ActionRef? BurstAction { get; }
 
+    /// <summary>
+    /// The job's own gauge in one short line, for the recorder. Null when the job has
+    /// nothing worth saying.
+    /// <para>
+    /// A recorded Reaper pull could not answer why the second Enshroud never happened,
+    /// because Soul and Shroud - the two numbers the whole rotation turns on - left no
+    /// trace anywhere. Buffs and cooldowns were all there; the gauge was invisible.
+    /// </para>
+    /// </summary>
+    string? DescribeGauge(CombatSnapshot snapshot) => null;
+
     Opener? Opener { get; }
 
     RotationPlan SingleTarget { get; }

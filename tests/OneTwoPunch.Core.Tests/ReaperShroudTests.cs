@@ -95,4 +95,72 @@ public sealed class ReaperShroudTests
 
         Assert.NotEqual(A.Enshroud.Id, suggestion);
     }
+
+    /// <summary>
+    /// The two-minute window wants two Enshrouds: the free one Arcane Circle leaves behind
+    /// and a paid one out of banked Shroud. Spending at fifty the moment it is reached means
+    /// the gauge is never near a hundred when the burst arrives - a recorded pull has
+    /// Enshroud at 00:50 and 01:43, both well outside a buff window, and then only the free
+    /// one inside each burst.
+    /// </summary>
+    [Fact]
+    public void ShroudIsSavedWhenTheBurstIsClose()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow().Gauge(s => s.Gauges.Reaper.Shroud = 50).Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 10f))
+            .Action.Id;
+
+        Assert.NotEqual(A.Enshroud.Id, suggestion);
+    }
+
+    /// <summary>With the burst a long way off there is nothing to save it for.</summary>
+    [Fact]
+    public void ShroudIsSpentWhenTheBurstIsNotClose()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow().Gauge(s => s.Gauges.Reaper.Shroud = 50).Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 90f))
+            .Action.Id;
+
+        Assert.Equal(A.Enshroud.Id, suggestion);
+    }
+
+    /// <summary>
+    /// And never saved past the cap. At a hundred Shroud every further Reaver spend is
+    /// thrown away, which costs more than a badly timed Enshroud.
+    /// </summary>
+    [Fact]
+    public void AFullGaugeIsSpentEvenWithTheBurstClose()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow().Gauge(s => s.Gauges.Reaper.Shroud = 100).Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 10f))
+            .Action.Id;
+
+        Assert.Equal(A.Enshroud.Id, suggestion);
+    }
+
+    /// <summary>Inside the buff, saving is over - that is what it was saved for.</summary>
+    [Fact]
+    public void ShroudIsSpentInsideTheBurst()
+    {
+        var suggestion = Session()
+            .Resolve(
+                RotationMode.SingleTarget,
+                InAWeaveWindow()
+                    .Buff(A.ArcaneCircleBuff.Id, 8f)
+                    .Gauge(s => s.Gauges.Reaper.Shroud = 50)
+                    .Build(),
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 112f))
+            .Action.Id;
+
+        Assert.Equal(A.Enshroud.Id, suggestion);
+    }
 }
