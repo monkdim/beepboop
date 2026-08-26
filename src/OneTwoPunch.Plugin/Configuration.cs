@@ -37,6 +37,17 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool DetectPositionals = true;
 
+    /// <summary>
+    /// Whether a press of Aetherial Manipulation with no party member targeted is pointed at
+    /// the tank rather than refused.
+    /// <para>
+    /// Off by default. It edits a press the player made rather than answering a question the
+    /// game asked, which is a different bargain from everything else here, so it is opted
+    /// into rather than assumed.
+    /// </para>
+    /// </summary>
+    public bool AetherialManipulationToTank;
+
     // ---- Potion ----------------------------------------------------------
 
     public bool PotionEnabled;
