@@ -205,6 +205,22 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => c.Blm.InAstralFire && c.Blm.ParadoxActive)
             .Because("spend Paradox before it is overwritten");
 
+        // The same rung on the other side, and it was missing for the same reason.
+        //
+        // Transpose crosses into Astral Fire *one*, exactly as it crosses into Umbral Ice
+        // one, and Fire IV at Astral Fire I is a fraction of what it is at three. A recorded
+        // level 90 pull has twenty-one globals at "fire 1" - both ice exits Transposed, and
+        // then the whole phase ran at the bottom rung.
+        //
+        // Fire III is what climbs, it is full damage in fire, and it is free and instant when
+        // the Paradox above has just left a Firestarter behind - which is the whole shape of
+        // the crossing: Transpose, Paradox, Fire III, and you arrive at three with a full bar.
+        p.Gcd(A.Fire3)
+            .When(c => c.Blm.InAstralFire && c.Blm.AstralFire < 3)
+            .Because(c => c.Buff(A.Firestarter)
+                ? "up to Astral Fire III, free and instant"
+                : "up to Astral Fire III");
+
         p.Gcd(A.Fire4).When(c => c.Blm.InAstralFire);
 
         p.Gcd(A.Fire3)
