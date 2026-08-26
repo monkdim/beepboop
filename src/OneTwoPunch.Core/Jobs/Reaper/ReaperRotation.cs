@@ -39,6 +39,7 @@ public sealed class ReaperRotation : JobRotationBase
     /// </summary>
     private static readonly Opener Sequence = new(
         "The Balance 2nd-GCD Arcane Circle", 100,
+        A.Soulsow,
         A.Harpe,
         A.ShadowofDeath,
         A.SoulSlice, A.ArcaneCircle, A.Gluttony,
@@ -56,8 +57,9 @@ public sealed class ReaperRotation : JobRotationBase
         A.ShadowofDeath,
         A.Slice)
     {
-        // Drunk alongside Arcane Circle, which the chart weaves after Soul Slice.
-        PotionBeforeStep = 2,
+        // Drunk alongside Arcane Circle, which the chart weaves after Soul Slice. One later
+        // than it used to be, because Soulsow now leads.
+        PotionBeforeStep = 3,
     };
 
     public override Opener? Opener => Sequence;
@@ -152,6 +154,30 @@ public sealed class ReaperRotation : JobRotationBase
             .When(c => c.DotExpiring(A.DeathsDesign, 6f) && !c.Downtime)
             .Because("keep Death's Design up");
 
+        // ---- Off the boss --------------------------------------------------
+        // These have to sit above the filler combo. Slice at the bottom has no condition, so
+        // anything under it can never be reached - which is exactly what had happened to the
+        // out-of-range Harpe rule: it was written, and it was dead.
+
+        // Soulsow is a five second cast that loads Harvest Moon, so it is done before the
+        // pull and never during one. The opener leads with it now too.
+        p.Gcd(A.Soulsow)
+            .When(c => !c.InCombat && !c.Buff(A.SoulsowBuff))
+            .Because("load Harvest Moon before the pull");
+
+        // Out of melee is where the ranged globals earn their keep, and Harvest Moon goes
+        // first: it is instant, it is free, and it was paid for before the pull. Not offered
+        // in melee on purpose - it is a whole GCD and it breaks the Slice combo, so pressing
+        // it while standing on the boss costs more than it gives. That is a call for the
+        // player's own key, which is how it got used in the log that prompted this.
+        p.Gcd(A.HarvestMoon)
+            .When(c => c.Buff(A.SoulsowBuff) && (!c.InRange || c.Downtime))
+            .Because(c => c.InRange ? "free damage while the boss is away" : "out of range");
+
+        p.Gcd(A.Harpe)
+            .When(c => !c.InRange)
+            .Because("out of range");
+
         // Soul Slice holds two charges; used at 50 or less so its 50 Soul never overcaps.
         p.Gcd(A.SoulSlice)
             .When(c => c.Rpr.Soul <= 50)
@@ -160,10 +186,6 @@ public sealed class ReaperRotation : JobRotationBase
         p.Gcd(A.InfernalSlice).When(c => c.ComboIs(A.WaxingSlice));
         p.Gcd(A.WaxingSlice).When(c => c.ComboIs(A.Slice));
         p.Gcd(A.Slice);
-
-        p.Gcd(A.Harpe)
-            .When(c => !c.InRange)
-            .Because("out of range");
     }
 
     private void BuildAoe()
@@ -236,27 +258,9 @@ public sealed class ReaperRotation : JobRotationBase
     /// </para>
     /// </summary>
     private static bool PoolingForBurst(RotationContext c) =>
-        FreeEnshroudIsComing(c)
-        || (!c.Buff(A.ArcaneCircleBuff)
-            && c.Rpr.Shroud < 100
-            && c.ReadyIn(A.ArcaneCircle, ShroudPoolWindow));
-
-    /// <summary>
-    /// Whether the free Enshroud is close enough that paying for one now would waste it.
-    /// <para>
-    /// Immortal Sacrifice means Plentiful Harvest is waiting, and Plentiful Harvest is what
-    /// leaves Ideal Host behind. Enshroud has a fifteen second cooldown, so paying for one in
-    /// the seconds before that lands does not buy an extra Enshroud - it blocks the free one
-    /// for most of the buff window and usually loses it outright.
-    /// </para>
-    /// <para>
-    /// This is the case the hundred-Shroud release above would otherwise walk straight into:
-    /// Plentiful Harvest's own fifty Shroud is what pushes the gauge to a hundred, and the
-    /// release fires a paid Enshroud on exactly the GCD the free one was meant for.
-    /// </para>
-    /// </summary>
-    private static bool FreeEnshroudIsComing(RotationContext c) =>
-        c.Buff(A.ImmortalSacrifice) && !c.Buff(A.IdealHost);
+        !c.Buff(A.ArcaneCircleBuff)
+        && c.Rpr.Shroud < 100
+        && c.ReadyIn(A.ArcaneCircle, ShroudPoolWindow);
 
     /// <summary>Soul and Shroud are the whole rotation, so the recorder gets to see them.</summary>
     public override string DescribeGauge(CombatSnapshot snapshot)

@@ -150,6 +150,7 @@ public sealed class BalanceOpenerTests
     [Fact]
     public void ReaperGlobalsMatchTheChart() => AssertMatches(39, ActionKind.Gcd,
     [
+        ReaperActions.Soulsow, // pre-pull, loads Harvest Moon
         ReaperActions.Harpe, // pre-pull
         ReaperActions.ShadowofDeath,
         ReaperActions.SoulSlice,

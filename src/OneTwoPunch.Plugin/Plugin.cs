@@ -266,12 +266,21 @@ public sealed class Plugin : IDalamudPlugin
         //
         // Costs one snapshot a frame, which is what already happened whenever the hook was
         // live; both buttons share it and everything after the first call is a cache hit.
-        Resolve(RotationMode.SingleTarget);
-        Resolve(RotationMode.Aoe);
+        //
+        // Marked as our own work, because resolving asks the game about the actions in the
+        // priority list and the host action is one of them - so this loop asks about our own
+        // buttons, through our own hook, once a frame. Left uncounted that made the hook's
+        // "the game asked N times" read exactly one per frame whether or not the hotbar was
+        // drawing anything at all, which is the one thing the number exists to tell apart.
+        using (ActionReplacer.OwnWork())
+        {
+            Resolve(RotationMode.SingleTarget);
+            Resolve(RotationMode.Aoe);
 
-        var extras = _job?.ExtraButtons.Count ?? 0;
-        for (var i = 0; i < extras; i++)
-            Resolve(i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
+            var extras = _job?.ExtraButtons.Count ?? 0;
+            for (var i = 0; i < extras; i++)
+                Resolve(i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
+        }
 
         // Nothing else to poll: uses arrive from the UseActionLocation hook.
     }
@@ -288,7 +297,8 @@ public sealed class Plugin : IDalamudPlugin
             ? null
             : _gameData.GetActionName(_replacer.LastAnswer) ?? $"action {_replacer.LastAnswer}";
 
-        return new HookTraffic(_replacer.TimesAsked, _replacer.TimesAnswered, last);
+        return new HookTraffic(
+            _replacer.TimesAsked, _replacer.TimesAnswered, last, _replacer.TimesAskedByOurOwnWork);
     }
 
     /// <summary>
