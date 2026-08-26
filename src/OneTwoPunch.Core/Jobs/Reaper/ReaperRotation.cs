@@ -89,9 +89,9 @@ public sealed class ReaperRotation : JobRotationBase
         // two minutes. Reported as "not using enshroud twice during the boost, using it once
         // then holding and letting the second fall off".
         p.OGcd(A.Enshroud)
-            .When(c => (c.Rpr.Shroud >= 50 || c.Buff(A.IdealHost))
-                       && !c.Rpr.Enshrouded
-                       && !c.Buff(A.SoulReaver))
+            .When(c => !c.Rpr.Enshrouded
+                       && !c.Buff(A.SoulReaver)
+                       && (c.Buff(A.IdealHost) || (c.Rpr.Shroud >= 50 && !PoolingForBurst(c))))
             .Because(c => c.Buff(A.IdealHost) ? "free Enshroud, do not waste it" : "spend Shroud");
 
         p.OGcd(A.LemuresSlice)
@@ -210,6 +210,63 @@ public sealed class ReaperRotation : JobRotationBase
 
         p.Gcd(A.NightmareScythe).When(c => c.ComboIs(A.SpinningScythe));
         p.Gcd(A.SpinningScythe);
+    }
+
+    /// <summary>
+    /// How long before Arcane Circle that Shroud stops being spent and starts being saved.
+    /// <para>
+    /// A judgement call, not a number from anywhere: long enough to bank the fifty Shroud a
+    /// second Enshroud needs, short enough that Shroud is not sat on for most of a minute.
+    /// </para>
+    /// </summary>
+    private const float ShroudPoolWindow = 25f;
+
+    /// <summary>
+    /// Whether Shroud is being saved for the burst rather than spent now.
+    /// <para>
+    /// The two-minute window wants two Enshrouds: the free one Arcane Circle leaves behind,
+    /// and a paid one out of banked Shroud. Spending at fifty the moment it is reached means
+    /// the gauge is never near a hundred when the burst arrives, and a recorded pull shows
+    /// exactly that - Enshroud at 00:50 and 01:43, both well outside a buff window, and then
+    /// only the free one inside each burst.
+    /// </para>
+    /// <para>
+    /// Held only while there is room to hold: at a hundred Shroud every further Reaver spend
+    /// is thrown away, which costs more than a badly timed Enshroud.
+    /// </para>
+    /// </summary>
+    private static bool PoolingForBurst(RotationContext c) =>
+        FreeEnshroudIsComing(c)
+        || (!c.Buff(A.ArcaneCircleBuff)
+            && c.Rpr.Shroud < 100
+            && c.ReadyIn(A.ArcaneCircle, ShroudPoolWindow));
+
+    /// <summary>
+    /// Whether the free Enshroud is close enough that paying for one now would waste it.
+    /// <para>
+    /// Immortal Sacrifice means Plentiful Harvest is waiting, and Plentiful Harvest is what
+    /// leaves Ideal Host behind. Enshroud has a fifteen second cooldown, so paying for one in
+    /// the seconds before that lands does not buy an extra Enshroud - it blocks the free one
+    /// for most of the buff window and usually loses it outright.
+    /// </para>
+    /// <para>
+    /// This is the case the hundred-Shroud release above would otherwise walk straight into:
+    /// Plentiful Harvest's own fifty Shroud is what pushes the gauge to a hundred, and the
+    /// release fires a paid Enshroud on exactly the GCD the free one was meant for.
+    /// </para>
+    /// </summary>
+    private static bool FreeEnshroudIsComing(RotationContext c) =>
+        c.Buff(A.ImmortalSacrifice) && !c.Buff(A.IdealHost);
+
+    /// <summary>Soul and Shroud are the whole rotation, so the recorder gets to see them.</summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Reaper;
+        var shroud = g.Enshrouded
+            ? $"enshrouded {g.EnshroudTimeRemaining:0.0}s, lemure {g.LemureShroud}, void {g.VoidShroud}"
+            : $"shroud {g.Shroud}";
+
+        return $"soul {g.Soul} | {shroud}";
     }
 
     /// <summary>

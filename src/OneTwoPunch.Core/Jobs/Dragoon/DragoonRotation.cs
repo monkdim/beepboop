@@ -59,6 +59,15 @@ public sealed class DragoonRotation : JobRotationBase
 
     public override Opener? Opener => Sequence;
 
+    /// <summary>Firstminds' Focus is what Wyrmwind Thrust waits on; Life of the Dragon gates Nastrond.</summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Dragoon;
+
+        return $"focus {g.FirstmindsFocus}"
+               + (g.LotdActive ? $" | life of the dragon {g.LotdTimeRemaining:0.0}s" : string.Empty);
+    }
+
     protected override void Build()
     {
         BuildSingleTarget();

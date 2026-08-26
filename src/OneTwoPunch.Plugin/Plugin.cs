@@ -277,15 +277,20 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
-    /// Installs the hook, now that there is definitely a character in the world. Returns
-    /// false if the hook is not available, in which case the plugin stays inert and tries
-    /// again next frame.
+    /// The hook's counters, with the last answer resolved to a name. Snapshotted into the
+    /// recording at both ends so the log itself can say whether the game was asking about
+    /// the buttons - the difference between an icon we never got told about and one the
+    /// game simply did not redraw.
     /// </summary>
-    /// <summary>
-    /// Lets the plugin start working, for this session only. This is the moment the hook
-    /// goes in - deliberately a thing you do on purpose, rather than a thing that happens
-    /// to you because you installed something.
-    /// </summary>
+    private HookTraffic Traffic()
+    {
+        var last = _replacer.LastAnswer == 0
+            ? null
+            : _gameData.GetActionName(_replacer.LastAnswer) ?? $"action {_replacer.LastAnswer}";
+
+        return new HookTraffic(_replacer.TimesAsked, _replacer.TimesAnswered, last);
+    }
+
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
     /// so the two can be read against a known-good rotation afterwards - which is the only
@@ -295,7 +300,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now);
+            var path = _recorder.Stop(_now, Traffic());
 
             if (path is null)
             {
@@ -315,10 +320,15 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var version = PluginInterface.Manifest.AssemblyVersion.ToString();
-        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now);
+        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now, Traffic());
         Chat.Print("[One Two Punch] Recording. Do your pull, then /otp record again to write it out.");
     }
 
+    /// <summary>
+    /// Lets the plugin start working, for this session only. This is the moment the hook
+    /// goes in - deliberately a thing you do on purpose, rather than a thing that happens
+    /// to you because you installed something.
+    /// </summary>
     private void Arm()
     {
         if (_armed)
@@ -349,7 +359,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now);
+            var path = _recorder.Stop(_now, Traffic());
             if (path is not null)
                 Chat.Print($"[One Two Punch] Recording written to {path}");
         }
@@ -361,6 +371,11 @@ public sealed class Plugin : IDalamudPlugin
             + $"Nested action lookups turned away while running: {_replacer.SuppressedReentrantCalls}.");
     }
 
+    /// <summary>
+    /// Installs the hook, now that there is definitely a character in the world. Returns
+    /// false if the hook is not available, in which case the plugin stays inert and tries
+    /// again next frame.
+    /// </summary>
     private bool Activate()
     {
         if (!_replacer.Enable())
@@ -578,6 +593,14 @@ public sealed class Plugin : IDalamudPlugin
             text.Append($" | still {s.StillFor:0.0}s");
 
         text.Append($" | enemies {s.EnemiesInAoeRange}");
+
+        // The job's own gauge, when it has one worth saying. Soul and Shroud, Astral Fire
+        // and Polyglot - the numbers whole rotations turn on - left no trace anywhere before
+        // this, so a log could show every buff and cooldown and still not say why a rule
+        // declined.
+        var gauge = _job?.DescribeGauge(s);
+        if (!string.IsNullOrEmpty(gauge))
+            text.Append(" | ").Append(gauge);
 
         if (s.InDowntime)
             text.Append(" | downtime");
