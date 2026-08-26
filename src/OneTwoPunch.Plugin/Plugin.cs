@@ -27,6 +27,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static ICondition Condition => Svc.Condition;
     internal static ITargetManager Targets => Svc.Targets;
     internal static IObjectTable Objects => Svc.Objects;
+    internal static IPartyList Party => Svc.Party;
     internal static IJobGauges Gauges => Svc.Gauges;
     internal static IFramework Framework => Svc.Framework;
     internal static IGameInteropProvider Interop => Svc.Interop;
