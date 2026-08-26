@@ -62,7 +62,7 @@ public interface IJobRotation
     /// trace anywhere. Buffs and cooldowns were all there; the gauge was invisible.
     /// </para>
     /// </summary>
-    string? DescribeGauge(CombatSnapshot snapshot) => null;
+    string? DescribeGauge(CombatSnapshot snapshot);
 
     Opener? Opener { get; }
 

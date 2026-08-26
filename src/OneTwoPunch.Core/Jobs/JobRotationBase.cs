@@ -36,6 +36,17 @@ public abstract class JobRotationBase : IJobRotation
 
     public virtual Opener? Opener => null;
 
+    /// <summary>
+    /// The job's own gauge in one short line, for the recorder. Null unless the job says
+    /// otherwise - see the note on <see cref="IJobRotation.DescribeGauge"/>.
+    /// <para>
+    /// Virtual here rather than a default on the interface: a default interface member
+    /// cannot be overridden by an implementing class, which is what the first attempt at
+    /// this tried and what CI rejected.
+    /// </para>
+    /// </summary>
+    public virtual string? DescribeGauge(CombatSnapshot snapshot) => null;
+
     public RotationPlan SingleTarget { get; }
 
     public RotationPlan Aoe { get; }
