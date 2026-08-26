@@ -50,6 +50,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly LuminaGameData _gameData;
     private readonly PotionTracker _potions;
     private readonly ActionReplacer _replacer;
+    private readonly HotbarIconReplacer _icons;
     private readonly SessionRecorder _recorder = new();
 
     private readonly Dictionary<uint, VerificationReport> _reports = [];
@@ -149,6 +150,7 @@ public sealed class Plugin : IDalamudPlugin
         // starting up, and this one installs a hook into the action system - so it waits
         // until there is a character standing in the world. See OnUpdate.
         _replacer = new ActionReplacer(Interop, Log, Classify, Resolve);
+        _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
 
         _useWatcher.ActionUsed += OnActionUsed;
 
@@ -391,6 +393,11 @@ public sealed class Plugin : IDalamudPlugin
         if (!_replacer.Enable())
             return false;
 
+        // Deliberately not fatal. Answering GetAdjustedActionId is what makes the key fire
+        // the right ability; this only makes the slot draw it. If the icon hook cannot be
+        // established the plugin still does its job, and the slot keeps its own art.
+        _icons.Enable();
+
         // Opener progress and the weave budget both depend on knowing what was pressed.
         _useWatcher.Enable(Interop);
 
@@ -409,6 +416,7 @@ public sealed class Plugin : IDalamudPlugin
     private void Deactivate()
     {
         _replacer.Disable();
+        _icons.Disable();
         _useWatcher.Disable();
         _active = false;
 
@@ -830,6 +838,13 @@ public sealed class Plugin : IDalamudPlugin
             + $"answered {_replacer.TimesAnswered}, last answer {lastAnswer}. "
             + "Both numbers climbing while you play means the hotbar is being told; "
             + "an icon that still will not change is the game's drawing, not ours.");
+        Chat.Print(
+            _icons.IsActive
+                ? $"[One Two Punch] Slots holding your buttons have been drawn {_icons.TimesDrawn} times, "
+                  + $"{_icons.TimesReplaced} of them showing the suggestion."
+                : "[One Two Punch] The icon hook is not running, so the slot will keep its own art. "
+                  + "The button still fires the right ability.");
+
         PrintHotbarSlots();
         Chat.Print("[One Two Punch] Checking every job's action ids against the game's data...");
 
@@ -894,6 +909,7 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.ActionUsed -= OnActionUsed;
 
         _replacer.Dispose();
+        _icons.Dispose();
         _useWatcher.Dispose();
         _windows.RemoveAllWindows();
     }
