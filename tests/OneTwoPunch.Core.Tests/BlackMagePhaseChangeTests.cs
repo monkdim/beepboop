@@ -136,6 +136,87 @@ public sealed class BlackMagePhaseChangeTests
         Assert.NotEqual(A.Transpose.Id, suggestion);
     }
 
+    /// <summary>
+    /// The rung Transpose left out. Crossing into ice lands on Umbral Ice *one*, and mana
+    /// only comes back at a useful rate at three - a recorded pull has every ice phase after
+    /// the opener stuck at ice 1 with mana peaking at 3500, against a full 10000 in the
+    /// opener, which is a third of a fire phase lost every cycle.
+    /// </summary>
+    [Fact]
+    public void UmbralIceOneClimbsToThreeRatherThanCrossingStraightBack()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.UmbralIce = 1;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
+                    s.Gauges.BlackMage.UmbralHearts = 3;
+                    s.Mp = 3300;
+                }));
+
+        Assert.Equal(A.Blizzard3.Id, suggestion);
+    }
+
+    /// <summary>Hearts alone are not the signal - they fill at any ice level.</summary>
+    [Fact]
+    public void FullHeartsAtIceOneAreNotAReasonToGoBackToFire()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.UmbralIce = 1;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
+                    s.Gauges.BlackMage.UmbralHearts = 3;
+                    s.Mp = 3300;
+                }));
+
+        Assert.NotEqual(A.Fire3.Id, suggestion);
+    }
+
+    /// <summary>Nor is a full bar, while the ice phase still owes its hearts.</summary>
+    [Fact]
+    public void AFullBarAtIceThreeStillFillsTheHeartsFirst()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.UmbralIce = 3;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
+                    s.Gauges.BlackMage.UmbralHearts = 0;
+                    s.Mp = 10000;
+                }));
+
+        Assert.Equal(A.Blizzard4.Id, suggestion);
+    }
+
+    /// <summary>
+    /// And with everything full but the last mana tick outstanding, the answer is still an
+    /// ice global rather than the Fire I the list used to fall through to.
+    /// </summary>
+    [Fact]
+    public void WaitingOnTheLastManaTickDoesNotFallThroughToFireOne()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.UmbralIce = 3;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
+                    s.Gauges.BlackMage.UmbralHearts = 3;
+                    s.Mp = 7000;
+                }));
+
+        Assert.NotEqual(A.Fire1.Id, suggestion);
+        Assert.NotEqual(A.Fire3.Id, suggestion);
+    }
+
     /// <summary>"Manafont was used before Despair 6 times."</summary>
     [Fact]
     public void ManafontWaitsUntilDespairIsNoLongerCastable()

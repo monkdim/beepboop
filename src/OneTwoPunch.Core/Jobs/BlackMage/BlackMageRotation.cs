@@ -146,10 +146,7 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("fire is spent, cross to ice without a weakened Blizzard III");
 
         p.OGcd(A.Transpose)
-            .When(c => c.Blm.InUmbralIce
-                       && c.Blm.UmbralHearts >= 3
-                       && !c.Blm.ParadoxActive
-                       && c.Mp >= IceExitMp)
+            .When(c => IceHasDoneItsJob(c) && !c.Blm.ParadoxActive)
             .Because("ice has done its job, cross without a weakened Fire III");
 
         // Triplecast and Swiftcast are deliberately not suggested at all.
@@ -216,10 +213,33 @@ public sealed class BlackMageRotation : JobRotationBase
 
         // ---- Umbral Ice --------------------------------------------------
         p.Gcd(A.Paradox).When(c => c.Blm.InUmbralIce && c.Blm.ParadoxActive);
+
+        // The rung that was missing, and it cost most of a bar every cycle.
+        //
+        // Transpose crosses into Umbral Ice *one*, not three, and mana only comes back at
+        // any rate worth having at three. Nothing here climbed: hearts arrive from Blizzard
+        // IV at any ice level, so the list filled them, saw its work done and went straight
+        // back to fire. A recorded pull shows every ice phase after the opener stuck at
+        // "ice 1" with mana peaking at 3500, against "ice 3" and a full 10000 in the opener
+        // - which is a third of a fire phase, every cycle.
+        //
+        // Blizzard III is what climbs, and cast here it is in ice rather than in fire, which
+        // is the whole reason for Transposing in the first place.
+        p.Gcd(A.Blizzard3)
+            .When(c => c.Blm.InUmbralIce && c.Blm.UmbralIce < 3)
+            .Because("up to Umbral Ice III, where the mana is");
+
         p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
 
-        // Back into fire once ice has done its job.
-        p.Gcd(A.Fire3).When(c => c.Blm.InUmbralIce).Because("back to Astral Fire");
+        // Back into fire, but only once ice has actually done its job. Leaving on a third of
+        // a bar is what the missing rung above caused, and this is the guard that says so out
+        // loud rather than relying on the rules above to run out.
+        p.Gcd(A.Fire3).When(c => IceHasDoneItsJob(c)).Because("back to Astral Fire");
+
+        // Waiting on the last mana tick with the ice rungs and hearts already full. Without
+        // this the list has nothing left that matches in ice and falls all the way through to
+        // Fire I, which in Umbral Ice is about the worst global available.
+        p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce).Because("waiting for the bar to fill");
 
         // From neither phase - the pull, or after a death or a long downtime - which element
         // you open into is decided by mana, not by habit. With a full bar you open in fire;
@@ -316,6 +336,22 @@ public sealed class BlackMageRotation : JobRotationBase
     /// dot that is not there at all reads as zero - which is correctly "running out".
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Whether Umbral Ice has done everything it is for: at the third rung, hearts filled,
+    /// and the bar actually refilled.
+    /// <para>
+    /// All three, because any one of them alone is a way to leave early. Hearts fill at any
+    /// ice level, so hearts alone let the list cross back on a third of a bar; the rung
+    /// alone says nothing about mana; and mana alone would leave the hearts behind that the
+    /// next fire phase spends.
+    /// </para>
+    /// </summary>
+    private static bool IceHasDoneItsJob(RotationContext c) =>
+        c.Blm.InUmbralIce
+        && c.Blm.UmbralIce >= 3
+        && c.Blm.UmbralHearts >= 3
+        && c.Mp >= IceExitMp;
+
     private static bool ThunderIsRunningOut(RotationContext c, float within) =>
         c.DotExpiring(A.HighThunderBuff, within) && c.DotExpiring(A.ThunderIII, within);
 }
