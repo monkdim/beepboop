@@ -130,6 +130,31 @@ public sealed class ConfigWindow(
                 + "which is why it is off unless you say so. It never presses anything itself, and a "
                 + "press that already has a party member targeted is left alone.\n\n"
                 + "Takes effect next time the plugin arms.");
+
+        ImGui.Separator();
+
+        Toggle("Hold still while casting", ref config.LockMovementWhileCasting,
+            "Stops movement input from cancelling a cast, and lets go in time to slidecast - "
+            + "the last part of a cast is already committed, so you can walk out of it.\n\n"
+            + "Turning is never blocked, only walking, so the camera and your facing still "
+            + "work while held.\n\n"
+            + "Read this one before you use it: being held still at the wrong moment is a "
+            + "death, not a lost cast. It is the only thing here that takes something away "
+            + "from you rather than telling you something.\n\n"
+            + "Takes effect next time the plugin arms.");
+
+        if (config.LockMovementWhileCasting)
+        {
+            var window = config.SlidecastWindowSeconds;
+            if (ImGui.SliderFloat("Slidecast window", ref window, 0.2f, 1.0f, "%.2fs"))
+            {
+                config.SlidecastWindowSeconds = window;
+                config.Save();
+            }
+
+            Help("How much of the end of a cast to treat as already committed. Higher lets go "
+                 + "sooner and is safer; lower holds you longer and protects more casts.");
+        }
     }
 
     private void DrawPotionTab()
