@@ -148,45 +148,30 @@ public sealed class ReaperShroudTests
     }
 
     /// <summary>
-    /// The hole the cap release leaves, and the reason for it: Plentiful Harvest's own fifty
-    /// Shroud is what pushes the gauge to a hundred, so the release above would fire a paid
-    /// Enshroud on exactly the global the free one was meant for. Enshroud's fifteen second
-    /// cooldown then swallows Ideal Host for most of the buff window.
+    /// Plentiful Harvest grants no Shroud, which is why there is no guard here against
+    /// spending the gauge just before it lands.
+    /// <para>
+    /// An earlier version held the gauge through Immortal Sacrifice, on the theory that
+    /// Plentiful Harvest's own fifty Shroud would push it to a hundred and the cap release
+    /// would then fire a paid Enshroud on the global the free one wanted. A recorded pull
+    /// says the premise is simply false - Shroud reads 20 before Plentiful Harvest, 20 after
+    /// it, and 20 through the whole Enshroud that follows; every point of it came from Gibbet
+    /// and Gallows at ten apiece. The guard could only ever have fired inside the buff, where
+    /// holding an Enshroud is the opposite of what the window wants, so it went.
+    /// </para>
     /// </summary>
     [Fact]
-    public void AFullGaugeIsStillHeldWhilePlentifulHarvestIsWaiting()
+    public void ImmortalSacrificeIsNotAReasonToHoldTheGauge()
     {
         var suggestion = Session()
             .Resolve(
                 RotationMode.SingleTarget,
                 InAWeaveWindow()
-                    .Buff(A.ArcaneCircleBuff.Id, 14f)
-                    .Buff(A.ImmortalSacrifice.Id, 26f)
-                    .Gauge(s => s.Gauges.Reaper.Shroud = 100)
+                    .Buff(A.ArcaneCircleBuff.Id, 19f)
+                    .Buff(A.ImmortalSacrifice.Id, 30f)
+                    .Gauge(s => s.Gauges.Reaper.Shroud = 50)
                     .Build(),
-                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 112f))
-            .Action.Id;
-
-        Assert.NotEqual(A.Enshroud.Id, suggestion);
-    }
-
-    /// <summary>
-    /// And the hold lets go the moment the free one is actually in hand, rather than waiting
-    /// for the stacks to time out.
-    /// </summary>
-    [Fact]
-    public void TheHoldEndsOnceIdealHostIsUp()
-    {
-        var suggestion = Session()
-            .Resolve(
-                RotationMode.SingleTarget,
-                InAWeaveWindow()
-                    .Buff(A.ArcaneCircleBuff.Id, 12f)
-                    .Buff(A.ImmortalSacrifice.Id, 24f)
-                    .Buff(A.IdealHost.Id, 29f)
-                    .Gauge(s => s.Gauges.Reaper.Shroud = 100)
-                    .Build(),
-                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 112f))
+                new FakeActionState().OnCooldown(A.ArcaneCircle.Id, 118f))
             .Action.Id;
 
         Assert.Equal(A.Enshroud.Id, suggestion);

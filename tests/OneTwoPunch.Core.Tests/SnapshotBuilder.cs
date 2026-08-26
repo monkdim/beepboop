@@ -98,6 +98,12 @@ public sealed class SnapshotBuilder
         return this;
     }
 
+    public SnapshotBuilder OutOfRange()
+    {
+        _snapshot.TargetInRange = false;
+        return this;
+    }
+
     public SnapshotBuilder Downtime(bool downtime = true)
     {
         _snapshot.InDowntime = downtime;

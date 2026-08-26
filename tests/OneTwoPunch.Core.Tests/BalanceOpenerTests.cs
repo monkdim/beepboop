@@ -150,6 +150,7 @@ public sealed class BalanceOpenerTests
     [Fact]
     public void ReaperGlobalsMatchTheChart() => AssertMatches(39, ActionKind.Gcd,
     [
+        ReaperActions.Soulsow, // pre-pull, loads Harvest Moon
         ReaperActions.Harpe, // pre-pull
         ReaperActions.ShadowofDeath,
         ReaperActions.SoulSlice,
@@ -183,6 +184,12 @@ public sealed class BalanceOpenerTests
     /// <summary>
     /// The chart is named for this: Arcane Circle goes into the second global's weave
     /// window, not the first, so the buff covers the Executioner pair.
+    /// <para>
+    /// Named rather than counted. This was a count, and adding pre-pull Soulsow moved it
+    /// from three to four - a failure that says nothing about whether the buff still lands
+    /// where the chart wants it. Listing the globals says which two are pre-pull and which
+    /// two are the ones Arcane Circle is being weaved after.
+    /// </para>
     /// </summary>
     [Fact]
     public void ReaperArcaneCircleIsOnTheSecondGlobal()
@@ -192,8 +199,20 @@ public sealed class BalanceOpenerTests
 
         Assert.True(circle > 0, "Arcane Circle is not in the opener");
 
-        var globalsBefore = steps.Take(circle).Count(s => s.Kind == ActionKind.Gcd);
-        Assert.Equal(3, globalsBefore); // pre-pull Harpe, Shadow of Death, Soul Slice
+        var globalsBefore = steps.Take(circle)
+            .Where(s => s.Kind == ActionKind.Gcd)
+            .Select(s => s.Id)
+            .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                ReaperActions.Soulsow.Id,       // pre-pull
+                ReaperActions.Harpe.Id,         // pre-pull
+                ReaperActions.ShadowofDeath.Id, // first combat global
+                ReaperActions.SoulSlice.Id,     // second, and the one it weaves off
+            },
+            globalsBefore);
     }
 
     // ---- Samurai: "Standard Opener", 7.05 --------------------------------

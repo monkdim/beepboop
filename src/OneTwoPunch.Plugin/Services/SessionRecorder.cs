@@ -123,9 +123,15 @@ public sealed class SessionRecorder
         // because the log is the thing that actually gets sent.
         var asked = traffic.Asked - _trafficAtStart.Asked;
         var answered = traffic.Answered - _trafficAtStart.Answered;
+        var ours = traffic.AskedByOurOwnWork - _trafficAtStart.AskedByOurOwnWork;
         _lines.Add($"  the game asked about the buttons {asked} times during this pull "
                    + $"and was answered {answered} times"
                    + (traffic.LastAnswer is null ? "." : $"; last answer {traffic.LastAnswer}."));
+
+        // Split out rather than hidden. These are the asks our own per-frame resolve causes,
+        // and they land at about one a frame no matter what the hotbar is doing - which is
+        // why they are not in the number above.
+        _lines.Add($"  ({ours} further asks came from the plugin's own work, not the game.)");
 
         var directory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
@@ -157,4 +163,5 @@ public sealed class SessionRecorder
 /// <param name="Asked">Times the game asked about one of our buttons.</param>
 /// <param name="Answered">How many of those were answered with a replacement.</param>
 /// <param name="LastAnswer">The name of the last replacement handed back, if there was one.</param>
-public readonly record struct HookTraffic(long Asked, long Answered, string? LastAnswer);
+public readonly record struct HookTraffic(
+    long Asked, long Answered, string? LastAnswer, long AskedByOurOwnWork = 0);

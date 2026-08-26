@@ -159,18 +159,62 @@ public sealed unsafe class ActionReplacer : IDisposable
     /// </summary>
     public long SuppressedReentrantCalls => _suppressed;
 
-    /// <summary>How many times the game has asked about one of our two buttons.</summary>
+    /// <summary>
+    /// How many times the game has asked about one of our two buttons off its own bat.
+    /// <para>
+    /// Only asks from outside our own work are counted, and that distinction is the whole
+    /// point of the number. Working out what to suggest means asking the game about the
+    /// actions in the priority list, and the host action is in that list - so every frame's
+    /// resolve asks about our own button, through this same hook. Counting those made the
+    /// figure exactly one per frame whether or not the hotbar was drawing anything, which is
+    /// the question it was added to answer. It reported 9248 asks over a 160 second pull and
+    /// meant nothing at all.
+    /// </para>
+    /// </summary>
     public long TimesAsked => _asked;
 
     /// <summary>How many of those we answered with a replacement.</summary>
     public long TimesAnswered => _answered;
+
+    /// <summary>
+    /// Asks that arrived while we were working out an answer, rather than from the game
+    /// asking on its own. Kept separate rather than dropped, so the split is visible.
+    /// </summary>
+    public long TimesAskedByOurOwnWork => _askedByUs;
 
     /// <summary>The id of the last replacement handed back, for the status line.</summary>
     public uint LastAnswer => _lastAnswer;
 
     private long _asked;
     private long _answered;
+    private long _askedByUs;
     private uint _lastAnswer;
+
+    /// <summary>
+    /// True while the plugin is resolving a suggestion of its own accord rather than because
+    /// the game asked. Thread static for the same reason <see cref="_inDetour"/> is.
+    /// </summary>
+    [ThreadStatic]
+    private static bool _inOwnWork;
+
+    /// <summary>
+    /// Marks the work the plugin starts itself - the per-frame resolve - so the asks it
+    /// causes are not mistaken for the game asking. Use with <c>using</c>.
+    /// </summary>
+    public static OwnWorkScope OwnWork() => new();
+
+    public readonly ref struct OwnWorkScope
+    {
+        private readonly bool _previous;
+
+        public OwnWorkScope()
+        {
+            _previous = _inOwnWork;
+            _inOwnWork = true;
+        }
+
+        public void Dispose() => _inOwnWork = _previous;
+    }
 
     private uint Detour(ActionManager* actionManager, uint actionId)
     {
@@ -207,13 +251,21 @@ public sealed unsafe class ActionReplacer : IDisposable
                 // The hotbar draws itself from this same function, so a slot whose icon is
                 // frozen is a slot the game is not asking about - and that is a different
                 // problem from a wrong answer.
-                _asked++;
+                //
+                // Only when the game asked of its own accord. Our own resolve asks about the
+                // host action too, once a frame, and counting that made the number say "one
+                // per frame" no matter what the hotbar was doing.
+                if (_inOwnWork)
+                    _askedByUs++;
+                else
+                    _asked++;
 
                 var suggestion = _resolve(mode.Value);
                 if (suggestion is not null && suggestion.Action.Id != 0)
                 {
                     _lastAnswer = suggestion.Action.Id;
-                    _answered++;
+                    if (!_inOwnWork)
+                        _answered++;
 
                     // Hand the answer back through the game's own adjustment so upgrades and
                     // procs still resolve natively - True Thrust becoming Raiden Thrust, Heat
