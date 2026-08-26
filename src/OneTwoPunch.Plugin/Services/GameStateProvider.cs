@@ -38,6 +38,9 @@ public sealed unsafe class GameStateProvider(
     private int _enemyCount;
     private double _enemyCountedAt = double.NegativeInfinity;
 
+    private double _rangeCheckedAt;
+    private float _outOfRangeFor;
+
     public void Tick(float deltaSeconds)
     {
         var inCombat = condition[ConditionFlag.InCombat];
@@ -124,6 +127,13 @@ public sealed unsafe class GameStateProvider(
                 job.SingleTargetButton.Id,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)playerAddress,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)targetAddress) == 0;
+
+        // Accumulated rather than read fresh, so the rules can ride out a blip. Reset the
+        // moment reach comes back, so a genuine walk away still counts from when it started.
+        var sinceLastCheck = _rangeCheckedAt > 0d ? (float)(s.Now - _rangeCheckedAt) : 0f;
+        _rangeCheckedAt = s.Now;
+        _outOfRangeFor = s.TargetInRange ? 0f : _outOfRangeFor + Math.Max(0f, sinceLastCheck);
+        s.OutOfRangeFor = _outOfRangeFor;
 
         s.TargetHpFraction = battleTarget is { MaxHp: > 0 }
             ? (float)battleTarget.CurrentHp / battleTarget.MaxHp

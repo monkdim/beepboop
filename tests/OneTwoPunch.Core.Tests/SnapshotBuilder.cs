@@ -98,9 +98,11 @@ public sealed class SnapshotBuilder
         return this;
     }
 
-    public SnapshotBuilder OutOfRange()
+    /// <summary>Out of reach, and for long enough that the rotation should have given up on melee.</summary>
+    public SnapshotBuilder OutOfRange(float forSeconds = 3f)
     {
         _snapshot.TargetInRange = false;
+        _snapshot.OutOfRangeFor = forSeconds;
         return this;
     }
 

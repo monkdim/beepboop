@@ -45,6 +45,31 @@ public sealed class ReaperRangedTests
             Suggest(OnTheBoss().OutOfRange().Buff(A.SoulsowBuff.Id)));
     }
 
+    /// <summary>
+    /// A blip is not a reason to leave melee. The range answer comes from the game's own
+    /// check, which says no for line of sight and for not facing the target as well as for
+    /// distance - so turning for a positional reads as out of range for a frame or two. The
+    /// out-of-range rule sits above the whole filler combo, so one frame of it outranks the
+    /// entire rotation beneath. Reported as the button swapping to Harpe while stood in melee.
+    /// </summary>
+    [Fact]
+    public void AMomentaryLossOfReachDoesNotAbandonMelee()
+    {
+        var suggestion = Suggest(OnTheBoss().OutOfRange(forSeconds: 0.2f).Buff(A.SoulsowBuff.Id));
+
+        Assert.NotEqual(A.Harpe.Id, suggestion);
+        Assert.NotEqual(A.HarvestMoon.Id, suggestion);
+    }
+
+    /// <summary>But staying out of reach still switches, and inside one global.</summary>
+    [Fact]
+    public void StayingOutOfReachStillSwitches()
+    {
+        var suggestion = Suggest(OnTheBoss().OutOfRange(forSeconds: 1.5f).Buff(A.SoulsowBuff.Id));
+
+        Assert.Equal(A.HarvestMoon.Id, suggestion);
+    }
+
     /// <summary>Without it loaded there is still a ranged global, and it is not Slice.</summary>
     [Fact]
     public void OutOfRangeWithoutSoulsowTheAnswerIsHarpe()
