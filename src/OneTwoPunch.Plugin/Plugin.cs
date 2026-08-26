@@ -751,6 +751,64 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
+    /// Prints what the game is actually drawing in every slot that holds one of our buttons.
+    /// <para>
+    /// The counters above say whether the game asked us; only this says what it did with the
+    /// reply. Three builds of "the right ability fires but the icon never changes" have gone
+    /// unanswered because nothing could tell "the game never asked" from "the game asked, was
+    /// told, and drew something else anyway".
+    /// </para>
+    /// </summary>
+    private void PrintHotbarSlots()
+    {
+        if (_job is null)
+        {
+            Chat.Print("[One Two Punch] No supported job is running, so there are no buttons to look for.");
+            return;
+        }
+
+        List<HotbarInspector.SlotState> slots;
+        try
+        {
+            slots = HotbarInspector.FindOurSlots(id => Classify(id) is not null);
+        }
+        catch (Exception ex)
+        {
+            // A diagnostic is never worth taking the game with it.
+            Log.Error(ex, "One Two Punch: could not read the hotbar");
+            Chat.PrintError("[One Two Punch] Could not read the hotbar - see the Dalamud log.");
+            return;
+        }
+
+        if (slots.Count == 0)
+        {
+            Chat.Print(
+                "[One Two Punch] Neither button is on a hotbar. The icon cannot change on a slot "
+                + $"that is not there - put {_job.SingleTargetButton.Name} on a bar.");
+            return;
+        }
+
+        foreach (var slot in slots)
+        {
+            var assigned = Name(slot.Assigned);
+            var showing = Name(slot.Showing);
+
+            var verdict = slot.Showing == slot.Assigned
+                ? "unchanged - the game is not taking our answer for this slot"
+                : slot.Showing == _replacer.LastAnswer
+                    ? "ours - the game has it, so the icon itself is the game's drawing"
+                    : "somebody else's - neither the assigned action nor our last answer";
+
+            Chat.Print(
+                $"[One Two Punch] Hotbar {slot.Hotbar + 1} slot {slot.Slot + 1}: "
+                + $"holds {assigned}, showing {showing} - {verdict}.");
+        }
+    }
+
+    private string Name(uint actionId) =>
+        actionId == 0 ? "nothing" : _gameData.GetActionName(actionId) ?? $"action {actionId}";
+
+    /// <summary>
     /// Re-checks every supported job's action table against the game and prints the result.
     /// This is the thing to run after a patch, and the thing to paste into a bug report.
     /// </summary>
@@ -772,6 +830,7 @@ public sealed class Plugin : IDalamudPlugin
             + $"answered {_replacer.TimesAnswered}, last answer {lastAnswer}. "
             + "Both numbers climbing while you play means the hotbar is being told; "
             + "an icon that still will not change is the game's drawing, not ours.");
+        PrintHotbarSlots();
         Chat.Print("[One Two Punch] Checking every job's action ids against the game's data...");
 
         // On a worker thread for the same reason job switching is: a single mismatched id
