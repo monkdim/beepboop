@@ -57,6 +57,18 @@ public sealed class CombatSnapshot
     public byte Level { get; set; }
 
     /// <summary>Current MP. Black Mage's whole rotation is a mana cycle, so rules need it.</summary>
+    /// <summary>
+    /// How long the target has been out of reach, in seconds. Zero while in range.
+    /// <para>
+    /// The instant answer flickers. It comes from the game's own GetActionInRangeOrLoS, which
+    /// is authoritative but says no for line of sight and for not facing the target as well as
+    /// for distance - so turning to hit a positional, a hitbox jitter or a server position
+    /// blip all read as "out of range" for a frame or two. Reported as the button swapping to
+    /// Harpe while standing in melee.
+    /// </para>
+    /// </summary>
+    public float OutOfRangeFor { get; set; }
+
     public uint Mp { get; set; }
 
     public uint MaxMp { get; set; } = 10000;

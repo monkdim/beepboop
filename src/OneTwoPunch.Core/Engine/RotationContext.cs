@@ -50,7 +50,28 @@ public sealed class RotationContext
 
     public bool HasTarget => _snapshot.HasTarget && _snapshot.TargetIsHostile;
 
-    public bool InRange => _snapshot.TargetInRange;
+    /// <summary>
+    /// Whether the target is close enough to hit, once a brief loss of reach has been ridden
+    /// out. See <see cref="CombatSnapshot.OutOfRangeFor"/> for why the raw answer flickers.
+    /// <para>
+    /// The dwell matters because every melee job's out-of-range rule sits above its filler
+    /// combo: a single frame of "no" outranks the entire rotation beneath it, and the button
+    /// jumps to the ranged global and back for one global.
+    /// </para>
+    /// </summary>
+    public bool InRange => _snapshot.TargetInRange || _snapshot.OutOfRangeFor < RangeSwapDelay;
+
+    /// <summary>
+    /// How long the target has to stay out of reach before the rotation gives up on melee.
+    /// <para>
+    /// Under half a global: long enough to swallow a turn for a positional and the jitter
+    /// around it, short enough that genuinely walking away still switches inside one global.
+    /// </para>
+    /// </summary>
+    private const float RangeSwapDelay = 1f;
+
+    /// <summary>The instant answer, undwelled. Nothing should want this except a diagnostic.</summary>
+    public bool InRangeRightNow => _snapshot.TargetInRange;
 
     public float TargetHp => _snapshot.TargetHpFraction;
 
