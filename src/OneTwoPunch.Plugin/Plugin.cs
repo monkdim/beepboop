@@ -51,6 +51,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PotionTracker _potions;
     private readonly ActionReplacer _replacer;
     private readonly HotbarIconReplacer _icons;
+    private readonly PartyTargetRedirect _partyTargeting;
     private readonly SessionRecorder _recorder = new();
 
     private readonly Dictionary<uint, VerificationReport> _reports = [];
@@ -151,6 +152,8 @@ public sealed class Plugin : IDalamudPlugin
         // until there is a character standing in the world. See OnUpdate.
         _replacer = new ActionReplacer(Interop, Log, Classify, Resolve);
         _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
+        _partyTargeting = new PartyTargetRedirect(
+            Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank);
 
         _useWatcher.ActionUsed += OnActionUsed;
 
@@ -398,6 +401,11 @@ public sealed class Plugin : IDalamudPlugin
         // established the plugin still does its job, and the slot keeps its own art.
         _icons.Enable();
 
+        // Only ever hooked when the player has asked for it, so a plugin nobody opted in to
+        // never touches the function a keypress enters.
+        if (_config.AetherialManipulationToTank)
+            _partyTargeting.Enable();
+
         // Opener progress and the weave budget both depend on knowing what was pressed.
         _useWatcher.Enable(Interop);
 
@@ -417,6 +425,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         _replacer.Disable();
         _icons.Disable();
+        _partyTargeting.Disable();
         _useWatcher.Disable();
         _active = false;
 
@@ -910,6 +919,7 @@ public sealed class Plugin : IDalamudPlugin
 
         _replacer.Dispose();
         _icons.Dispose();
+        _partyTargeting.Dispose();
         _useWatcher.Dispose();
         _windows.RemoveAllWindows();
     }

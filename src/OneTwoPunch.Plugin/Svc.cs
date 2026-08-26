@@ -28,6 +28,7 @@ internal sealed class Svc
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static ITargetManager Targets { get; private set; } = null!;
     [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
+    [PluginService] internal static IPartyList Party { get; private set; } = null!;
     [PluginService] internal static IJobGauges Gauges { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider Interop { get; private set; } = null!;

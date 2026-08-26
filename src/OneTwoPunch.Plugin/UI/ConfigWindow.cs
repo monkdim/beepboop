@@ -119,6 +119,17 @@ public sealed class ConfigWindow(
         Toggle("Detect positionals", ref config.DetectPositionals,
             "Reads the target's facing. Only feeds the positional hint - turning it off never "
             + "changes which abilities the rotation picks.");
+
+        ImGui.Separator();
+
+        Toggle("Aetherial Manipulation jumps to the tank", ref config.AetherialManipulationToTank,
+                "Black Mage. Pressing Aetherial Manipulation with the boss targeted normally does "
+                + "nothing, because it wants a party member. With this on, that press is pointed at "
+                + "the tank instead.\n\n"
+                + "This edits a press you made rather than answering a question the game asked, "
+                + "which is why it is off unless you say so. It never presses anything itself, and a "
+                + "press that already has a party member targeted is left alone.\n\n"
+                + "Takes effect next time the plugin arms.");
     }
 
     private void DrawPotionTab()
