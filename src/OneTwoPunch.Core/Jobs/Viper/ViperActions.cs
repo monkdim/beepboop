@@ -85,8 +85,6 @@ public static class ViperActions
     public static readonly StatusRef ReawakenReady = new(3671, "Reawaken Ready");
     public static readonly StatusRef FellhuntersVenom = new(3659, "Fellhunters Venom");
     public static readonly StatusRef FellskinsVenom = new(3660, "Fellskins Venom");
-    public static readonly StatusRef TwinbloodfangST = new(3773, "Twinbloodfang ST");
-    public static readonly StatusRef TwinbloodfangAOE = new(3774, "Twinbloodfang AOE");
     public static readonly StatusRef PoisedForTwinfang = new(3665, "Poised for Twinfang");
     public static readonly StatusRef PoisedForTwinblood = new(3666, "Poised for Twinblood");
     public static readonly StatusRef FeintBuff = new(1195, "Feint");
@@ -115,7 +113,7 @@ public static class ViperActions
         HindstungVenom, HindsbaneVenom, FlanksbaneVenom, FlankstungVenom,
         GrimskinsVenom, GrimhuntersVenom, HuntersVenom, SwiftskinsVenom,
         Reawakened, ReawakenReady, FellhuntersVenom, FellskinsVenom,
-        TwinbloodfangST, TwinbloodfangAOE, PoisedForTwinfang, PoisedForTwinblood,
+        PoisedForTwinfang, PoisedForTwinblood,
         FeintBuff, TrueNorthBuff,
     ];
 }

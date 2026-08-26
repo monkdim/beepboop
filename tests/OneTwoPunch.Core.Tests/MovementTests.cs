@@ -82,6 +82,36 @@ public sealed class MovementTests
         Assert.NotEqual(A.Swiftcast.Id, suggestion.Id);
     }
 
+    /// <summary>
+    /// Moving is not a reason to refresh a dot that has most of its duration left. This rule
+    /// fired on any movement with a Thunderhead proc up, which clipped an average of 12.6
+    /// seconds of High Thunder per minute in a recorded fight - a whole global spent on a
+    /// weak spell to overwrite a stronger one that was already ticking.
+    /// </summary>
+    [Fact]
+    public void MovingDoesNotClipAHealthyThunder()
+    {
+        var suggestion = Suggest(
+            Running()
+                .Buff(A.Thunderhead.Id, 25f)
+                .Debuff(A.HighThunderBuff.Id, 25f));
+
+        Assert.NotEqual(A.HighThunder.Id, suggestion.Id);
+        Assert.NotEqual(A.Thunder3.Id, suggestion.Id);
+    }
+
+    /// <summary>Near the end of it, the instant is exactly what moving is for.</summary>
+    [Fact]
+    public void MovingTakesTheInstantOnceThunderIsNearlyGone()
+    {
+        var suggestion = Suggest(
+            Running()
+                .Buff(A.Thunderhead.Id, 25f)
+                .Debuff(A.HighThunderBuff.Id, 4f));
+
+        Assert.Equal(A.HighThunder.Id, suggestion.Id);
+    }
+
     /// <summary>Standing still changes nothing either way.</summary>
     [Fact]
     public void StandingStillTheGlobalIsStillTheAnswer()
