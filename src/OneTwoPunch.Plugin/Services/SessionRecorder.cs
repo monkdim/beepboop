@@ -22,16 +22,23 @@ public sealed class SessionRecorder
     private int _casts;
     private int _followed;
 
+    /// <summary>
+    /// The hook counters as they stood when recording started, so the footer can report the
+    /// traffic during this pull rather than since the plugin loaded.
+    /// </summary>
+    private HookTraffic _trafficAtStart;
+
     public bool IsRecording { get; private set; }
 
     public int Casts => _casts;
 
-    public void Start(string job, byte level, string version, double now)
+    public void Start(string job, byte level, string version, double now, HookTraffic traffic)
     {
         _lines.Clear();
         _casts = 0;
         _followed = 0;
         _startedAt = now;
+        _trafficAtStart = traffic;
         IsRecording = true;
 
         _lines.Add($"One Two Punch {version} - {job} level {level}");
@@ -93,7 +100,7 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Stops and writes the log out. Returns the path, or null if nothing was recorded.</summary>
-    public string? Stop(double now)
+    public string? Stop(double now, HookTraffic traffic)
     {
         if (!IsRecording)
             return null;
@@ -106,6 +113,19 @@ public sealed class SessionRecorder
         _lines.Add("");
         _lines.Add($"  {_casts} casts over {Stamp(now - _startedAt)}, "
                    + $"{_followed} matched the suggestion, {_casts - _followed} did not.");
+
+        // "The button fires the right ability but the icon never changes" is otherwise
+        // impossible to diagnose from a recording. The hotbar draws its icons from the same
+        // function the replacement runs in, so these two numbers separate the two causes:
+        // near zero asks means the game is not asking about that slot at all, while asks
+        // climbing into the thousands with answers to match means it was told and the icon
+        // is the game's own drawing. It goes in the log rather than only behind a command
+        // because the log is the thing that actually gets sent.
+        var asked = traffic.Asked - _trafficAtStart.Asked;
+        var answered = traffic.Answered - _trafficAtStart.Answered;
+        _lines.Add($"  the game asked about the buttons {asked} times during this pull "
+                   + $"and was answered {answered} times"
+                   + (traffic.LastAnswer is null ? "." : $"; last answer {traffic.LastAnswer}."));
 
         var directory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
@@ -129,3 +149,12 @@ public sealed class SessionRecorder
     private static string Trim(string value, int width) =>
         value.Length <= width ? value : value[..(width - 1)] + "…";
 }
+
+/// <summary>
+/// How much traffic the <c>GetAdjustedActionId</c> hook has seen. Snapshotted at the start
+/// and end of a recording so the footer can report the difference.
+/// </summary>
+/// <param name="Asked">Times the game asked about one of our buttons.</param>
+/// <param name="Answered">How many of those were answered with a replacement.</param>
+/// <param name="LastAnswer">The name of the last replacement handed back, if there was one.</param>
+public readonly record struct HookTraffic(long Asked, long Answered, string? LastAnswer);
