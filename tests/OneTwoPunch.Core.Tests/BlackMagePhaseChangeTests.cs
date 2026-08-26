@@ -217,6 +217,66 @@ public sealed class BlackMagePhaseChangeTests
         Assert.NotEqual(A.Fire3.Id, suggestion);
     }
 
+    /// <summary>
+    /// The mirror of the ice rung, missing for the same reason. Transpose crosses into Astral
+    /// Fire *one*, and Fire IV there is a fraction of what it is at three - a recorded level
+    /// 90 pull has twenty-one globals at "fire 1" because both ice exits Transposed and
+    /// nothing climbed.
+    /// </summary>
+    [Fact]
+    public void AstralFireOneClimbsToThreeRatherThanCastingFireFourAtTheBottomRung()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.AstralFire = 1;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
+                    s.Mp = 10000;
+                }));
+
+        Assert.Equal(A.Fire3.Id, suggestion);
+    }
+
+    /// <summary>And at the top rung it is Fire IV again, not an endless Fire III.</summary>
+    [Fact]
+    public void AstralFireThreeCastsFireFour()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.AstralFire = 3;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
+                    s.Mp = 10000;
+                }));
+
+        Assert.Equal(A.Fire4.Id, suggestion);
+    }
+
+    /// <summary>
+    /// The crossing in full: Paradox first, because it leaves the Firestarter that makes the
+    /// climb free and instant.
+    /// </summary>
+    [Fact]
+    public void TheParadoxComesBeforeTheClimb()
+    {
+        var suggestion = Suggest(
+            new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s =>
+                {
+                    s.Gauges.BlackMage.AstralFire = 1;
+                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
+                    s.Gauges.BlackMage.ParadoxActive = true;
+                    s.Mp = 10000;
+                }));
+
+        Assert.Equal(A.Paradox.Id, suggestion);
+    }
+
     /// <summary>"Manafont was used before Despair 6 times."</summary>
     [Fact]
     public void ManafontWaitsUntilDespairIsNoLongerCastable()
