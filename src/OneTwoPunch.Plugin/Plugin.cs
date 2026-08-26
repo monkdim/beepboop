@@ -53,6 +53,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ActionReplacer _replacer;
     private readonly HotbarIconReplacer _icons;
     private readonly PartyTargetRedirect _partyTargeting;
+    private readonly CastMovementLock _castLock;
     private readonly SessionRecorder _recorder = new();
 
     private readonly Dictionary<uint, VerificationReport> _reports = [];
@@ -155,6 +156,13 @@ public sealed class Plugin : IDalamudPlugin
         _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
         _partyTargeting = new PartyTargetRedirect(
             Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank);
+
+        _castLock = new CastMovementLock(
+            Interop,
+            Log,
+            () => _config.Enabled && _config.LockMovementWhileCasting,
+            () => _config.SlidecastWindowSeconds,
+            () => Objects.LocalPlayer);
 
         _useWatcher.ActionUsed += OnActionUsed;
 
@@ -407,6 +415,9 @@ public sealed class Plugin : IDalamudPlugin
         if (_config.AetherialManipulationToTank)
             _partyTargeting.Enable();
 
+        if (_config.LockMovementWhileCasting)
+            _castLock.Enable();
+
         // Opener progress and the weave budget both depend on knowing what was pressed.
         _useWatcher.Enable(Interop);
 
@@ -427,6 +438,7 @@ public sealed class Plugin : IDalamudPlugin
         _replacer.Disable();
         _icons.Disable();
         _partyTargeting.Disable();
+        _castLock.Disable();
         _useWatcher.Disable();
         _active = false;
 
@@ -921,6 +933,7 @@ public sealed class Plugin : IDalamudPlugin
         _replacer.Dispose();
         _icons.Dispose();
         _partyTargeting.Dispose();
+        _castLock.Dispose();
         _useWatcher.Dispose();
         _windows.RemoveAllWindows();
     }

@@ -48,6 +48,25 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool AetherialManipulationToTank;
 
+    /// <summary>
+    /// Whether movement is held while a cast is in flight, releasing in time to slidecast.
+    /// <para>
+    /// Off by default, and the most consequential thing here: held still at the wrong moment
+    /// is a death, not a lost global. Opted into deliberately or not at all.
+    /// </para>
+    /// </summary>
+    public bool LockMovementWhileCasting;
+
+    /// <summary>
+    /// How much of the end of a cast is already committed, in seconds - the slidecast window.
+    /// <para>
+    /// Half a second is the usual figure and errs toward letting go early: releasing too soon
+    /// costs nothing but a step, while releasing too late cancels the cast the lock existed to
+    /// protect.
+    /// </para>
+    /// </summary>
+    public float SlidecastWindowSeconds = 0.5f;
+
     // ---- Potion ----------------------------------------------------------
 
     public bool PotionEnabled;
