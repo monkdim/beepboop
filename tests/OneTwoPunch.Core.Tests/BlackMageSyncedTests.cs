@@ -428,4 +428,124 @@ public sealed class BlackMageSyncedTests
 
         Assert.NotEqual(A.Fire3.Id, suggestion);
     }
+
+    // ---- Where a Polyglot is spent ----------------------------------------
+    //
+    // Xenoglossy is unaspected, so it is the same 890 in either phase, while Fire IV is
+    // fire-aspected and worth far more than its own number once Astral Fire is up. A
+    // recorded seven-minute pull put eleven of sixteen Xenoglossies at "fire 3".
+
+    /// <summary>Two stacks is not a reason to spend one when the ceiling is three.</summary>
+    [Fact]
+    public void TwoPolyglotStacksAreNotSpentInAstralFire()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(100), 10000)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s => s.Gauges.BlackMage.PolyglotStacks = 2));
+
+        Assert.Equal(A.Fire4.Id, suggestion);
+    }
+
+    /// <summary>At the ceiling it is, because the alternative is losing it outright.</summary>
+    [Fact]
+    public void ThePolyglotCeilingIsSpentWhereverYouAre()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(100), 10000)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s => s.Gauges.BlackMage.PolyglotStacks = 3));
+
+        Assert.Equal(A.Xenoglossy.Id, suggestion);
+    }
+
+    /// <summary>The ceiling is two between 80 and 97, and spending there is right.</summary>
+    [Fact]
+    public void TheCeilingIsTwoBeforeEnhancedPolyglotTwo()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(90), 10000)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Gauge(s => s.Gauges.BlackMage.PolyglotStacks = 2));
+
+        Assert.Equal(A.Xenoglossy.Id, suggestion);
+    }
+
+    /// <summary>
+    /// The global that exists only to watch the bar tick up is where a banked stack goes.
+    /// Hearts already full, mana still short - the list used to cast a second Blizzard IV
+    /// here purely to pass the time.
+    /// </summary>
+    [Fact]
+    public void ABankedPolyglotIsSpentOnTheIceFiller()
+    {
+        var suggestion = Suggest(
+            Casting(100).Debuff(A.HighThunderBuff.Id, 25f).Gauge(s =>
+            {
+                s.Gauges.BlackMage.UmbralIce = 3;
+                s.Gauges.BlackMage.UmbralHearts = 3;
+                s.Gauges.BlackMage.PolyglotStacks = 2;
+                s.Mp = 7000;
+            }));
+
+        Assert.Equal(A.Xenoglossy.Id, suggestion);
+    }
+
+    /// <summary>But the last stack stays banked, so a mechanic still has an instant to meet it.</summary>
+    [Fact]
+    public void TheLastPolyglotStackIsNotSpentOnTheIceFiller()
+    {
+        var suggestion = Suggest(
+            Casting(100).Debuff(A.HighThunderBuff.Id, 25f).Gauge(s =>
+            {
+                s.Gauges.BlackMage.UmbralIce = 3;
+                s.Gauges.BlackMage.UmbralHearts = 3;
+                s.Gauges.BlackMage.PolyglotStacks = 1;
+                s.Mp = 7000;
+            }));
+
+        Assert.Equal(A.Blizzard4.Id, suggestion);
+    }
+
+    /// <summary>And hearts still come before it - they are what the next fire phase spends.</summary>
+    [Fact]
+    public void HeartsStillComeBeforeABankedPolyglot()
+    {
+        var suggestion = Suggest(
+            Casting(100).Debuff(A.HighThunderBuff.Id, 25f).Gauge(s =>
+            {
+                s.Gauges.BlackMage.UmbralIce = 3;
+                s.Gauges.BlackMage.UmbralHearts = 0;
+                s.Gauges.BlackMage.PolyglotStacks = 2;
+                s.Mp = 7000;
+            }));
+
+        Assert.Equal(A.Blizzard4.Id, suggestion);
+    }
+
+    /// <summary>Ley Lines is haste, not a damage window, and is no reason to dump a stack.</summary>
+    [Fact]
+    public void LeyLinesIsNotAReasonToSpendAPolyglot()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(100), 10000)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Buff(A.LeyLinesBuff.Id, 15f)
+                .Gauge(s => s.Gauges.BlackMage.PolyglotStacks = 2));
+
+        Assert.Equal(A.Fire4.Id, suggestion);
+    }
+
+    /// <summary>Moving still spends the bank, which is the whole reason for keeping one.</summary>
+    [Fact]
+    public void MovingStillSpendsTheBankedStack()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(100), 10000)
+                .Debuff(A.HighThunderBuff.Id, 25f)
+                .Moving()
+                .Gauge(s => s.Gauges.BlackMage.PolyglotStacks = 1));
+
+        Assert.Equal(A.Xenoglossy.Id, suggestion);
+    }
 }
