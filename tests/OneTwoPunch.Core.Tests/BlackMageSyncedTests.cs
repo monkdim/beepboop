@@ -364,4 +364,68 @@ public sealed class BlackMageSyncedTests
 
         Assert.Equal(A.HighThunder2.Id, suggestion);
     }
+
+    // ---- The ceiling, below level 20 --------------------------------------
+    //
+    // Astral Fire and Umbral Ice cap at a single stack until Aspect Mastery raises the
+    // ceiling. A recorded Sastasha run reads "ice 1" forty-four globals running and never
+    // anything else - so "climb to three" is a condition that cannot come true, and it sat
+    // directly above the rule that leaves the phase.
+
+    private static SnapshotBuilder UmbralIceOne(SnapshotBuilder builder, uint mp) =>
+        builder.Gauge(s =>
+        {
+            s.Gauges.BlackMage.UmbralIce = 1;
+            s.Mp = mp;
+        });
+
+    /// <summary>The reported symptom: stuck in ice on a full bar, for ever.</summary>
+    [Fact]
+    public void AFullBarLeavesIceEvenWhereTheThirdRungCannotBeReached()
+    {
+        var suggestion = Suggest(UmbralIceOne(Casting(18), 10000).Debuff(A.Thunder.Id, 25f));
+
+        Assert.Equal(A.Fire1.Id, suggestion);
+    }
+
+    /// <summary>The AoE button was stuck in exactly the same place.</summary>
+    [Fact]
+    public void TheAoeButtonLeavesIceTooOnAFullBar()
+    {
+        var suggestion = Suggest(
+            UmbralIceOne(Casting(18).Enemies(3), 10000).Debuff(A.ThunderII.Id, 25f),
+            mode: RotationMode.Aoe);
+
+        Assert.Equal(A.Fire2.Id, suggestion);
+    }
+
+    /// <summary>With the bar still empty it stays in ice, which is what ice is for.</summary>
+    [Fact]
+    public void AnEmptyBarStaysInIceAtTheCeiling()
+    {
+        var suggestion = Suggest(UmbralIceOne(Casting(18), 3000).Debuff(A.Thunder.Id, 25f));
+
+        Assert.Equal(A.Blizzard1.Id, suggestion);
+    }
+
+    /// <summary>
+    /// And at full level the climb still happens first: the bar is spent on the way in, so
+    /// the third rung is always reached long before the mana that would end the phase.
+    /// </summary>
+    [Fact]
+    public void TheClimbStillComesFirstAtFullLevel()
+    {
+        var suggestion = Suggest(UmbralIceOne(Casting(100), 3300).Debuff(A.HighThunderBuff.Id, 25f));
+
+        Assert.Equal(A.Blizzard3.Id, suggestion);
+    }
+
+    /// <summary>Nor does a full bar cross back while the hearts are still owed.</summary>
+    [Fact]
+    public void AFullBarDoesNotLeaveIceWithTheHeartsStillOwed()
+    {
+        var suggestion = Suggest(UmbralIceOne(Casting(100), 10000).Debuff(A.HighThunderBuff.Id, 25f));
+
+        Assert.NotEqual(A.Fire3.Id, suggestion);
+    }
 }
