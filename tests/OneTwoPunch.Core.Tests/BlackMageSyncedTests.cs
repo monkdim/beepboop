@@ -56,7 +56,6 @@ public sealed class BlackMageSyncedTests
         builder.Gauge(s =>
         {
             s.Gauges.BlackMage.AstralFire = 3;
-            s.Gauges.BlackMage.ElementTimeRemaining = 15f;
             s.Mp = mp;
         });
 
@@ -64,7 +63,6 @@ public sealed class BlackMageSyncedTests
         builder.Gauge(s =>
         {
             s.Gauges.BlackMage.UmbralIce = 3;
-            s.Gauges.BlackMage.ElementTimeRemaining = 15f;
             s.Gauges.BlackMage.UmbralHearts = hearts;
             s.Mp = mp;
         });
@@ -218,5 +216,152 @@ public sealed class BlackMageSyncedTests
             mode: RotationMode.Aoe);
 
         Assert.Equal(A.Fire2.Id, suggestion);
+    }
+
+    // ---- Below level 35, where the III-tier spells do not exist yet --------
+    //
+    // A levelling roulette syncs to 15 or 20 as readily as to 50, and down there the list
+    // was naming Fire III and Blizzard III in every rung that matters. Both are level 35.
+
+    /// <summary>
+    /// The worst of them. In Umbral Ice with no rung that could match, the list fell all the
+    /// way to its Fire I fallback - and Fire I cast in Umbral Ice *removes Umbral Ice*, so
+    /// the phase the rotation had just built collapsed on the next global, every time.
+    /// </summary>
+    [Fact]
+    public void TheIceFillerIsAnIceSpellBeforeBlizzardThreeExists()
+    {
+        var suggestion = Suggest(UmbralIceThree(Casting(20), 7000, 0).Debuff(A.Thunder.Id, 25f));
+
+        Assert.Equal(A.Blizzard1.Id, suggestion);
+    }
+
+    /// <summary>Climbing the rungs is Blizzard I's job too, one at a time.</summary>
+    [Fact]
+    public void UmbralIceClimbsOnBlizzardOneBeforeBlizzardThreeExists()
+    {
+        var suggestion = Suggest(
+            Casting(20).Debuff(A.Thunder.Id, 25f).Gauge(s =>
+            {
+                s.Gauges.BlackMage.UmbralIce = 1;
+                s.Mp = 5000;
+            }));
+
+        Assert.Equal(A.Blizzard1.Id, suggestion);
+    }
+
+    /// <summary>And leaving ice is Fire I, since there is no Fire III to leave on.</summary>
+    [Fact]
+    public void IceIsLeftOnFireOneBeforeFireThreeExists()
+    {
+        var suggestion = Suggest(UmbralIceThree(Casting(20), 10000, 0).Debuff(A.Thunder.Id, 25f));
+
+        Assert.Equal(A.Fire1.Id, suggestion);
+    }
+
+    /// <summary>The same on the way in: "into Umbral Ice" named a spell that was not there.</summary>
+    [Fact]
+    public void FireIsLeftOnBlizzardOneBeforeBlizzardThreeExists()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(20), 0).Debuff(A.Thunder.Id, 25f),
+            new FakeActionState().Unusable(A.Fire1.Id));
+
+        Assert.Equal(A.Blizzard1.Id, suggestion);
+    }
+
+    /// <summary>And a full bar from neither phase opens in fire, on the fire spell that exists.</summary>
+    [Fact]
+    public void AFullBarOpensOnFireOneBeforeFireThreeExists()
+    {
+        var suggestion = Suggest(Casting(20).Debuff(A.Thunder.Id, 25f));
+
+        Assert.Equal(A.Fire1.Id, suggestion);
+    }
+
+    // ---- The dot ----------------------------------------------------------
+
+    /// <summary>
+    /// Every thunder rule asked for a Thunderhead proc, and every one named Thunder III or
+    /// High Thunder. Thunder I is level 6 and predates the proc entirely, so a synced-down
+    /// Black Mage cast no thunder at all - the whole dot, missing, for a whole dungeon.
+    /// </summary>
+    [Fact]
+    public void ThunderOneIsCastBeforeTheProcExists()
+    {
+        var suggestion = Suggest(AstralFireThree(Casting(20), 10000));
+
+        Assert.Equal(A.Thunder1.Id, suggestion);
+    }
+
+    /// <summary>But not over a dot that is still ticking.</summary>
+    [Fact]
+    public void AHealthyLowLevelDotIsNotClipped()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(20), 10000).Debuff(A.Thunder.Id, 25f));
+
+        Assert.NotEqual(A.Thunder1.Id, suggestion);
+    }
+
+    /// <summary>
+    /// And where the proc does exist the rotation still waits for it. Hard-casting High
+    /// Thunder is not the level 100 rotation, and the game refuses it besides.
+    /// </summary>
+    [Fact]
+    public void ThunderStillWaitsForTheProcAtFullLevel()
+    {
+        var suggestion = Suggest(AstralFireThree(Casting(100), 10000));
+
+        Assert.Equal(A.Fire4.Id, suggestion);
+    }
+
+    // ---- The AoE button, which is most of what a roulette presses ---------
+
+    /// <summary>
+    /// Fire II is level 18, and the AoE list named it in every fire rung including the
+    /// fallback - so under 18 the button had nothing it could answer with at all.
+    /// </summary>
+    [Fact]
+    public void TheAoeButtonStillAnswersBeforeFireTwoExists()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(15).Enemies(3), 10000),
+            mode: RotationMode.Aoe);
+
+        Assert.Equal(A.Fire1.Id, suggestion);
+    }
+
+    /// <summary>And the ice side is Blizzard II rather than a Fire II that undoes the phase.</summary>
+    [Fact]
+    public void TheAoeIceFillerIsAnIceSpell()
+    {
+        var suggestion = Suggest(
+            UmbralIceThree(Casting(30).Enemies(3), 7000, 0).Debuff(A.ThunderII.Id, 25f),
+            mode: RotationMode.Aoe);
+
+        Assert.Equal(A.Blizzard2.Id, suggestion);
+    }
+
+    /// <summary>The AoE dot, which the list had no rule for at any level.</summary>
+    [Fact]
+    public void TheAoeListKeepsTheDotUp()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(30).Enemies(3), 10000),
+            mode: RotationMode.Aoe);
+
+        Assert.Equal(A.Thunder2.Id, suggestion);
+    }
+
+    /// <summary>On its proc and in its highest form, at full level.</summary>
+    [Fact]
+    public void TheAoeDotIsHighThunderTwoAtFullLevel()
+    {
+        var suggestion = Suggest(
+            AstralFireThree(Casting(100).Enemies(3), 10000).Buff(A.Thunderhead.Id, 25f),
+            mode: RotationMode.Aoe);
+
+        Assert.Equal(A.HighThunder2.Id, suggestion);
     }
 }

@@ -194,8 +194,12 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("instant, you are moving");
 
         // The dot, refreshed on its proc so it never costs a cast.
+        // The proc is required to keep it *instant*, which is what the movement rule above
+        // is for - but it is not required to keep the dot up. Thunderhead arrives with a
+        // trait partway up the job, and gating this on it as well meant a synced-down Black
+        // Mage never cast Thunder at all: the whole dot, missing, for a whole dungeon.
         p.Gcd(c => ThunderAction(c))
-            .When(c => c.Buff(A.Thunderhead) && !c.Downtime && ThunderIsRunningOut(c, 3f))
+            .When(c => ThunderProcHeldOrNotNeeded(c) && !c.Downtime && ThunderIsRunningOut(c, 3f))
             .Because("refresh the dot");
 
         // Polyglot caps, and each stack lost is a free instant thrown away.
@@ -268,7 +272,7 @@ public sealed class BlackMageRotation : JobRotationBase
         //
         // Blizzard III is what climbs, and cast here it is in ice rather than in fire, which
         // is the whole reason for Transposing in the first place.
-        p.Gcd(A.Blizzard3)
+        p.Gcd(c => IceSpell(c))
             .When(c => c.Blm.InUmbralIce && c.Blm.UmbralIce < 3)
             .Because("up to Umbral Ice III, where the mana is");
 
@@ -277,7 +281,7 @@ public sealed class BlackMageRotation : JobRotationBase
         // Back into fire, but only once ice has actually done its job. Leaving on a third of
         // a bar is what the missing rung above caused, and this is the guard that says so out
         // loud rather than relying on the rules above to run out.
-        p.Gcd(A.Fire3).When(c => IceHasDoneItsJob(c)).Because("back to Astral Fire");
+        p.Gcd(c => FireSpell(c)).When(c => IceHasDoneItsJob(c)).Because("back to Astral Fire");
 
         // Waiting on the last mana tick with the ice rungs and hearts already full. Without
         // this the list has nothing left that matches in ice and falls all the way through to
@@ -294,7 +298,7 @@ public sealed class BlackMageRotation : JobRotationBase
         // you open into is decided by mana, not by habit. With a full bar you open in fire;
         // this used to go into ice unconditionally, which is a wasted opener every time.
         // Threshold matches RotationSolver Reborn's.
-        p.Gcd(A.Fire3)
+        p.Gcd(c => FireSpell(c))
             .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
             .Because("full mana, open in Astral Fire");
 
@@ -303,7 +307,7 @@ public sealed class BlackMageRotation : JobRotationBase
         // had no rule left that could match: Fire IV and Despair both want mana, and the one
         // rule that could have escaped refused to fire precisely because it was in fire. The
         // list fell through to its fallback and cast Fire I for ever.
-        p.Gcd(A.Blizzard3).When(c => !c.Blm.InUmbralIce).Because("into Umbral Ice");
+        p.Gcd(c => IceSpell(c)).When(c => !c.Blm.InUmbralIce).Because("into Umbral Ice");
 
         p.Gcd(A.Fire1);
     }
@@ -318,6 +322,18 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(A.Foul)
             .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");
+
+        // The AoE dot, which the list had no rule for at all - at any level. Trash packs are
+        // most of what the AoE button is ever pressed at, and Thunder II on a pack is worth
+        // more than the global it costs.
+        p.Gcd(c => AoeThunderAction(c))
+            .When(c => StuckMoving(c) && c.Buff(A.Thunderhead)
+                       && AoeThunderIsRunningOut(c, MovementRefreshWindow))
+            .Because("instant, you are moving");
+
+        p.Gcd(c => AoeThunderAction(c))
+            .When(c => ThunderProcHeldOrNotNeeded(c) && !c.Downtime && AoeThunderIsRunningOut(c, 3f))
+            .Because("refresh the dot");
 
         p.Gcd(A.Foul)
             .When(c => c.Blm.PolyglotStacks >= 2)
@@ -334,27 +350,27 @@ public sealed class BlackMageRotation : JobRotationBase
                        && (c.Has(A.HighFire2) || !c.Ready(A.Fire2)))
             .Because("last cast before Umbral Ice");
 
-        p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2).When(c => c.Blm.InAstralFire);
+        p.Gcd(c => AoeFireSpell(c)).When(c => c.Blm.InAstralFire);
 
         p.Gcd(A.Freeze).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
 
-        p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
+        p.Gcd(c => AoeFireSpell(c))
             .When(c => IceHasDoneItsJob(c))
             .Because("back to Astral Fire");
 
-        p.Gcd(c => c.Has(A.HighBlizzard2) ? A.HighBlizzard2 : A.Blizzard2)
+        p.Gcd(c => AoeIceSpell(c))
             .When(c => c.Blm.InUmbralIce)
             .Because("waiting for the bar to fill");
 
-        p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
+        p.Gcd(c => AoeFireSpell(c))
             .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
             .Because("full mana, open in Astral Fire");
 
-        p.Gcd(c => c.Has(A.HighBlizzard2) ? A.HighBlizzard2 : A.Blizzard2)
+        p.Gcd(c => AoeIceSpell(c))
             .When(c => !c.Blm.InUmbralIce)
             .Because("into Umbral Ice");
 
-        p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2);
+        p.Gcd(c => AoeFireSpell(c));
     }
 
     /// <summary>The thunder the player actually has, which upgrades twice.</summary>
@@ -367,8 +383,14 @@ public sealed class BlackMageRotation : JobRotationBase
             : g.UmbralIce > 0 ? $"ice {g.UmbralIce}"
             : "neutral";
 
-        return $"{element} {g.ElementTimeRemaining:0.0}s | hearts {g.UmbralHearts} "
-               + $"| polyglot {g.PolyglotStacks} | soul {g.AstralSoulStacks}"
+        // The seconds used to be printed against the element, which is not what they are -
+        // the gauge has no element countdown, only the Polyglot one, and reading "fire 3
+        // 28.2s" as an element about to last another 28 seconds is wrong twice over. Worse,
+        // Enochian is level 70, so every synced-down log read "0.0s" and looked like a phase
+        // expiring on every line.
+        return $"{element} | hearts {g.UmbralHearts} "
+               + $"| polyglot {g.PolyglotStacks} (+1 in {g.EnochianTimeRemaining:0.0}s) "
+               + $"| soul {g.AstralSoulStacks}"
                + (g.ParadoxActive ? " | paradox" : string.Empty);
     }
 
@@ -384,8 +406,53 @@ public sealed class BlackMageRotation : JobRotationBase
     private static bool StuckMoving(RotationContext c) =>
         c.Moving && !c.Buff(A.TriplecastBuff) && !c.Buff(A.SwiftcastBuff);
 
+    /// <summary>
+    /// The highest form of each spell the player actually has.
+    /// <para>
+    /// Naming the level 100 spell in a rule is how most of the synced-down damage was lost:
+    /// a rule that names Blizzard III is simply dead below 35, and the list falls past it to
+    /// whatever is underneath - which for a Black Mage in Umbral Ice was Fire I, a spell that
+    /// removes the phase it is standing in. Every rung that is a *rung* rather than a
+    /// specific spell asks through one of these instead.
+    /// </para>
+    /// </summary>
+    private static ActionRef FireSpell(RotationContext c) =>
+        c.Has(A.Fire3) ? A.Fire3 : A.Fire1;
+
+    private static ActionRef IceSpell(RotationContext c) =>
+        c.Has(A.Blizzard3) ? A.Blizzard3 : A.Blizzard1;
+
+    private static ActionRef AoeFireSpell(RotationContext c) =>
+        c.Has(A.HighFire2) ? A.HighFire2
+        : c.Has(A.Fire2) ? A.Fire2
+        : A.Fire1;
+
+    private static ActionRef AoeIceSpell(RotationContext c) =>
+        c.Has(A.HighBlizzard2) ? A.HighBlizzard2
+        : c.Has(A.Blizzard2) ? A.Blizzard2
+        : A.Blizzard1;
+
     private static ActionRef ThunderAction(RotationContext c) =>
-        c.Has(A.HighThunder) ? A.HighThunder : A.Thunder3;
+        c.Has(A.HighThunder) ? A.HighThunder
+        : c.Has(A.Thunder3) ? A.Thunder3
+        : A.Thunder1;
+
+    private static ActionRef AoeThunderAction(RotationContext c) =>
+        c.Has(A.HighThunder2) ? A.HighThunder2
+        : c.Has(A.Thunder4) ? A.Thunder4
+        : A.Thunder2;
+
+    /// <summary>
+    /// Whether the thunder line can be cast at all: on its proc where the job has one, and
+    /// as a plain hard cast before that.
+    /// <para>
+    /// Thunder I is a cast like any other and predates Thunderhead by a long way. Where the
+    /// game does require the proc it refuses the cast itself, and readiness already asks the
+    /// game, so this never suggests something that would produce an error noise.
+    /// </para>
+    /// </summary>
+    private static bool ThunderProcHeldOrNotNeeded(RotationContext c) =>
+        !c.Has(A.Thunder3) || c.Buff(A.Thunderhead);
 
     /// <summary>
     /// Whether the thunder dot is within <paramref name="within"/> seconds of dropping.
@@ -406,7 +473,7 @@ public sealed class BlackMageRotation : JobRotationBase
     /// </summary>
     private static bool IceHasDoneItsJob(RotationContext c) =>
         c.Blm.InUmbralIce
-        && (!c.Has(A.Blizzard3) || c.Blm.UmbralIce >= 3)
+        && c.Blm.UmbralIce >= 3
         && (!c.Has(A.Blizzard4) || c.Blm.UmbralHearts >= 3)
         && c.Mp >= IceExitMp;
 
@@ -426,5 +493,12 @@ public sealed class BlackMageRotation : JobRotationBase
         && (c.Has(A.Fire4) || !c.Ready(A.Fire1));
 
     private static bool ThunderIsRunningOut(RotationContext c, float within) =>
-        c.DotExpiring(A.HighThunderBuff, within) && c.DotExpiring(A.ThunderIII, within);
+        c.DotExpiring(A.HighThunderBuff, within)
+        && c.DotExpiring(A.ThunderIII, within)
+        && c.DotExpiring(A.Thunder, within);
+
+    private static bool AoeThunderIsRunningOut(RotationContext c, float within) =>
+        c.DotExpiring(A.HighThunderII, within)
+        && c.DotExpiring(A.ThunderIV, within)
+        && c.DotExpiring(A.ThunderII, within);
 }

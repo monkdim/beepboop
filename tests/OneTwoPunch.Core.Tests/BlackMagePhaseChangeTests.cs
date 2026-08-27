@@ -59,7 +59,6 @@ public sealed class BlackMagePhaseChangeTests
         InAWeaveWindow().Gauge(s =>
         {
             s.Gauges.BlackMage.AstralFire = 3;
-            s.Gauges.BlackMage.ElementTimeRemaining = 12f;
             s.Gauges.BlackMage.AstralSoulStacks = 0;
             s.Gauges.BlackMage.PolyglotStacks = 2;
             s.Mp = 0;
@@ -70,7 +69,6 @@ public sealed class BlackMagePhaseChangeTests
         InAWeaveWindow().Gauge(s =>
         {
             s.Gauges.BlackMage.UmbralIce = 3;
-            s.Gauges.BlackMage.ElementTimeRemaining = 12f;
             s.Gauges.BlackMage.UmbralHearts = 3;
             s.Gauges.BlackMage.ParadoxActive = false;
             s.Gauges.BlackMage.PolyglotStacks = 2;
@@ -151,7 +149,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.UmbralIce = 1;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
                     s.Gauges.BlackMage.UmbralHearts = 3;
                     s.Mp = 3300;
                 }));
@@ -169,7 +166,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.UmbralIce = 1;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
                     s.Gauges.BlackMage.UmbralHearts = 3;
                     s.Mp = 3300;
                 }));
@@ -187,7 +183,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.UmbralIce = 3;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
                     s.Gauges.BlackMage.UmbralHearts = 0;
                     s.Mp = 10000;
                 }));
@@ -208,7 +203,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.UmbralIce = 3;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 25f;
                     s.Gauges.BlackMage.UmbralHearts = 3;
                     s.Mp = 7000;
                 }));
@@ -232,7 +226,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.AstralFire = 1;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
                     s.Mp = 10000;
                 }));
 
@@ -249,7 +242,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.AstralFire = 3;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
                     s.Mp = 10000;
                 }));
 
@@ -269,7 +261,6 @@ public sealed class BlackMagePhaseChangeTests
                 .Gauge(s =>
                 {
                     s.Gauges.BlackMage.AstralFire = 1;
-                    s.Gauges.BlackMage.ElementTimeRemaining = 27f;
                     s.Gauges.BlackMage.ParadoxActive = true;
                     s.Mp = 10000;
                 }));
@@ -285,7 +276,6 @@ public sealed class BlackMagePhaseChangeTests
             InAWeaveWindow().Gauge(s =>
             {
                 s.Gauges.BlackMage.AstralFire = 3;
-                s.Gauges.BlackMage.ElementTimeRemaining = 12f;
                 s.Gauges.BlackMage.PolyglotStacks = 2;
                 s.Mp = 4000;
             }),
@@ -302,7 +292,6 @@ public sealed class BlackMagePhaseChangeTests
             InAWeaveWindow().Gauge(s =>
             {
                 s.Gauges.BlackMage.AstralFire = 3;
-                s.Gauges.BlackMage.ElementTimeRemaining = 12f;
                 s.Gauges.BlackMage.AstralSoulStacks = 3;
                 s.Gauges.BlackMage.PolyglotStacks = 2;
                 s.Mp = 0;
@@ -324,7 +313,6 @@ public sealed class BlackMagePhaseChangeTests
                     .Gauge(s =>
                     {
                         s.Gauges.BlackMage.AstralFire = 3;
-                        s.Gauges.BlackMage.ElementTimeRemaining = 12f;
                         s.Gauges.BlackMage.ParadoxActive = true;
                         s.Gauges.BlackMage.AstralSoulStacks = 2;
                         s.Mp = 10000;
