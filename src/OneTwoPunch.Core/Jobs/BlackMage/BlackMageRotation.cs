@@ -272,8 +272,14 @@ public sealed class BlackMageRotation : JobRotationBase
         //
         // Blizzard III is what climbs, and cast here it is in ice rather than in fire, which
         // is the whole reason for Transposing in the first place.
+        // The climb has to stand down once the bar is full, or it outranks the rule that
+        // leaves. Below level 20 the third rung does not exist to be reached - Astral Fire
+        // and Umbral Ice both cap at one stack until Aspect Mastery raises it - so "climb to
+        // three" is a condition that can never come true, and it sat above the exit. A
+        // recorded Sastasha run is forty-four straight globals at "ice 1" with a full bar,
+        // reported as being stuck in ice and never going back to fire.
         p.Gcd(c => IceSpell(c))
-            .When(c => c.Blm.InUmbralIce && c.Blm.UmbralIce < 3)
+            .When(c => c.Blm.InUmbralIce && c.Blm.UmbralIce < 3 && !IceHasDoneItsJob(c))
             .Because("up to Umbral Ice III, where the mana is");
 
         p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
@@ -289,7 +295,8 @@ public sealed class BlackMageRotation : JobRotationBase
         //
         // Blizzard IV is level 58, though, so naming it here left the rung dead below that
         // and the fall-through happened anyway. Blizzard I is free in ice and refreshes the
-        // timer, which is the whole of what this rung is for.
+        // timer, which is the whole of what this rung is for - it does not climb, whatever
+        // the rung above it hoped.
         p.Gcd(c => c.Has(A.Blizzard4) ? A.Blizzard4 : A.Blizzard1)
             .When(c => c.Blm.InUmbralIce)
             .Because("waiting for the bar to fill");
@@ -462,18 +469,24 @@ public sealed class BlackMageRotation : JobRotationBase
     /// </para>
     /// </summary>
     /// <summary>
-    /// Whether Umbral Ice has done everything it is for: at the third rung, hearts filled,
-    /// and the bar actually refilled.
+    /// Whether Umbral Ice has done everything it is for: the bar refilled, and the hearts
+    /// filled where there is a spell that fills them.
     /// <para>
-    /// All three, because any one of them alone is a way to leave early. Hearts fill at any
-    /// ice level, so hearts alone let the list cross back on a third of a bar; the rung
-    /// alone says nothing about mana; and mana alone would leave the hearts behind that the
-    /// next fire phase spends.
+    /// This used to ask for the third ice rung as well, which is the thing ice is *for* at
+    /// level 100 - but it is not what ice is for. Refilling the bar is, and the rung is only
+    /// the fastest way to do it. Below level 20 the rung cannot be reached at all: both
+    /// elements cap at a single stack until Aspect Mastery raises the ceiling, so the test
+    /// was false for ever and the phase had no way out. Forty-four globals of a recorded
+    /// Sastasha run are "ice 1" with a full bar and nowhere to go.
+    /// </para>
+    /// <para>
+    /// Nothing changes at full level. Ice is entered on a spent bar, so the climb above -
+    /// which stands down exactly when this becomes true - always reaches the third rung long
+    /// before the mana arrives.
     /// </para>
     /// </summary>
     private static bool IceHasDoneItsJob(RotationContext c) =>
         c.Blm.InUmbralIce
-        && c.Blm.UmbralIce >= 3
         && (!c.Has(A.Blizzard4) || c.Blm.UmbralHearts >= 3)
         && c.Mp >= IceExitMp;
 
