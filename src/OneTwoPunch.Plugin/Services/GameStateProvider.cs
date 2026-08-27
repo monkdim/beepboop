@@ -296,7 +296,6 @@ public sealed unsafe class GameStateProvider(
                 t.UmbralHearts = g.UmbralHearts;
                 t.PolyglotStacks = g.PolyglotStacks;
                 t.AstralSoulStacks = (byte)Math.Clamp(g.AstralSoulStacks, 0, 255);
-                t.ElementTimeRemaining = g.EnochianTimer / 1000f;
                 t.EnochianTimeRemaining = g.EnochianTimer / 1000f;
                 t.ParadoxActive = g.IsParadoxActive;
                 break;

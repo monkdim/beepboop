@@ -202,10 +202,15 @@ public struct BlackMageGauge
     /// <summary>Polyglot stacks. Spent on Xenoglossy or Foul.</summary>
     public byte PolyglotStacks;
 
-    /// <summary>Seconds left on the current element. Zero outside Astral Fire / Umbral Ice.</summary>
-    public float ElementTimeRemaining;
-
-    /// <summary>Seconds until the next Polyglot stack.</summary>
+    /// <summary>
+    /// Seconds until the next Polyglot stack.
+    /// <para>
+    /// This is the only timer the Black Mage gauge carries - there is no separate element
+    /// countdown to read, and a field claiming to be one was reporting this same value
+    /// under the wrong name. It is driven by Enochian, which is a level 70 trait, so below
+    /// that it is flatly zero rather than merely unknown.
+    /// </para>
+    /// </summary>
     public float EnochianTimeRemaining;
 
     /// <summary>Astral soul stacks, 0-6. Six enables Flare Star.</summary>
