@@ -202,10 +202,22 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => ThunderProcHeldOrNotNeeded(c) && !c.Downtime && ThunderIsRunningOut(c, 3f))
             .Because("refresh the dot");
 
-        // Polyglot caps, and each stack lost is a free instant thrown away.
+        // Only at the actual ceiling, and never for Ley Lines.
+        //
+        // This asked for two stacks when three is the ceiling from level 98, and it also
+        // dumped a stack any time Ley Lines was up - on the premise that Ley Lines is a
+        // damage window. It is not: it is fifteen percent haste and no damage at all, which
+        // makes it the *worst* moment to spend an instant, because a cast there is already
+        // as cheap as it ever gets.
+        //
+        // Between the two, a recorded seven-minute pull never once banked a stack: polyglot
+        // read one for 127 of 201 samples, zero for 65, two for nine, and three never. Ninety
+        // seconds of instants held for a mechanic, spent for nothing. Eleven of the sixteen
+        // went out at "fire 3" - see the rule further down for why that is the expensive
+        // place to spend one.
         p.Gcd(A.Xenoglossy)
-            .When(c => c.Blm.PolyglotStacks >= 2 || (c.Blm.PolyglotStacks > 0 && c.Buff(A.LeyLinesBuff)))
-            .Because("Polyglot is close to capping");
+            .When(c => c.Blm.PolyglotStacks >= PolyglotCap(c))
+            .Because("Polyglot is about to overcap");
 
         // ---- Astral Fire -------------------------------------------------
         p.Gcd(A.FlareStar)
@@ -297,6 +309,23 @@ public sealed class BlackMageRotation : JobRotationBase
         // and the fall-through happened anyway. Blizzard I is free in ice and refreshes the
         // timer, which is the whole of what this rung is for - it does not climb, whatever
         // the rung above it hoped.
+        // The one global in the rotation that exists only to pass time, and so the one place
+        // a Polyglot costs almost nothing to spend.
+        //
+        // Xenoglossy is unaspected: 890 whether it is cast at Astral Fire III or standing in
+        // a puddle. Fire IV is fire-aspected and worth far more than its own number once
+        // Astral Fire is up, so a Xenoglossy in the fire phase is half a global thrown away -
+        // and because the fire phase is bounded by mana rather than by time, it does not even
+        // replace a Fire IV, it just makes the phase a global longer for the same six. The
+        // recorded pull has both phases side by side: the one carrying three Xenoglossies
+        // took twelve globals to deliver six Fire IVs, the one carrying none took ten.
+        //
+        // Here it displaces a Blizzard IV cast purely to watch the bar tick up, and it holds
+        // a stack back so there is still an instant in the bank when a mechanic asks for one.
+        p.Gcd(A.Xenoglossy)
+            .When(c => c.Blm.InUmbralIce && c.Blm.PolyglotStacks >= 2)
+            .Because("spend it where the phase is only marking time");
+
         p.Gcd(c => c.Has(A.Blizzard4) ? A.Blizzard4 : A.Blizzard1)
             .When(c => c.Blm.InUmbralIce)
             .Because("waiting for the bar to fill");
@@ -343,8 +372,8 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("refresh the dot");
 
         p.Gcd(A.Foul)
-            .When(c => c.Blm.PolyglotStacks >= 2)
-            .Because("Polyglot is close to capping");
+            .When(c => c.Blm.PolyglotStacks >= PolyglotCap(c))
+            .Because("Polyglot is about to overcap");
 
         p.Gcd(A.FlareStar).When(c => c.Blm.AstralSoulStacks >= 6).Because("Astral Soul is full");
 
@@ -364,6 +393,11 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(c => AoeFireSpell(c))
             .When(c => IceHasDoneItsJob(c))
             .Because("back to Astral Fire");
+
+        // Foul is unaspected too, and the same global is the cheap one to spend it on.
+        p.Gcd(A.Foul)
+            .When(c => c.Blm.InUmbralIce && c.Blm.PolyglotStacks >= 2)
+            .Because("spend it where the phase is only marking time");
 
         p.Gcd(c => AoeIceSpell(c))
             .When(c => c.Blm.InUmbralIce)
@@ -458,6 +492,21 @@ public sealed class BlackMageRotation : JobRotationBase
     /// game, so this never suggests something that would produce an error noise.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The most Polyglot the player can hold. Enhanced Polyglot raises it twice: one stack
+    /// from Foul at 70, two from 80, three from 98.
+    /// <para>
+    /// Asking for two when the ceiling is three is ninety seconds of banked instants spent
+    /// for nothing, and asking for three where the ceiling is two would lose a stack every
+    /// thirty seconds - so the rule that spends in Umbral Ice does not depend on this being
+    /// right. It drains the bank on its own every cycle; this is only the backstop.
+    /// </para>
+    /// </summary>
+    private static byte PolyglotCap(RotationContext c) =>
+        c.Level >= 98 ? (byte)3
+        : c.Level >= 80 ? (byte)2
+        : (byte)1;
+
     private static bool ThunderProcHeldOrNotNeeded(RotationContext c) =>
         !c.Has(A.Thunder3) || c.Buff(A.Thunderhead);
 
