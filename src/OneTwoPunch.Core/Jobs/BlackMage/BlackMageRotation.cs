@@ -56,6 +56,22 @@ public sealed class BlackMageRotation : JobRotationBase
     private const float MovementRefreshWindow = 10f;
 
     /// <summary>
+    /// Mana at or below which the bar counts as spent for Manafont's purposes.
+    /// <para>
+    /// Above level 72 "Despair will not cast" says this by itself, and says it exactly - but
+    /// below 72 there is no Despair to ask, so that test is trivially true and Manafont was
+    /// being thrown on a full bar the moment the pull started. A recorded level 50 pull has
+    /// it at 8400 mana and a level 68 pull at 8000, both labelled "the bar is spent".
+    /// </para>
+    /// <para>
+    /// The number is one Fire I in Astral Fire, so the floor means "there is not another
+    /// cast left in this bar". At 100 it changes nothing: Despair costs 800, so the bar is
+    /// already under this by the time Despair refuses.
+    /// </para>
+    /// </summary>
+    private const uint ManafontMp = 2000;
+
+    /// <summary>
     /// The Balance's Standard "5+7" opener, Black Mage level 100, Dawntrail patch 7.2,
     /// transcribed step for step from their chart rather than reasoned out.
     /// <para>
@@ -128,7 +144,7 @@ public sealed class BlackMageRotation : JobRotationBase
         // reported as "Manafont was used before Despair". Despair being uncastable is the
         // signal that the bar is spent, and it accounts for the mana cost by itself.
         p.OGcd(A.Manafont)
-            .When(c => c.Blm.InAstralFire && !c.Downtime && !c.Ready(A.Despair))
+            .When(c => c.Blm.InAstralFire && !c.Downtime && c.Mp <= ManafontMp && !c.Ready(A.Despair))
             .Because("the bar is spent, refill it without leaving Astral Fire");
 
         // ---- Leaving a phase ---------------------------------------------
@@ -141,8 +157,7 @@ public sealed class BlackMageRotation : JobRotationBase
                        && c.Blm.AstralSoulStacks < 6
                        && !c.Blm.ParadoxActive
                        && !c.Buff(A.Firestarter)
-                       && !c.Ready(A.Fire4)
-                       && !c.Ready(A.Despair))
+                       && FireIsSpent(c))
             .Because("fire is spent, cross to ice without a weakened Blizzard III");
 
         p.OGcd(A.Transpose)
@@ -223,6 +238,18 @@ public sealed class BlackMageRotation : JobRotationBase
 
         p.Gcd(A.Fire4).When(c => c.Blm.InAstralFire);
 
+        // Below level 60 there is no Fire IV, and with no Despair either the whole Astral
+        // Fire section above had nothing that could match: the list fell straight past it to
+        // "into Umbral Ice" and crossed back the global after arriving. A recorded level 50
+        // pull spends its entire fire phase one global long and never casts Fire at all.
+        //
+        // Fire I is what the phase is at that level - it is the spell the bar exists to
+        // spend - and once Fire IV is learned this rung is dead, which is what the level
+        // test says rather than leaving it to the ordering above.
+        p.Gcd(A.Fire1)
+            .When(c => c.Blm.InAstralFire && !c.Has(A.Fire4))
+            .Because("spend the bar in Astral Fire");
+
         p.Gcd(A.Fire3)
             .When(c => c.Buff(A.Firestarter))
             .Because("free and instant");
@@ -255,7 +282,13 @@ public sealed class BlackMageRotation : JobRotationBase
         // Waiting on the last mana tick with the ice rungs and hearts already full. Without
         // this the list has nothing left that matches in ice and falls all the way through to
         // Fire I, which in Umbral Ice is about the worst global available.
-        p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce).Because("waiting for the bar to fill");
+        //
+        // Blizzard IV is level 58, though, so naming it here left the rung dead below that
+        // and the fall-through happened anyway. Blizzard I is free in ice and refreshes the
+        // timer, which is the whole of what this rung is for.
+        p.Gcd(c => c.Has(A.Blizzard4) ? A.Blizzard4 : A.Blizzard1)
+            .When(c => c.Blm.InUmbralIce)
+            .Because("waiting for the bar to fill");
 
         // From neither phase - the pull, or after a death or a long downtime - which element
         // you open into is decided by mana, not by habit. With a full bar you open in fire;
@@ -281,7 +314,7 @@ public sealed class BlackMageRotation : JobRotationBase
 
         p.OGcd(A.LeyLines).When(c => !c.Downtime && !c.Moving);
         p.OGcd(A.Amplifier).When(c => c.Blm.PolyglotStacks < 2);
-        p.OGcd(A.Manafont).When(c => c.Blm.InAstralFire && !c.Downtime);
+        p.OGcd(A.Manafont).When(c => c.Blm.InAstralFire && !c.Downtime && c.Mp <= ManafontMp);
         p.Gcd(A.Foul)
             .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");
@@ -292,8 +325,13 @@ public sealed class BlackMageRotation : JobRotationBase
 
         p.Gcd(A.FlareStar).When(c => c.Blm.AstralSoulStacks >= 6).Because("Astral Soul is full");
 
+        // "No High Fire II" is only the end of the phase once High Fire II exists. Below
+        // level 82 it is trivially true, and Flare - which empties the whole bar - became
+        // the first global of every fire phase instead of the last.
         p.Gcd(A.Flare)
-            .When(c => c.Blm.InAstralFire && !c.Ready(A.HighFire2))
+            .When(c => c.Blm.InAstralFire
+                       && !c.Ready(A.HighFire2)
+                       && (c.Has(A.HighFire2) || !c.Ready(A.Fire2)))
             .Because("last cast before Umbral Ice");
 
         p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2).When(c => c.Blm.InAstralFire);
@@ -301,8 +339,12 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(A.Freeze).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
 
         p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
-            .When(c => c.Blm.InUmbralIce)
+            .When(c => IceHasDoneItsJob(c))
             .Because("back to Astral Fire");
+
+        p.Gcd(c => c.Has(A.HighBlizzard2) ? A.HighBlizzard2 : A.Blizzard2)
+            .When(c => c.Blm.InUmbralIce)
+            .Because("waiting for the bar to fill");
 
         p.Gcd(c => c.Has(A.HighFire2) ? A.HighFire2 : A.Fire2)
             .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
@@ -364,9 +406,24 @@ public sealed class BlackMageRotation : JobRotationBase
     /// </summary>
     private static bool IceHasDoneItsJob(RotationContext c) =>
         c.Blm.InUmbralIce
-        && c.Blm.UmbralIce >= 3
-        && c.Blm.UmbralHearts >= 3
+        && (!c.Has(A.Blizzard3) || c.Blm.UmbralIce >= 3)
+        && (!c.Has(A.Blizzard4) || c.Blm.UmbralHearts >= 3)
         && c.Mp >= IceExitMp;
+
+    /// <summary>
+    /// Whether Astral Fire has nothing left worth casting, which is the signal to cross back.
+    /// <para>
+    /// Fire IV and Despair are the two that normally answer this, and asking about them is
+    /// asking about mana - both refuse when the bar cannot pay. Below their levels neither
+    /// exists, so both tests came back true the instant the phase began and the fire phase
+    /// lasted one global. Under level 60 the phase is Fire I, and it ends when the bar can
+    /// no longer pay for one.
+    /// </para>
+    /// </summary>
+    private static bool FireIsSpent(RotationContext c) =>
+        !c.Ready(A.Fire4)
+        && !c.Ready(A.Despair)
+        && (c.Has(A.Fire4) || !c.Ready(A.Fire1));
 
     private static bool ThunderIsRunningOut(RotationContext c, float within) =>
         c.DotExpiring(A.HighThunderBuff, within) && c.DotExpiring(A.ThunderIII, within);
