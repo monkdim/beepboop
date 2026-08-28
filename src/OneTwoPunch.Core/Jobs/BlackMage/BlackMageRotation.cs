@@ -578,8 +578,14 @@ public sealed class BlackMageRotation : JobRotationBase
     /// <summary>
     /// What buys three Umbral Hearts. Freeze on a real pack; on two targets the chart says
     /// Blizzard IV instead, which buys the same three.
+    /// <para>
+    /// Null below both of their levels, so the rule simply does not match. It must not fall
+    /// back to an ice spell: an ice filler offered as "the hearts are still owed" is a rung
+    /// that cannot be climbed, and a rung that cannot be climbed is how the ice phase got
+    /// stuck for ever at level 18.
+    /// </para>
     /// </summary>
-    private static ActionRef AoeHeartSpell(RotationContext c)
+    private static ActionRef? AoeHeartSpell(RotationContext c)
     {
         if (c.Enemies >= 3 && c.Has(A.Freeze))
             return A.Freeze;
@@ -587,7 +593,7 @@ public sealed class BlackMageRotation : JobRotationBase
         if (c.Has(A.Blizzard4))
             return A.Blizzard4;
 
-        return c.Has(A.Freeze) ? A.Freeze : AoeIceSpell(c);
+        return c.Has(A.Freeze) ? A.Freeze : null;
     }
 
     private static ActionRef AoeIceSpell(RotationContext c) =>
