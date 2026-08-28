@@ -9,10 +9,13 @@ namespace OneTwoPunch.Core.Jobs.Viper;
 /// the rotation is mostly "read the buff you were just given". Two self-buffs have to stay
 /// up underneath that, and Reawaken replaces the whole bar while it runs.
 /// <para>
-/// The follow-up actions - Serpent's Tail, Twinfang, Twinblood - are offered as their base
-/// ids and left for the game to adjust into Death Rattle, Twinfang Bite, Legacy and the
-/// rest. That is what the game does for the real hotbar too, so there is no second copy of
-/// those rules here to drift.
+/// The follow-ups - Death Rattle, the Legacies, the Twinfang and Twinblood pairs - are
+/// named outright rather than offered as Serpent's Tail, Twinfang and Twinblood for the
+/// game to adjust. Those three ids are hotbar placeholders: the game draws them and swaps
+/// them for whatever is live, but it will not accept one as an action, so every rule
+/// written against them asked for something unusable and never fired. Two recorded pulls
+/// have Poised for Twinfang sitting on the player for a full minute, and not one Death
+/// Rattle or Legacy in a hundred and forty seconds of Reawaken chains.
 /// </para>
 /// </summary>
 public sealed class ViperRotation : JobRotationBase
@@ -82,11 +85,20 @@ public sealed class ViperRotation : JobRotationBase
         // ---- Off-globals -------------------------------------------------
         p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
 
-        // The game turns these into whichever follow-up is live, and only accepts them when
-        // one is - so Ready() alone is the correct guard.
-        p.OGcd(A.SerpentsTail);
-        p.OGcd(A.Twinfang);
-        p.OGcd(A.Twinblood);
+        // Serpent's Tail. The gauge says which follow-up is live, so it is asked rather
+        // than guessed at: Death Rattle after a venom finisher, a Legacy after each
+        // Generation.
+        p.OGcd(c => SerpentsTailAction(c)).When(c => c.Vpr.SerpentCombo != SerpentCombo.None);
+
+        // The Twin pair, each named by the venom the coil before it left. They chain:
+        // Hunter's Coil leaves Hunter's Venom, Twinfang Bite spends it and leaves
+        // Swiftskin's Venom for Twinblood Bite - so both weaves follow one coil.
+        p.OGcd(A.TwinfangBite).When(c => c.Buff(A.HuntersVenom));
+        p.OGcd(A.TwinbloodBite).When(c => c.Buff(A.SwiftskinsVenom));
+
+        // Uncoiled Fury's own pair, the same chain one step apart.
+        p.OGcd(A.UncoiledTwinfang).When(c => c.Buff(A.PoisedForTwinfang));
+        p.OGcd(A.UncoiledTwinblood).When(c => c.Buff(A.PoisedForTwinblood));
 
         // ---- GCDs --------------------------------------------------------
         // Reawaken replaces the bar and its tribute drains, so it outranks everything.
@@ -97,21 +109,22 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(c => GenerationAction(c))
             .When(c => c.Vpr.AnguineTribute > 0);
 
-        // Vicewinder's two coils, each with their own positional.
+        // Vicewinder's two coils, each with their own positional. Which chain step is live
+        // is a gauge field, not the combo - see ViperGauge.DreadCombo.
         p.Gcd(A.SwiftskinsCoil)
-            .When(c => c.ComboIs(A.Vicewinder) && NeedsSwiftscaled(c))
+            .When(c => c.Vpr.DreadCombo == DreadCombo.Vicewinder && NeedsSwiftscaled(c))
             .Needs(PositionalHint.Rear);
 
         p.Gcd(A.HuntersCoil)
-            .When(c => c.ComboIs(A.Vicewinder))
+            .When(c => c.Vpr.DreadCombo == DreadCombo.Vicewinder)
             .Needs(PositionalHint.Flank);
 
         p.Gcd(A.SwiftskinsCoil)
-            .When(c => c.ComboIs(A.HuntersCoil))
+            .When(c => c.Vpr.DreadCombo == DreadCombo.HuntersCoil)
             .Needs(PositionalHint.Rear);
 
         p.Gcd(A.HuntersCoil)
-            .When(c => c.ComboIs(A.SwiftskinsCoil))
+            .When(c => c.Vpr.DreadCombo == DreadCombo.SwiftskinsCoil)
             .Needs(PositionalHint.Flank);
 
         // Combo finishers. Each is named outright by the venom buff the previous step gave.
@@ -168,17 +181,24 @@ public sealed class ViperRotation : JobRotationBase
         var p = Aoe;
 
         p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
-        p.OGcd(A.SerpentsTail);
-        p.OGcd(A.Twinfang);
-        p.OGcd(A.Twinblood);
+
+        p.OGcd(c => SerpentsTailAction(c)).When(c => c.Vpr.SerpentCombo != SerpentCombo.None);
+
+        p.OGcd(A.TwinfangThresh).When(c => c.Buff(A.FellhuntersVenom));
+        p.OGcd(A.TwinbloodThresh).When(c => c.Buff(A.FellskinsVenom));
+
+        p.OGcd(A.UncoiledTwinfang).When(c => c.Buff(A.PoisedForTwinfang));
+        p.OGcd(A.UncoiledTwinblood).When(c => c.Buff(A.PoisedForTwinblood));
 
         p.Gcd(A.Ouroboros).When(c => c.Vpr.AnguineTribute == 1);
         p.Gcd(c => GenerationAction(c)).When(c => c.Vpr.AnguineTribute > 0);
 
-        p.Gcd(A.SwiftskinsDen).When(c => c.ComboIs(A.Vicepit) && NeedsSwiftscaled(c));
-        p.Gcd(A.HuntersDen).When(c => c.ComboIs(A.Vicepit));
-        p.Gcd(A.SwiftskinsDen).When(c => c.ComboIs(A.HuntersDen));
-        p.Gcd(A.HuntersDen).When(c => c.ComboIs(A.SwiftskinsDen));
+        p.Gcd(A.SwiftskinsDen)
+            .When(c => c.Vpr.DreadCombo == DreadCombo.Vicepit && NeedsSwiftscaled(c));
+
+        p.Gcd(A.HuntersDen).When(c => c.Vpr.DreadCombo == DreadCombo.Vicepit);
+        p.Gcd(A.SwiftskinsDen).When(c => c.Vpr.DreadCombo == DreadCombo.HuntersDen);
+        p.Gcd(A.HuntersDen).When(c => c.Vpr.DreadCombo == DreadCombo.SwiftskinsDen);
 
         p.Gcd(A.JaggedMaw).When(c => c.Buff(A.GrimhuntersVenom));
         p.Gcd(A.BloodiedMaw).When(c => c.Buff(A.GrimskinsVenom));
@@ -204,6 +224,20 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(A.SteelMaw);
     }
 
+    /// <summary>
+    /// Whichever follow-up Serpent's Tail is offering. The gauge names it outright, so
+    /// there is nothing here to keep in step with the rest of the rotation.
+    /// </summary>
+    private static ActionRef SerpentsTailAction(RotationContext c) => c.Vpr.SerpentCombo switch
+    {
+        SerpentCombo.DeathRattle => A.DeathRattle,
+        SerpentCombo.LastLash => A.LastLash,
+        SerpentCombo.FirstLegacy => A.FirstLegacy,
+        SerpentCombo.SecondLegacy => A.SecondLegacy,
+        SerpentCombo.ThirdLegacy => A.ThirdLegacy,
+        _ => A.FourthLegacy,
+    };
+
     private static bool ComboStarted(RotationContext c) =>
         c.ComboIs(A.SteelFangs) || c.ComboIs(A.ReavingFangs);
 
@@ -215,11 +249,33 @@ public sealed class ViperRotation : JobRotationBase
         c.BuffTime(A.Swiftscaled) <= c.BuffTime(A.HuntersInstinct);
 
     /// <summary>
-    /// The Reawaken chain. The game only accepts the current step, so all four are offered
-    /// and Ready() picks the live one rather than us tracking the position ourselves.
+    /// The Reawaken chain, read off the tribute the gauge is counting down. Offering all
+    /// four and letting Ready() pick was meant to avoid tracking the position ourselves,
+    /// but the game accepts any of them - it adjusts the press to the step you are actually
+    /// on - so the first one always won and the button read "First Generation" for the whole
+    /// chain. It cast correctly and looked broken, which is how it was reported.
+    /// <para>
+    /// Ouroboros takes the last tribute where the player has it, so the generations left are
+    /// one fewer than the count: four of them at level 96 and up, and below that the four
+    /// are the whole chain. Readiness still has the last word, so an unexpected count cannot
+    /// leave the chain stuck on an action the game will not take.
+    /// </para>
     /// </summary>
     private static ActionRef GenerationAction(RotationContext c)
     {
+        var generationsLeft = c.Vpr.AnguineTribute - (c.Has(A.Ouroboros) ? 1 : 0);
+
+        var wanted = generationsLeft switch
+        {
+            >= 4 => A.FirstGeneration,
+            3 => A.SecondGeneration,
+            2 => A.ThirdGeneration,
+            _ => A.FourthGeneration,
+        };
+
+        if (c.Ready(wanted))
+            return wanted;
+
         if (c.Ready(A.FirstGeneration))
             return A.FirstGeneration;
 

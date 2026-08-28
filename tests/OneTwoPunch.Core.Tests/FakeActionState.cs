@@ -41,6 +41,13 @@ public sealed class FakeActionState : IActionState
         return this;
     }
 
+    /// <summary>Takes back an <see cref="Unusable"/>, for a test about something changing.</summary>
+    public FakeActionState Usable(uint actionId)
+    {
+        _unusable.Remove(actionId);
+        return this;
+    }
+
     public bool IsUnlocked(uint actionId) => !_locked.Contains(actionId);
 
     public float CooldownRemaining(uint actionId) =>
