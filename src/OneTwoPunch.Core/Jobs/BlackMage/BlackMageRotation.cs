@@ -72,6 +72,24 @@ public sealed class BlackMageRotation : JobRotationBase
     private const uint ManafontMp = 2000;
 
     /// <summary>
+    /// Mana at which the AoE ice phase has done its job and Transpose can take the loop back
+    /// into Astral Fire.
+    /// <para>
+    /// Nothing like the single-target bar. Two Flares is two Flares whether you brought ten
+    /// thousand mana or three: the first consumes two thirds of what you have (the Umbral
+    /// Hearts pay the other third) and the second consumes the rest, and neither cast is
+    /// worth more for being fed more. So the ice phase is over the moment it has bought
+    /// three hearts and enough mana that the second Flare is a real cast, which is why the
+    /// chart's ice phase is two globals rather than a full refill.
+    /// </para>
+    /// <para>
+    /// Deliberately not a stack count. Umbral Ice entered by Transpose is one stack, and a
+    /// rung that cannot be climbed is how the ice phase got stuck at level 18.
+    /// </para>
+    /// </summary>
+    private const uint AoeIceExitMp = 6000;
+
+    /// <summary>
     /// The Balance's Standard "5+7" opener, Black Mage level 100, Dawntrail patch 7.2,
     /// transcribed step for step from their chart rather than reasoned out.
     /// <para>
@@ -370,6 +388,32 @@ public sealed class BlackMageRotation : JobRotationBase
         p.OGcd(A.LeyLines).When(c => !c.Downtime && !c.Moving);
         p.OGcd(A.Amplifier).When(c => c.Blm.PolyglotStacks < 2);
         p.OGcd(A.Manafont).When(c => c.Blm.InAstralFire && !c.Downtime && c.Mp <= ManafontMp);
+
+        // Transpose is the AoE loop's phase change, in both directions. The chart says so
+        // outright - "Transpose leveraged to skip both High Fire II and High Blizzard II" -
+        // and it is the one thing the AoE list had no idea about: it was changing phase with
+        // the two spells the chart exists to avoid.
+        //
+        // Both rules wait on the filler. The chart draws Foul or High Thunder II as the
+        // global before each Transpose, and the look-ahead already knows which global is
+        // next, so "hold the weave while a filler wants the window" is the whole of it. With
+        // no filler to cast it goes immediately, which is the chart's own advice about
+        // clipping the Transpose when the fillers have run dry.
+        p.OGcd(A.Transpose)
+            .When(c => AoeUsesTranspose(c)
+                       && c.Blm.InUmbralIce
+                       && c.Blm.UmbralHearts >= 3
+                       && c.Mp >= AoeIceExitMp
+                       && !AoeFillerWantsThisGlobal(c))
+            .Because("into Astral Fire for the Flares");
+
+        p.OGcd(A.Transpose)
+            .When(c => AoeUsesTranspose(c)
+                       && c.Blm.InAstralFire
+                       && AoeFireIsSpent(c)
+                       && !AoeFillerWantsThisGlobal(c))
+            .Because("back to Umbral Ice");
+
         p.Gcd(A.Foul)
             .When(c => StuckMoving(c) && c.Blm.PolyglotStacks > 0)
             .Because("instant, you are moving");
@@ -390,11 +434,23 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => c.Blm.PolyglotStacks >= PolyglotCap(c))
             .Because("Polyglot is about to overcap");
 
+        // ---- Astral Fire: two Flares and a Flare Star, and nothing else -----
+        // The fire phase used to be High Fire II filler with Flare as the last cast before
+        // ice, which is the single-target shape wearing AoE spells. The chart's fire phase
+        // is Flare, Flare, Flare Star: the first Flare spends the Umbral Hearts and two
+        // thirds of the bar, the second takes the rest, and three Astral Soul each puts
+        // Flare Star up. Readiness is the mana check - Flare needs eight hundred - so the
+        // phase ends by itself when the bar does.
         p.Gcd(A.FlareStar).When(c => c.Blm.AstralSoulStacks >= 6).Because("Astral Soul is full");
 
-        // "No High Fire II" is only the end of the phase once High Fire II exists. Below
-        // level 82 it is trivially true, and Flare - which empties the whole bar - became
-        // the first global of every fire phase instead of the last.
+        p.Gcd(A.Flare)
+            .When(c => AoeUsesTranspose(c) && c.Blm.InAstralFire)
+            .Because("the AoE fire phase is Flare");
+
+        // Below the chart's level the old shape is still the right one: no Astral Soul means
+        // no Flare Star to build towards, and no Umbral Heart discount until 68 means one
+        // Flare empties the bar however many hearts you brought. So there Flare is what it
+        // always was - the last cast of the phase, after the filler has spent the bar down.
         p.Gcd(A.Flare)
             .When(c => c.Blm.InAstralFire
                        && !c.Ready(A.HighFire2)
@@ -403,23 +459,33 @@ public sealed class BlackMageRotation : JobRotationBase
 
         p.Gcd(c => AoeFireSpell(c)).When(c => c.Blm.InAstralFire);
 
-        p.Gcd(A.Freeze).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
+        // ---- Umbral Ice: buy three hearts and leave ------------------------
+        // At three targets and up that is Freeze; at two the chart says Blizzard IV, which
+        // buys the same three hearts.
+        p.Gcd(c => AoeHeartSpell(c)).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
 
-        p.Gcd(c => AoeFireSpell(c))
-            .When(c => IceHasDoneItsJob(c))
-            .Because("back to Astral Fire");
-
-        // Foul is unaspected too, and the same global is the cheap one to spend it on.
+        // The filler, in whichever phase it lands. Foul is unaspected, so the global it is
+        // cast on costs it nothing - what matters is that it is the global before Transpose.
         p.Gcd(A.Foul)
-            .When(c => c.Blm.InUmbralIce && c.Blm.PolyglotStacks >= 2)
-            .Because("spend it where the phase is only marking time");
+            .When(c => c.Blm.PolyglotStacks >= 2)
+            .Because("the filler before Transpose");
+
+        // Below Flare's level there is no Transpose loop to run, so the old phase change by
+        // spell is still what happens.
+        p.Gcd(c => AoeFireSpell(c))
+            .When(c => !AoeUsesTranspose(c) && IceHasDoneItsJob(c))
+            .Because("back to Astral Fire");
 
         p.Gcd(c => AoeIceSpell(c))
             .When(c => c.Blm.InUmbralIce)
             .Because("waiting for the bar to fill");
 
+        // The chart's AoE loop opens in ice, because Flare wants the three Umbral Hearts
+        // Freeze buys - without them one Flare eats the whole bar and there is no second.
+        // Only where there is no Transpose loop to run does a full bar mean open in fire.
         p.Gcd(c => AoeFireSpell(c))
-            .When(c => !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
+            .When(c => !AoeUsesTranspose(c)
+                       && !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
             .Because("full mana, open in Astral Fire");
 
         p.Gcd(c => AoeIceSpell(c))
@@ -482,6 +548,47 @@ public sealed class BlackMageRotation : JobRotationBase
         c.Has(A.HighFire2) ? A.HighFire2
         : c.Has(A.Fire2) ? A.Fire2
         : A.Fire1;
+
+    /// <summary>
+    /// Whether the AoE loop changes phase with Transpose.
+    /// <para>
+    /// Keyed on Flare Star, because that is what makes the chart's loop a loop: Astral Soul
+    /// arrives with it at level 100, and without it there is nothing for two Flares to build
+    /// towards. Below that the fire and ice spells still do the switching themselves, which
+    /// is the rotation those levels actually have.
+    /// </para>
+    /// </summary>
+    private static bool AoeUsesTranspose(RotationContext c) =>
+        c.Has(A.FlareStar) && c.Has(A.Transpose);
+
+    /// <summary>
+    /// True when the fire phase has nothing left to do: no mana for another Flare, and not
+    /// enough Astral Soul for a Flare Star.
+    /// </summary>
+    private static bool AoeFireIsSpent(RotationContext c) =>
+        !c.Ready(A.Flare) && c.Blm.AstralSoulStacks < 6;
+
+    /// <summary>
+    /// True when the global about to be cast is one of the chart's fillers, so a Transpose
+    /// would take the phase away from underneath it.
+    /// </summary>
+    private static bool AoeFillerWantsThisGlobal(RotationContext c) =>
+        c.NextGcdIsAny(A.Foul, A.HighThunder2, A.Thunder4, A.Thunder2);
+
+    /// <summary>
+    /// What buys three Umbral Hearts. Freeze on a real pack; on two targets the chart says
+    /// Blizzard IV instead, which buys the same three.
+    /// </summary>
+    private static ActionRef AoeHeartSpell(RotationContext c)
+    {
+        if (c.Enemies >= 3 && c.Has(A.Freeze))
+            return A.Freeze;
+
+        if (c.Has(A.Blizzard4))
+            return A.Blizzard4;
+
+        return c.Has(A.Freeze) ? A.Freeze : AoeIceSpell(c);
+    }
 
     private static ActionRef AoeIceSpell(RotationContext c) =>
         c.Has(A.HighBlizzard2) ? A.HighBlizzard2
