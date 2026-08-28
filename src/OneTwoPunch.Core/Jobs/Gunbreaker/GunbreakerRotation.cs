@@ -76,6 +76,7 @@ public sealed class GunbreakerRotation : JobRotationBase
             .Because("spend a charge in burst");
 
         // ---- GCDs --------------------------------------------------------
+<<<<<<< HEAD
         // Both chains live in the same gauge step, and I had this wrong: the reasoning was
         // "the gauge carries a step for Gnashing Fang and none for Reign, so Reign must be
         // the ordinary combo". It is one field counting both. A recorded pull settled it -
@@ -90,6 +91,17 @@ public sealed class GunbreakerRotation : JobRotationBase
         p.Gcd(A.NobleBlood).When(c => c.Gnb.AmmoComboStep == 3 || c.ComboIs(A.ReignOfBeasts));
         p.Gcd(A.ReignOfBeasts).When(c => c.Buff(A.ReadyToReign)).Because("Ready to Reign");
 
+=======
+        // The Reign chain, deepest step first. This one really is the ordinary combo: the
+        // job gauge carries a step for the Gnashing Fang chain and none for this, which is
+        // the same tell that says to read Gnashing Fang off the gauge instead.
+        p.Gcd(A.LionHeart).When(c => c.ComboIs(A.NobleBlood));
+        p.Gcd(A.NobleBlood).When(c => c.ComboIs(A.ReignOfBeasts));
+        p.Gcd(A.ReignOfBeasts).When(c => c.Buff(A.ReadyToReign)).Because("Ready to Reign");
+
+        // The Gnashing Fang chain, read off the gauge step: 1 is Savage Claw, 2 is Wicked
+        // Talon. A gauge field rather than the combo, for the same reason.
+>>>>>>> origin/main
         p.Gcd(A.WickedTalon).When(c => c.Gnb.AmmoComboStep == 2);
         p.Gcd(A.SavageClaw).When(c => c.Gnb.AmmoComboStep == 1);
 
@@ -141,8 +153,13 @@ public sealed class GunbreakerRotation : JobRotationBase
         p.OGcd(c => ZoneAction(c)).When(c => !c.Downtime);
         p.OGcd(A.BowShock).When(c => !c.Downtime);
 
+<<<<<<< HEAD
         p.Gcd(A.LionHeart).When(c => c.Gnb.AmmoComboStep >= 4 || c.ComboIs(A.NobleBlood));
         p.Gcd(A.NobleBlood).When(c => c.Gnb.AmmoComboStep == 3 || c.ComboIs(A.ReignOfBeasts));
+=======
+        p.Gcd(A.LionHeart).When(c => c.ComboIs(A.NobleBlood));
+        p.Gcd(A.NobleBlood).When(c => c.ComboIs(A.ReignOfBeasts));
+>>>>>>> origin/main
         p.Gcd(A.ReignOfBeasts).When(c => c.Buff(A.ReadyToReign));
 
         p.Gcd(A.DoubleDown)
@@ -181,9 +198,13 @@ public sealed class GunbreakerRotation : JobRotationBase
     public override string DescribeGauge(CombatSnapshot snapshot)
     {
         var g = snapshot.Gauges.Gunbreaker;
+<<<<<<< HEAD
         // Not "gnashing step": the same field counts the Reign chain, and calling it after
         // one of the two chains is what made it look like the other had none.
         var chain = g.AmmoComboStep > 0 ? $", chain step {g.AmmoComboStep}" : string.Empty;
+=======
+        var chain = g.AmmoComboStep > 0 ? $", gnashing step {g.AmmoComboStep}" : string.Empty;
+>>>>>>> origin/main
 
         return $"cartridges {g.Ammo}{chain}";
     }
