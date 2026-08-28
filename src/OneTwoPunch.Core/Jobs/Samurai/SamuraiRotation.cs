@@ -144,14 +144,14 @@ public sealed class SamuraiRotation : JobRotationBase
             .Needs(PositionalHint.Flank);
 
         p.Gcd(A.Yukikaze)
-            .When(c => c.ComboIs(A.Hakaze) && ChooseBranch(c) == Branch.Ice);
+            .When(c => OnTheStarter(c) && ChooseBranch(c) == Branch.Ice);
 
         // Second step of the combo. Which branch depends on which buff is dropping and
         // which Sen is still missing - this is the decision the job is actually about.
-        p.Gcd(A.Jinpu).When(c => c.ComboIs(A.Hakaze) && ChooseBranch(c) == Branch.Moon);
-        p.Gcd(A.Shifu).When(c => c.ComboIs(A.Hakaze) && ChooseBranch(c) == Branch.Flower);
+        p.Gcd(A.Jinpu).When(c => OnTheStarter(c) && ChooseBranch(c) == Branch.Moon);
+        p.Gcd(A.Shifu).When(c => OnTheStarter(c) && ChooseBranch(c) == Branch.Flower);
 
-        p.Gcd(A.Hakaze);
+        p.Gcd(c => Starter(c));
 
         p.Gcd(A.Enpi)
             .When(c => !c.InRange)
@@ -193,6 +193,28 @@ public sealed class SamuraiRotation : JobRotationBase
 
         p.Gcd(c => c.Has(A.Fuko) ? A.Fuko : A.Fuga);
     }
+
+    /// <summary>
+    /// The first step of the combo, in the form the player has. Hakaze becomes Gyofu at
+    /// level 92 - a rename rather than a new button, the same way Fuga becomes Fuko.
+    /// <para>
+    /// Every rung here named Hakaze, including the unconditional one at the bottom of the
+    /// list, and at level 92 that is an action the player no longer has. So the fallback
+    /// could not match either, and a Samurai who finished a combo had nothing left in the
+    /// whole list that could answer - reported as the button working for a few globals and
+    /// then saying "nothing to suggest". Every other job in the plugin already spells this
+    /// out; this one was the omission.
+    /// </para>
+    /// </summary>
+    private static ActionRef Starter(RotationContext c) =>
+        c.Has(A.Gyofu) ? A.Gyofu : A.Hakaze;
+
+    /// <summary>
+    /// Whether the combo is sitting on that first step. Asked of both forms because which
+    /// one the game reports is the one that was actually cast.
+    /// </summary>
+    private static bool OnTheStarter(RotationContext c) =>
+        c.ComboIs(A.Hakaze) || c.ComboIs(A.Gyofu);
 
     private enum Branch
     {
