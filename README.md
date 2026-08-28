@@ -109,20 +109,27 @@ untouched — the plugin only ever answers for those two slots.
 
 ## Supported jobs
 
-All thirteen DPS jobs, single target and AoE:
+All thirteen DPS jobs and all four tanks, single target and AoE:
 
 | | |
 |---|---|
+| **Tanks** | Paladin, Warrior, Dark Knight, Gunbreaker |
 | **Melee** | Monk, Dragoon, Ninja, Samurai, Reaper, Viper |
 | **Physical ranged** | Bard, Machinist, Dancer |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer |
+
+The tanks are the damage rotation only. Mitigation - Sheltron, Rampart, Vengeance, Shadow
+Wall, Heart of Corundum, the invulnerabilities, every party cooldown - is deliberately not
+in any rule and never will be: when to press those is a judgement about the fight in front
+of you, and a button that guessed at it would be worse than no button at all. The ids are
+still declared, so the verifier checks them.
 
 Action and status tables are generated from the game's own data, and every id is verified
 again at startup.
 
 ### Jobs that need a third key
 
-Two buttons cover twelve of the thirteen. **Ninja** needs one more: a ninjutsu is two or
+Two buttons cover every job but one. **Ninja** needs one more: a ninjutsu is two or
 three mudra presses and then the cast, and folding that into a single icon that changes
 under your hand between presses would be worse than an extra key. The Mudra button walks
 the sequence and fires the result — Raiton on a single target, Katon on a group, and both

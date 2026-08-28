@@ -17,24 +17,44 @@ import pathlib
 import re
 import sys
 
-# ClassJob row ids for every DPS job, with where BossMod keeps its table.
+# ClassJob row ids for every job we drive, with where BossMod keeps its table.
 JOBS = [
+    ("Paladin",     19, "Tanks/PLD.cs",    "PLD"),
     ("Monk",        20, "Melee/MNK.cs",    "MNK"),
+    ("Warrior",     21, "Tanks/WAR.cs",    "WAR"),
     ("Dragoon",     22, "Melee/DRG.cs",    "DRG"),
     ("Bard",        23, "Ranged/BRD.cs",   "BRD"),
     ("BlackMage",   25, "Casters/BLM.cs",  "BLM"),
     ("Summoner",    27, "Casters/SMN.cs",  "SMN"),
     ("Ninja",       30, "Melee/NIN.cs",    "NIN"),
     ("Machinist",   31, "Ranged/MCH.cs",   "MCH"),
+    ("DarkKnight",  32, "Tanks/DRK.cs",    "DRK"),
     ("Samurai",     34, "Melee/SAM.cs",    "SAM"),
     ("RedMage",     35, "Casters/RDM.cs",  "RDM"),
+    ("Gunbreaker",  37, "Tanks/GNB.cs",    "GNB"),
     ("Dancer",      38, "Ranged/DNC.cs",   "DNC"),
     ("Reaper",      39, "Melee/RPR.cs",    "RPR"),
     ("Viper",       41, "Melee/VPR.cs",    "VPR"),
     ("Pictomancer", 42, "Casters/PCT.cs",  "PCT"),
 ]
 
-MELEE = {"Monk", "Dragoon", "Ninja", "Samurai", "Reaper", "Viper"}
+MELEE = {
+    "Paladin", "Warrior", "DarkKnight", "Gunbreaker",
+    "Monk", "Dragoon", "Ninja", "Samurai", "Reaper", "Viper",
+}
+
+# BossMod annotates almost everything, but a handful of entries carry no comment at all -
+# no level, no recast - and the fallbacks for those ("level 1" and "a weaponskill") are
+# both wrong for the three Paladin ones. Guardian, Imperator and Blade of Honor are all
+# abilities, and a global classed as an off-global is not cosmetic: the engine tries to
+# weave it and the weave counter increments where it should have reset.
+#
+# Overriding here rather than in the generated file keeps "do not edit by hand" true.
+OVERRIDES = {
+    ("Paladin", "Guardian"): (92, "OGcd"),
+    ("Paladin", "Imperator"): (96, "OGcd"),
+    ("Paladin", "BladeOfHonor"): (100, "OGcd"),
+}
 
 # The trailing comment is optional: BossMod annotates actions but usually not statuses,
 # and requiring it silently dropped most of several jobs' status tables.
@@ -42,7 +62,7 @@ ENTRY = re.compile(r"^\s*(\w+)\s*=\s*(\d+)\s*,(?:\s*//\s*(.*))?\s*$")
 SHARED = re.compile(r"^\s*(\w+)\s*=\s*ClassShared\.(?:AID|SID)\.(\w+)\s*,")
 LEVEL = re.compile(r"\bL(\d+)\b")
 ROMAN = {"1": "", "2": " II", "3": " III", "4": " IV", "5": " V"}
-CONNECTORS = {"of", "the", "and", "in", "to", "for", "from"}
+CONNECTORS = {"of", "the", "and", "in", "to", "for", "from", "or"}
 
 # Cooldown group 57 is the global cooldown. A weaponskill with its own cooldown - Drill,
 # Air Anchor, Chain Saw - is listed as "(group 4/57)" and still rolls the GCD, so matching
@@ -50,8 +70,12 @@ CONNECTORS = {"of", "the", "and", "in", "to", "for", "from"}
 # to weave them.
 GCD_MARKER = re.compile(r",\s*GCD\b|\bgroup\s+\d+/57\b|\bgroup\s+57\b")
 
-# An entry that names a cooldown is an off-global.
-HAS_COOLDOWN = re.compile(r"CD \(group")
+# An entry that names a cooldown is an off-global. Deliberately just the word: BossMod
+# writes the recast three different ways - "30.0s CD (group 4)", "1.0s CD, (group 0)" and
+# a bare "120.0s CD" - and matching only the first spelling classed Gunbreaker's Great
+# Nebula and Fated Brand as globals. "GCD" is not matched, because the word boundary needs
+# a non-word character before the C.
+HAS_COOLDOWN = re.compile(r"\bCD\b")
 
 
 def extract_enum(text, name):
@@ -264,6 +288,10 @@ def main():
 
     for job, job_id, rel, _abbrev in JOBS:
         actions, statuses = parse(root / rel, shared_actions, shared_statuses)
+        actions = [
+            (member, aid) + OVERRIDES.get((job, member), (level, kind))
+            for member, aid, level, kind in actions
+        ]
         actions = dedupe(actions, 0)
         statuses = dedupe(statuses, 0)
 

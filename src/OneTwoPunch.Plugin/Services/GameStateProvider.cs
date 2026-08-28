@@ -226,6 +226,39 @@ public sealed unsafe class GameStateProvider(
     {
         switch (job.JobId)
         {
+            case 19:
+            {
+                s.Gauges.Paladin.Oath = gauges.Get<PLDGauge>().OathGauge;
+                break;
+            }
+
+            case 21:
+            {
+                s.Gauges.Warrior.BeastGauge = gauges.Get<WARGauge>().BeastGauge;
+                break;
+            }
+
+            case 32:
+            {
+                var g = gauges.Get<DRKGauge>();
+                ref var t = ref s.Gauges.DarkKnight;
+                t.Blood = g.Blood;
+                t.DarksideTimeRemaining = g.DarksideTimeRemaining / 1000f;
+                t.ShadowTimeRemaining = g.ShadowTimeRemaining / 1000f;
+                t.HasDarkArts = g.HasDarkArts;
+                t.DeliriumStep = (byte)g.DeliriumComboStep;
+                break;
+            }
+
+            case 37:
+            {
+                var g = gauges.Get<GNBGauge>();
+                ref var t = ref s.Gauges.Gunbreaker;
+                t.Ammo = g.Ammo;
+                t.AmmoComboStep = g.AmmoComboStep;
+                break;
+            }
+
             case 20:
             {
                 var g = gauges.Get<MNKGauge>();
