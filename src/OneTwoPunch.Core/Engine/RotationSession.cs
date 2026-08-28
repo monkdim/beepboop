@@ -304,12 +304,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // apart. One is a list with no opinion, which is a rotation problem. The other is the
         // game refusing everything for a frame, which is not - and which a recorded pull
         // showed once in thirty-eight thousand asks, with the combo starter itself refused.
-        var note = modeNote
+        var fallbackNote = modeNote
             ?? (context.Ready(fallback)
                 ? "nothing to suggest"
                 : $"the game refused everything, {fallback.Name} included");
 
-        return new Suggestion(fallback, fallback, note);
+        return new Suggestion(fallback, fallback, fallbackNote);
     }
 
     /// <summary>
