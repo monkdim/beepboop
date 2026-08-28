@@ -107,7 +107,26 @@ public sealed class ConfigWindow(
 
         Toggle("AoE button falls back to single target", ref config.AoeFallsBackToSingleTarget,
             "When only one enemy is in range, the AoE button uses the single-target rotation "
-            + "instead of a weak AoE combo.");
+            + "instead of a weak AoE combo.\n\n"
+            + "Off by default, so the AoE button always shows the AoE rotation. That is what "
+            + "makes it testable: a striking dummy is one enemy, so with this on you could "
+            + "never see the AoE list at all without joining a party first.");
+
+        Toggle("Heal yourself when hurt", ref config.SuggestSelfHeal,
+            "Melee jobs only. Second Wind takes the first weave slot going once your health "
+            + "drops below the mark, ahead of the rotation. It is a two minute cooldown that "
+            + "spends most of a fight doing nothing, and spotting the moment to press it is "
+            + "the sort of attention this is meant to save you.");
+
+        if (config.SuggestSelfHeal)
+        {
+            var heal = config.SelfHealBelowHp * 100f;
+            if (ImGui.SliderFloat("Heal below", ref heal, 20f, 95f, "%.0f%% health"))
+            {
+                config.SelfHealBelowHp = heal / 100f;
+                config.Save();
+            }
+        }
 
         Toggle("Suggest True North for positionals", ref config.SuggestPositionalRescue,
             "Offers True North when the next hit wants a flank or rear position you are not "

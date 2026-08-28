@@ -78,6 +78,18 @@ public sealed class RotationContext
 
     public float TargetHp => _snapshot.TargetHpFraction;
 
+    /// <summary>Your own health, 0 to 1.</summary>
+    public float Hp => _snapshot.PlayerHpFraction;
+
+    /// <summary>
+    /// True when your health has dropped far enough that a self-heal is worth the weave.
+    /// <para>
+    /// The threshold and the switch both live in settings, so a job's rule reads as the one
+    /// thing it means - "you are hurt" - and there is a single place to change how hurt.
+    /// </para>
+    /// </summary>
+    public bool Hurt => Settings.SuggestSelfHeal && Hp <= Settings.SelfHealBelowHp;
+
     public RelativePosition Position => _snapshot.Position;
 
     /// <summary>
