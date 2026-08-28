@@ -135,11 +135,32 @@ public sealed class BlackMageLoopTests
     }
 
     /// <summary>
-    /// But a marker that cannot be spent is one that gets overwritten, so a bar that runs dry
-    /// early spends it rather than losing it.
+    /// But a marker that cannot be spent is one that gets overwritten, so a bar with nothing
+    /// left in it spends the Paradox rather than losing it.
+    /// <para>
+    /// Truly nothing left: Despair is the chart's own last global of the phase and outranks
+    /// this, so a bar that can still pay its 800 is not dry yet.
+    /// </para>
     /// </summary>
     [Fact]
-    public void ADryBarSpendsTheParadoxRatherThanLosingIt()
+    public void ABarWithNothingLeftSpendsTheParadoxRatherThanLosingIt()
+    {
+        var suggestion = Suggest(
+            Casting().Gauge(s =>
+            {
+                s.Gauges.BlackMage.AstralFire = 3;
+                s.Gauges.BlackMage.AstralSoulStacks = 1;
+                s.Gauges.BlackMage.ParadoxActive = true;
+                s.Mp = 0;
+            }),
+            new FakeActionState().Unusable(A.Fire4.Id).Unusable(A.Despair.Id));
+
+        Assert.Equal(A.Paradox.Id, suggestion);
+    }
+
+    /// <summary>And Despair keeps its place while the bar can still pay for it.</summary>
+    [Fact]
+    public void DespairStillComesBeforeAHeldParadox()
     {
         var suggestion = Suggest(
             Casting().Gauge(s =>
@@ -151,6 +172,6 @@ public sealed class BlackMageLoopTests
             }),
             new FakeActionState().Unusable(A.Fire4.Id));
 
-        Assert.Equal(A.Paradox.Id, suggestion);
+        Assert.Equal(A.Despair.Id, suggestion);
     }
 }
