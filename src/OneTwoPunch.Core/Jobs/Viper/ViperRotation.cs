@@ -97,12 +97,6 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(c => GenerationAction(c))
             .When(c => c.Vpr.AnguineTribute > 0);
 
-        p.Gcd(A.Reawaken)
-            .When(c => !c.Downtime
-                       && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady))
-                       && c.ComboBroken)
-            .Because("spend Serpent Offering");
-
         // Vicewinder's two coils, each with their own positional.
         p.Gcd(A.SwiftskinsCoil)
             .When(c => c.ComboIs(A.Vicewinder) && NeedsSwiftscaled(c))
@@ -120,9 +114,6 @@ public sealed class ViperRotation : JobRotationBase
             .When(c => c.ComboIs(A.SwiftskinsCoil))
             .Needs(PositionalHint.Flank);
 
-        p.Gcd(A.Vicewinder)
-            .When(c => c.ComboBroken && !c.Downtime);
-
         // Combo finishers. Each is named outright by the venom buff the previous step gave.
         p.Gcd(A.FlankstingStrike).When(c => c.Buff(A.FlankstungVenom)).Needs(PositionalHint.Flank);
         p.Gcd(A.FlanksbaneFang).When(c => c.Buff(A.FlanksbaneVenom)).Needs(PositionalHint.Flank);
@@ -138,6 +129,26 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(A.HuntersSting)
             .When(c => ComboStarted(c))
             .Because("refresh Hunter's Instinct");
+
+        // Reawaken and Vicewinder are not gated on the combo being broken any more, they are
+        // *placed* where the combo starter goes - below every finisher and both stings, above
+        // Steel Fangs and Reaving Fangs. The gate could not come true: a finisher leaves the
+        // combo live rather than clearing it, so in a working loop the combo is never broken
+        // and neither rule ever fired.
+        //
+        // That one condition took most of the job with it. No Vicewinder means no Hunter's
+        // Coil or Swiftskin's Coil, which are what Twinfang and Twinblood follow; no Reawaken
+        // means no Generation chain, no Ouroboros and no Serpent's Tail. A recorded pull is
+        // seventy seconds of Steel Fangs, a sting and a finisher on repeat, with Ready to
+        // Reawaken counting down from twenty-nine to nothing untouched.
+        //
+        // Placing them here cannot interrupt a combo, because anything mid-combo has already
+        // matched above.
+        p.Gcd(A.Reawaken)
+            .When(c => !c.Downtime && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady)))
+            .Because("spend Serpent Offering");
+
+        p.Gcd(A.Vicewinder).When(c => !c.Downtime);
 
         // Uncoiled Fury is ranged and instant, so it doubles as the movement option.
         p.Gcd(A.UncoiledFury)
@@ -164,17 +175,10 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(A.Ouroboros).When(c => c.Vpr.AnguineTribute == 1);
         p.Gcd(c => GenerationAction(c)).When(c => c.Vpr.AnguineTribute > 0);
 
-        p.Gcd(A.Reawaken)
-            .When(c => !c.Downtime
-                       && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady))
-                       && c.ComboBroken);
-
         p.Gcd(A.SwiftskinsDen).When(c => c.ComboIs(A.Vicepit) && NeedsSwiftscaled(c));
         p.Gcd(A.HuntersDen).When(c => c.ComboIs(A.Vicepit));
         p.Gcd(A.SwiftskinsDen).When(c => c.ComboIs(A.HuntersDen));
         p.Gcd(A.HuntersDen).When(c => c.ComboIs(A.SwiftskinsDen));
-
-        p.Gcd(A.Vicepit).When(c => c.ComboBroken && !c.Downtime);
 
         p.Gcd(A.JaggedMaw).When(c => c.Buff(A.GrimhuntersVenom));
         p.Gcd(A.BloodiedMaw).When(c => c.Buff(A.GrimskinsVenom));
@@ -183,6 +187,14 @@ public sealed class ViperRotation : JobRotationBase
             .When(c => (c.ComboIs(A.SteelMaw) || c.ComboIs(A.ReavingMaw)) && NeedsSwiftscaled(c));
 
         p.Gcd(A.HuntersBite).When(c => c.ComboIs(A.SteelMaw) || c.ComboIs(A.ReavingMaw));
+
+        // Placed where the combo starter goes, for the reason spelled out on the
+        // single-target list: gating these on a broken combo meant they never fired at all.
+        p.Gcd(A.Reawaken)
+            .When(c => !c.Downtime && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady)))
+            .Because("spend Serpent Offering");
+
+        p.Gcd(A.Vicepit).When(c => !c.Downtime);
 
         p.Gcd(A.UncoiledFury)
             .When(c => c.Vpr.RattlingCoils >= 3)
