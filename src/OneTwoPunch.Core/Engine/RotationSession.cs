@@ -40,6 +40,26 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     private string? _openerDecline;
 
+    /// <summary>
+    /// What the opener did on the pull that just ended, kept across the rearm that leaving
+    /// combat performs.
+    /// <para>
+    /// This is why the reason line never appeared. Leaving combat rewinds the opener for the
+    /// next pull - step back to zero, abort cleared, reason cleared - and recording is
+    /// stopped *after* the fight ends. So every recorded pull asked the opener what it had
+    /// done and was answered by a freshly rearmed one that had done nothing. Three logs in a
+    /// row printed no line at all, including a Dragoon pull whose opener plainly aborted on
+    /// the first global.
+    /// </para>
+    /// </summary>
+    public string? LastOpenerReport { get; private set; }
+
+    /// <summary>The report a recorded log should carry: the live one, or the last pull's.</summary>
+    public string? OpenerReportForLog => OpenerReport ?? LastOpenerReport;
+
+    /// <summary>How many times leaving combat rewound the opener during this session.</summary>
+    private int _openerRewinds;
+
     /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
     public string? OpenerReport
     {
@@ -107,6 +127,8 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _openerAborted = false;
         OpenerOutcome = null;
         _openerDecline = null;
+        LastOpenerReport = null;
+        _openerRewinds = 0;
         _held.Clear();
     }
 
@@ -554,9 +576,22 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // them a second time with the fight already running.
         if (!snapshot.InCombat)
         {
+            // Keep what it did before wiping it. A rewind mid-pull is also worth counting:
+            // combat dropping for a moment sends the step back to zero, and the guard against
+            // starting an opener late then ends it for good on the very next frame.
+            var report = OpenerReport;
+            if (report is not null)
+            {
+                _openerRewinds++;
+                LastOpenerReport = _openerRewinds > 1
+                    ? $"{report} (combat ended {_openerRewinds} times, rewinding it each time)"
+                    : report;
+            }
+
             _openerStep = 0;
             _openerAborted = false;
             OpenerOutcome = null;
+            _openerDecline = null;
         }
     }
 
