@@ -175,7 +175,11 @@ public sealed class BlackMageOpenerWalkTests
         Assert.Null(session.OpenerOutcome);
     }
 
-    /// <summary>But a step refused while standing there idle really is a divergence.</summary>
+    /// <summary>
+    /// But a step refused while standing there idle really is a divergence - once it has had
+    /// its moment to become usable. The first frame is not enough: that is the frame right
+    /// after the step before it went off, when the game has not caught up yet.
+    /// </summary>
     [Fact]
     public void AStepRefusedWhileNotCastingStillEndsIt()
     {
@@ -187,10 +191,41 @@ public sealed class BlackMageOpenerWalkTests
         foreach (var step in opener.Steps)
             actions.Unusable(step.Id);
 
-        session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).At(0d).Build(), actions);
+        Assert.True(session.OpenerActive, "one refused frame is not a divergence");
+
+        // Given time, it steps over the one global it is allowed to step over, and then
+        // gives up on the next one that is still refused.
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).At(2d).Build(), actions);
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).At(4d).Build(), actions);
 
         Assert.False(session.OpenerActive);
         Assert.NotNull(session.OpenerOutcome);
+    }
+
+    /// <summary>
+    /// And a step that is refused for a moment and then usable keeps the opener. This is the
+    /// frame after the global before it: the action is away, and whatever it grants - a combo
+    /// step, a gauge, a buff - has not landed. Two recorded Viper pulls died here, on the
+    /// Hunter's Coil that follows Vicewinder.
+    /// </summary>
+    [Fact]
+    public void AStepThatIsRefusedForOneFrameAndThenUsableKeepsTheOpener()
+    {
+        var job = JobRegistry.Create(25)!;
+        var opener = job.Opener!;
+        var session = new RotationSession(job, new RotationSettings { SuggestionHoldSeconds = 0f });
+
+        var actions = new FakeActionState();
+        actions.Unusable(opener.Steps[0].Id);
+
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).At(0d).Build(), actions);
+
+        actions.Usable(opener.Steps[0].Id);
+        var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(0f).At(0.2d).Build(), actions);
+
+        Assert.True(session.OpenerActive, $"the opener gave up: {session.OpenerOutcome}");
+        Assert.Equal(opener.Steps[0].Id, suggestion.Action.Id);
     }
 
     /// <summary>Walks the first two globals, leaving the opener on its Swiftcast step.</summary>

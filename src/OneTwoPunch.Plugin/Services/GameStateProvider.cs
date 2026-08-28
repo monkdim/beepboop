@@ -394,6 +394,8 @@ public sealed unsafe class GameStateProvider(
                 t.RattlingCoils = g.RattlingCoilStacks;
                 t.SerpentOffering = g.SerpentOffering;
                 t.AnguineTribute = g.AnguineTribute;
+                t.DreadCombo = (DreadCombo)(byte)g.DreadCombo;
+                t.SerpentCombo = (SerpentCombo)(byte)g.SerpentCombo;
                 break;
             }
 

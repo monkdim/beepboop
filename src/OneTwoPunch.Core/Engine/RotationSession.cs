@@ -72,6 +72,36 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     private bool _openerSteppedOverAGlobal;
 
+    /// <summary>
+    /// The step the settle clock below is running for, and when it started. -1 when no step
+    /// has been looked at yet.
+    /// </summary>
+    private int _openerSettlingStep = -1;
+    private double _openerStepSince;
+
+    /// <summary>
+    /// How long a step is given to become usable before it is judged at all.
+    /// <para>
+    /// The opener asks the game about the next step on every frame, including the frames
+    /// immediately after the step before it went off - and for a moment the game has not
+    /// caught up: the action is away, the combo, gauge or buff it grants has not landed
+    /// yet, and everything that depends on it answers no. Judged on that frame the world
+    /// has diverged from the script, when all that has happened is a round trip.
+    /// </para>
+    /// <para>
+    /// Two recorded Viper pulls are the whole story. The chart's fifth global is Vicewinder
+    /// and its sixth is Hunter's Coil, which is only usable once Vicewinder's chain shows in
+    /// the gauge. Both pulls asked about Hunter's Coil on the frame after Vicewinder, got
+    /// no, stepped over it, and then gave up on the Twinfang Bite behind it - twenty-one
+    /// scripted steps thrown away for one frame of latency.
+    /// </para>
+    /// <para>
+    /// Waiting costs nothing: the opener answers nothing during the settle, so the priority
+    /// list drives, which is exactly what it would have done had the opener given up.
+    /// </para>
+    /// </summary>
+    private const float StepSettleSeconds = 0.75f;
+
     /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
     public string? OpenerReport
     {
@@ -142,6 +172,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         LastOpenerReport = null;
         _openerRewinds = 0;
         _openerSteppedOverAGlobal = false;
+        _openerSettlingStep = -1;
         _held.Clear();
     }
 
@@ -403,6 +434,17 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         {
             var candidate = opener.Steps[_openerStep];
 
+            // Start the settle clock the first time this step is looked at. A cooldown
+            // reading is immediate and honest, so the weave skip below does not wait on it;
+            // everything that asks "is this usable" does.
+            if (_openerSettlingStep != _openerStep)
+            {
+                _openerSettlingStep = _openerStep;
+                _openerStepSince = context.Snapshot.Now;
+            }
+
+            var settled = context.Snapshot.Now - _openerStepSince >= StepSettleSeconds;
+
             // A weave whose own cooldown is still turning is not the world diverging.
             if (candidate.Kind == ActionKind.OGcd
                 && !context.Ready(candidate)
@@ -418,6 +460,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             // once the fight is running and nothing is in flight - anything more and the
             // priority list is the better answer.
             if (candidate.Kind == ActionKind.Gcd
+                && settled
                 && !_openerSteppedOverAGlobal
                 && context.InCombat
                 && !context.Casting
@@ -474,6 +517,13 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             if (context.Casting)
             {
                 _openerDecline = "a cast is in flight, so the game refuses everything";
+                return null;
+            }
+
+            // Nor is a step the game has not caught up to yet - see StepSettleSeconds.
+            if (context.Snapshot.Now - _openerStepSince < StepSettleSeconds)
+            {
+                _openerDecline = "the step before it has only just gone off";
                 return null;
             }
 
@@ -637,6 +687,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             OpenerOutcome = null;
             _openerDecline = null;
             _openerSteppedOverAGlobal = false;
+            _openerSettlingStep = -1;
         }
     }
 

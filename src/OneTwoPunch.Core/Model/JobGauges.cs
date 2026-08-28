@@ -120,6 +120,48 @@ public struct ViperGauge
 
     /// <summary>Anguine Tribute, 0-5. The Reawaken combo counter.</summary>
     public byte AnguineTribute;
+
+    /// <summary>
+    /// Where the Vicewinder chain has got to. This lives in the gauge rather than in the
+    /// ordinary combo state, which is the whole reason the coils were never suggested: the
+    /// rules asked whether the live combo action was Vicewinder and it never was, because
+    /// Vicewinder does not touch the combo at all. It leaves Steel Fangs' combo running
+    /// underneath - which is also why the combo was never "broken" the way three other
+    /// rules used to ask for.
+    /// </summary>
+    public DreadCombo DreadCombo;
+
+    /// <summary>
+    /// Which follow-up Serpent's Tail is currently offering, straight from the gauge. The
+    /// rules used to offer Serpent's Tail's own id and let the game adjust it, the way the
+    /// hotbar does - but the game will not accept that id, so Death Rattle and all four
+    /// Legacies were never once suggested in a recorded pull.
+    /// </summary>
+    public SerpentCombo SerpentCombo;
+}
+
+/// <summary>The last weaponskill in the Vicewinder / Vicepit chain. Values are the game's.</summary>
+public enum DreadCombo : byte
+{
+    None = 0,
+    Vicewinder = 1,
+    HuntersCoil = 2,
+    SwiftskinsCoil = 3,
+    Vicepit = 4,
+    HuntersDen = 5,
+    SwiftskinsDen = 6,
+}
+
+/// <summary>What Serpent's Tail is currently offering. Values are the game's.</summary>
+public enum SerpentCombo : byte
+{
+    None = 0,
+    DeathRattle = 1,
+    LastLash = 2,
+    FirstLegacy = 3,
+    SecondLegacy = 4,
+    ThirdLegacy = 5,
+    FourthLegacy = 6,
 }
 
 // ---- Physical ranged -----------------------------------------------------
