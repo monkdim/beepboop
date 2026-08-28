@@ -23,6 +23,13 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
     private int _openerStep;
     private bool _openerAborted;
+
+    /// <summary>
+    /// Why the opener stopped driving, or null while it still is. The opener giving up was
+    /// silent, and a recorded pull that stops being driven at step seven looks exactly like
+    /// one that ran to the end - so two logs told us it happened and neither could say why.
+    /// </summary>
+    public string? OpenerOutcome { get; private set; }
     private bool _wasInCombat;
 
     /// <summary>
@@ -70,6 +77,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _lastGcdRemaining = 0f;
         _openerStep = 0;
         _openerAborted = false;
+        OpenerOutcome = null;
         _held.Clear();
     }
 
@@ -306,7 +314,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // fight in progress, must not rewind the button to step one.
         if (context.InCombat && _openerStep == 0 && context.CombatDuration > settings.OpenerGraceSeconds)
         {
-            _openerAborted = true;
+            Abort($"the fight was already {context.CombatDuration:0.0}s old at the first step");
             return null;
         }
 
@@ -359,7 +367,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             if (!context.InCombat)
                 return null;
 
-            _openerAborted = true;
+            Abort($"step {_openerStep + 1} ({step.Name}) was not usable");
             return null;
         }
 
@@ -440,7 +448,8 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
         if (_wasInCombat)
         {
-            _openerAborted = true;
+            Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
+                  + $"but {NameOf(actionId)} was used");
         }
         else
         {
@@ -449,6 +458,28 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             // walk again instead.
             _openerStep = 0;
         }
+    }
+
+    /// <summary>
+    /// The job's own name for an action id. The abort reason is read by a person out of a
+    /// recorded log, and "action 154 was used" makes them go and look up 154.
+    /// </summary>
+    private string NameOf(uint actionId)
+    {
+        var all = job.AllActions;
+        for (var i = 0; i < all.Count; i++)
+        {
+            if (all[i].Id == actionId)
+                return all[i].Name;
+        }
+
+        return $"action {actionId}";
+    }
+
+    private void Abort(string why)
+    {
+        _openerAborted = true;
+        OpenerOutcome = why;
     }
 
     private void TrackGcdWindow(CombatSnapshot snapshot)
@@ -477,6 +508,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         {
             _openerStep = 0;
             _openerAborted = false;
+            OpenerOutcome = null;
         }
     }
 
