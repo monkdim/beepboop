@@ -74,7 +74,6 @@ public struct GunbreakerGauge
     public byte Ammo;
 
     /// <summary>
-<<<<<<< HEAD
     /// Where the chains have got to: 0 not started, 1 Savage Claw, 2 Wicked Talon, 3 Noble
     /// Blood, 4 Lion Heart.
     /// <para>
@@ -82,11 +81,6 @@ public struct GunbreakerGauge
     /// reading Reign of Beasts' follow-ups from the ordinary combo instead lost both of them
     /// in every burst of a recorded pull, with the gauge sitting on step 3 the whole time.
     /// </para>
-=======
-    /// Where the Gnashing Fang chain has got to: 0 not started, 1 Savage Claw, 2 Wicked
-    /// Talon. In the gauge, not the combo - Viper's coils are the same shape and asking the
-    /// combo about them meant they were never suggested at all.
->>>>>>> origin/main
     /// </summary>
     public byte AmmoComboStep;
 }
