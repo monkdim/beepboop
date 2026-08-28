@@ -92,7 +92,7 @@ and it lets the engine offer True North when you are standing in the wrong place
 
 ### Extra buttons
 
-Two buttons cover twelve of the thirteen DPS jobs. If a job has a mechanic that is
+Two buttons cover every supported job but one. If a job has a mechanic that is
 genuinely several presses per cast, it may declare a third or fourth:
 
 ```csharp

@@ -11,6 +11,10 @@ namespace OneTwoPunch.Core.Model;
 /// </summary>
 public sealed class JobGauges
 {
+    public PaladinGauge Paladin;
+    public WarriorGauge Warrior;
+    public DarkKnightGauge DarkKnight;
+    public GunbreakerGauge Gunbreaker;
     public MonkGauge Monk;
     public DragoonGauge Dragoon;
     public BardGauge Bard;
@@ -24,6 +28,57 @@ public sealed class JobGauges
     public ReaperGauge Reaper;
     public ViperGauge Viper;
     public PictomancerGauge Pictomancer;
+}
+
+// ---- Tanks ---------------------------------------------------------------
+
+public struct PaladinGauge
+{
+    /// <summary>Oath, 0-100. Mitigation only - the rotation never spends it.</summary>
+    public byte Oath;
+}
+
+public struct WarriorGauge
+{
+    /// <summary>Beast Gauge, 0-100. Fifty a swing into Fell Cleave or Decimate.</summary>
+    public byte BeastGauge;
+}
+
+public struct DarkKnightGauge
+{
+    /// <summary>Blood, 0-100. Fifty a swing into Bloodspiller or Quietus.</summary>
+    public byte Blood;
+
+    /// <summary>
+    /// Seconds of Darkside left. Every Edge and Flood extends it, and letting it drop is
+    /// the single biggest loss available to the job.
+    /// </summary>
+    public float DarksideTimeRemaining;
+
+    /// <summary>Seconds the Living Shadow is still out for.</summary>
+    public float ShadowTimeRemaining;
+
+    /// <summary>A free Edge or Flood is banked.</summary>
+    public bool HasDarkArts;
+
+    /// <summary>
+    /// Where the Delirium chain has got to: 0 Scarlet Delirium, 1 Comeuppance, 2 Torcleaver.
+    /// A gauge field rather than the combo, which is the Viper lesson written down.
+    /// </summary>
+    public byte DeliriumStep;
+}
+
+public struct GunbreakerGauge
+{
+    /// <summary>Cartridges loaded. Two below level 88, three from 88.</summary>
+    public byte Ammo;
+
+    /// <summary>
+    /// Where the Gnashing Fang chain has got to: 0 not started, 1 Savage Claw, 2 Wicked
+    /// Talon. In the gauge, not the combo - Viper's coils are the same shape and asking the
+    /// combo about them meant they were never suggested at all.
+    /// </summary>
+    public byte AmmoComboStep;
 }
 
 // ---- Melee ---------------------------------------------------------------

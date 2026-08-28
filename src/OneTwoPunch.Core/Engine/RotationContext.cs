@@ -130,6 +130,14 @@ public sealed class RotationContext
 
     // ---- Gauges ----------------------------------------------------------
 
+    public ref PaladinGauge Pld => ref _snapshot.Gauges.Paladin;
+
+    public ref WarriorGauge War => ref _snapshot.Gauges.Warrior;
+
+    public ref DarkKnightGauge Drk => ref _snapshot.Gauges.DarkKnight;
+
+    public ref GunbreakerGauge Gnb => ref _snapshot.Gauges.Gunbreaker;
+
     public ref MonkGauge Mnk => ref _snapshot.Gauges.Monk;
 
     public ref DragoonGauge Drg => ref _snapshot.Gauges.Dragoon;
