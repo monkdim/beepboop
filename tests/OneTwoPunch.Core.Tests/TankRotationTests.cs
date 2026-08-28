@@ -263,11 +263,19 @@ public sealed class TankRotationTests
         Assert.Equal(expected, suggestion);
     }
 
-    /// <summary>The Gnashing Fang chain comes off the gauge step, not the combo.</summary>
+    /// <summary>
+    /// Both chains come off the same gauge step, not the combo. Reign of Beasts' two
+    /// follow-ups were read from the combo at first and were never once suggested: a
+    /// recorded pull has Reign of Beasts landing three times, the gauge reading step 3 for
+    /// ten seconds after each, and neither Noble Blood nor Lion Heart in two and a half
+    /// minutes.
+    /// </summary>
     [Theory]
     [InlineData(1, 16147u)] // Savage Claw
     [InlineData(2, 16150u)] // Wicked Talon
-    public void GunbreakerWalksGnashingFangByTheGauge(byte step, uint expected)
+    [InlineData(3, 36938u)] // Noble Blood
+    [InlineData(4, 36939u)] // Lion Heart
+    public void GunbreakerWalksBothChainsByTheGauge(byte step, uint expected)
     {
         var suggestion = Suggest(
             37,
