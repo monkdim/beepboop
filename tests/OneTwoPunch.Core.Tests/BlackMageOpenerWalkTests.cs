@@ -150,6 +150,49 @@ public sealed class BlackMageOpenerWalkTests
         Assert.Contains("Blizzard III", session.OpenerReportForLog);
     }
 
+    /// <summary>
+    /// The cause, named by two recorded pulls: "step 8 (Fire IV) was not usable" and "step 1
+    /// (Fire III) was not usable". The game refuses every action while a cast is in flight,
+    /// so asking whether the next step is usable during the cast of the step before it comes
+    /// back no - and that was read as the player having gone off script. Both pulls died on
+    /// the first hard cast the opener asked for and got.
+    /// </summary>
+    [Fact]
+    public void ACastInFlightIsNotGoingOffScript()
+    {
+        var job = JobRegistry.Create(25)!;
+        var opener = job.Opener!;
+        var session = new RotationSession(job, new RotationSettings { SuggestionHoldSeconds = 0f });
+
+        // Everything the opener wants is refused, which is what the game says mid-cast.
+        var actions = new FakeActionState();
+        foreach (var step in opener.Steps)
+            actions.Unusable(step.Id);
+
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).Casting().Build(), actions);
+
+        Assert.True(session.OpenerActive, $"the opener gave up mid-cast: {session.OpenerOutcome}");
+        Assert.Null(session.OpenerOutcome);
+    }
+
+    /// <summary>But a step refused while standing there idle really is a divergence.</summary>
+    [Fact]
+    public void AStepRefusedWhileNotCastingStillEndsIt()
+    {
+        var job = JobRegistry.Create(25)!;
+        var opener = job.Opener!;
+        var session = new RotationSession(job, new RotationSettings { SuggestionHoldSeconds = 0f });
+
+        var actions = new FakeActionState();
+        foreach (var step in opener.Steps)
+            actions.Unusable(step.Id);
+
+        session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+
+        Assert.False(session.OpenerActive);
+        Assert.NotNull(session.OpenerOutcome);
+    }
+
     /// <summary>Walks the first two globals, leaving the opener on its Swiftcast step.</summary>
     private static (RotationSession Session, Opener Opener, FakeActionState Actions) WalkedToTheSwiftcastStep()
     {

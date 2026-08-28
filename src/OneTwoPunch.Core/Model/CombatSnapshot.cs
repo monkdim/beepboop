@@ -75,6 +75,16 @@ public sealed class CombatSnapshot
 
     public bool InCombat { get; set; }
 
+    /// <summary>
+    /// Whether a cast is in flight right now.
+    /// <para>
+    /// The game refuses every action while one is, which the opener was reading as the
+    /// player having gone off script - so it gave up on the first hard cast it asked for
+    /// and got. You cannot diverge from a script by doing exactly what it told you.
+    /// </para>
+    /// </summary>
+    public bool IsCasting { get; set; }
+
     /// <summary>Seconds the player has been in combat. Drives opener tracking.</summary>
     public float CombatDuration { get; set; }
 

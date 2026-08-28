@@ -433,6 +433,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 return null;
             }
 
+            // Nor is a cast in flight. This is the one that was actually happening: the game
+            // refuses every action while you are casting, and asking "is the next step
+            // usable" during the cast of the step before it comes back no. Two recorded
+            // pulls name it outright - "step 8 (Fire IV) was not usable" and "step 1 (Fire
+            // III) was not usable" - and both died on the first hard cast the opener asked
+            // for and got. You cannot go off script by doing exactly what the script said.
+            if (context.Casting)
+            {
+                _openerDecline = "a cast is in flight, so the game refuses everything";
+                return null;
+            }
+
             Abort($"step {_openerStep + 1} ({step.Name}) was not usable");
             return null;
         }
