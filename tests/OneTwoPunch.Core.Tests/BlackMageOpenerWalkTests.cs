@@ -100,7 +100,9 @@ public sealed class BlackMageOpenerWalkTests
         var nextGlobal = opener.Steps[4];
         session.NotifyActionUsed(nextGlobal.Id);
 
-        var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+        // In a weave window, because the step the opener lands on next is itself a weave -
+        // asking on an open global would only show it waiting again.
+        var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(2.0f).Build(), actions);
 
         Assert.True(session.OpenerActive, $"the opener gave up: {session.OpenerOutcome}");
         Assert.Equal(opener.Steps[5].Id, suggestion.Action.Id);
