@@ -134,9 +134,11 @@ public sealed class SessionRecorder
         _lines.Add($"  ({ours} further asks came from the plugin's own work, not the game.)");
 
         // The opener giving up used to be silent, and a pull that stopped being driven at
-        // step seven read exactly like one that ran to the end.
+        // step seven read exactly like one that ran to the end. Giving up is only one of the
+        // ways it stops, though - the first pass recorded only that, and the pull that
+        // prompted it turned out not to be giving up at all.
         if (openerOutcome is not null)
-            _lines.Add($"  the opener stopped driving: {openerOutcome}");
+            _lines.Add($"  the opener: {openerOutcome}");
 
         var directory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");

@@ -30,6 +30,34 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// one that ran to the end - so two logs told us it happened and neither could say why.
     /// </summary>
     public string? OpenerOutcome { get; private set; }
+
+    /// <summary>
+    /// Why the opener declined to answer on the last frame it was asked. Aborting is only
+    /// one of the ways it can stop driving, and it turned out not to be the one that
+    /// happens: a recorded pull stopped at step seven with no abort recorded at all, which
+    /// means the opener was returning nothing for one of the quiet reasons below and doing
+    /// it every frame after. Constant strings, because this is set inside the frame loop.
+    /// </summary>
+    private string? _openerDecline;
+
+    /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
+    public string? OpenerReport
+    {
+        get
+        {
+            if (job.Opener is null || _openerStep == 0 && _openerDecline is null && OpenerOutcome is null)
+                return null;
+
+            var where = $"step {_openerStep + 1} of {job.Opener.Steps.Count}";
+
+            if (OpenerOutcome is not null)
+                return $"{where}, gave up: {OpenerOutcome}";
+
+            return _openerDecline is null
+                ? $"{where}, still driving"
+                : $"{where}, held there: {_openerDecline}";
+        }
+    }
     private bool _wasInCombat;
 
     /// <summary>
@@ -78,6 +106,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _openerStep = 0;
         _openerAborted = false;
         OpenerOutcome = null;
+        _openerDecline = null;
         _held.Clear();
     }
 
@@ -305,10 +334,16 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return null;
 
         if (context.Level < opener.MinimumLevel)
+        {
+            _openerDecline = "the level is below the one the opener is written for";
             return null;
+        }
 
         if (_openerStep >= opener.Steps.Count)
+        {
+            _openerDecline = "the sequence ran to its end";
             return null;
+        }
 
         // Only ever start an opener at the start of a fight. Loading mid-pull, or joining a
         // fight in progress, must not rewind the button to step one.
@@ -344,7 +379,10 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         }
 
         if (_openerStep >= opener.Steps.Count)
+        {
+            _openerDecline = "the sequence ran to its end";
             return null;
+        }
 
         var step = opener.Steps[_openerStep];
 
@@ -360,20 +398,30 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         {
             // An off-global that simply does not fit this window is not a divergence; wait.
             if (step.Kind == ActionKind.OGcd && !canWeave)
+            {
+                _openerDecline = "the next step is an off-global and no weave slot is open";
                 return null;
+            }
 
             // Nor is anything before the pull: there is no target, no gauge and no buff to
             // diverge from yet. Wait for the fight rather than burning the opener.
             if (!context.InCombat)
+            {
+                _openerDecline = "the next step is not usable and the fight has not started";
                 return null;
+            }
 
             Abort($"step {_openerStep + 1} ({step.Name}) was not usable");
             return null;
         }
 
         if (step.Kind == ActionKind.OGcd && !canWeave)
+        {
+            _openerDecline = "the next step is an off-global and no weave slot is open";
             return null;
+        }
 
+        _openerDecline = null;
         return step;
     }
 

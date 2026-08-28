@@ -342,7 +342,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerOutcome);
+            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerReport);
 
             if (path is null)
             {
@@ -401,7 +401,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerOutcome);
+            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerReport);
             if (path is not null)
                 Chat.Print($"[One Two Punch] Recording written to {path}");
         }
@@ -660,6 +660,12 @@ public sealed class Plugin : IDalamudPlugin
         var gauge = _job?.DescribeGauge(s);
         if (!string.IsNullOrEmpty(gauge))
             text.Append(" | ").Append(gauge);
+
+        // Whether the plugin thinks the fight has started. The opener waits for the pull
+        // rather than burning itself before it, so a log that cannot say this cannot say
+        // why the opener was holding.
+        if (!s.InCombat)
+            text.Append(" | out of combat");
 
         if (s.InDowntime)
             text.Append(" | downtime");
