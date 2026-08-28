@@ -65,6 +65,13 @@ public sealed class SnapshotBuilder
         return this;
     }
 
+    /// <summary>A cast in flight. The game refuses every action while one is.</summary>
+    public SnapshotBuilder Casting(bool casting = true)
+    {
+        _snapshot.IsCasting = casting;
+        return this;
+    }
+
     public SnapshotBuilder NoCombo()
     {
         _snapshot.LastComboAction = 0;

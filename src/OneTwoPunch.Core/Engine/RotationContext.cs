@@ -45,6 +45,9 @@ public sealed class RotationContext
 
     public bool Moving => _snapshot.IsMoving;
 
+    /// <summary>True while a cast is in flight. The game refuses every action during one.</summary>
+    public bool Casting => _snapshot.IsCasting;
+
     /// <summary>Seconds of continuous movement so far. Zero when standing still.</summary>
     public float MovingFor => _snapshot.MovingFor;
 
