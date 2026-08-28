@@ -61,6 +61,15 @@ public sealed class Plugin : IDalamudPlugin
     private IJobRotation? _job;
     private RotationSession? _session;
     private uint _currentJobId;
+
+    /// <summary>
+    /// Every id that is one of our buttons, including the upgraded form the player's hotbar
+    /// actually carries. Rebuilt on a job switch and on a level change, which is the only
+    /// time it can change.
+    /// </summary>
+    private readonly Dictionary<uint, RotationMode> _buttonForms = [];
+
+    private byte _buttonFormsLevel;
     private double _now;
 
     /// <summary>
@@ -267,6 +276,15 @@ public sealed class Plugin : IDalamudPlugin
         {
             _currentJobId = jobId;
             SwitchJob(jobId);
+        }
+
+        // The upgraded form of a button changes exactly twice in a job's life - when the
+        // upgrade is learned, and when a level sync takes it away again - so this asks the
+        // game only when the level moves rather than every frame.
+        if (player.Level != _buttonFormsLevel || _buttonForms.Count == 0)
+        {
+            _buttonFormsLevel = player.Level;
+            RefreshButtonForms();
         }
 
         // Work out both buttons every frame, whether or not the game has asked.
@@ -563,6 +581,7 @@ public sealed class Plugin : IDalamudPlugin
         _session = new RotationSession(rotation, _config.ToRotationSettings());
         _session.RefreshActionIds();
         _useWatcher.Track(rotation);
+        RefreshButtonForms();
     }
 
     private void OnActionUsed(uint actionId)
@@ -686,19 +705,46 @@ public sealed class Plugin : IDalamudPlugin
         if (!_config.Enabled || _job is null || _session is null)
             return null;
 
-        if (actionId == _job.SingleTargetButton.Id)
-            return RotationMode.SingleTarget;
+        return _buttonForms.TryGetValue(actionId, out var mode) ? mode : null;
+    }
 
-        if (actionId == _job.AoeButton.Id)
-            return RotationMode.Aoe;
+    /// <summary>
+    /// Works out every id that counts as one of our buttons: the action the rotation names,
+    /// and the upgraded form the player's hotbar carries once they have learned it.
+    /// <para>
+    /// Comparing against the named id alone made the plugin look completely dead on half
+    /// the roster. A Machinist's button is Split Shot, but from level 54 the slot carries
+    /// Heated Split Shot and that is the id the game asks about - so nothing matched,
+    /// nothing was replaced, and every press produced the plain first combo hit. Red Mage
+    /// (Jolt), Bard (Heavy Shot), Monk (Bootshine), Samurai (Hakaze) and Summoner (Ruin)
+    /// are all the same shape; the jobs that worked are the ones whose starter never
+    /// upgrades.
+    /// </para>
+    /// </summary>
+    private void RefreshButtonForms()
+    {
+        _buttonForms.Clear();
+
+        if (_job is null)
+            return;
+
+        Remember(_job.SingleTargetButton.Id, RotationMode.SingleTarget);
+        Remember(_job.AoeButton.Id, RotationMode.Aoe);
 
         for (var i = 0; i < _job.ExtraButtons.Count; i++)
-        {
-            if (actionId == _job.ExtraButtons[i].Host.Id)
-                return i == 0 ? RotationMode.Extra1 : RotationMode.Extra2;
-        }
+            Remember(_job.ExtraButtons[i].Host.Id, i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
 
-        return null;
+        void Remember(uint id, RotationMode mode)
+        {
+            if (id == 0)
+                return;
+
+            _buttonForms[id] = mode;
+
+            var upgraded = _replacer.CurrentFormOf(id);
+            if (upgraded != 0 && upgraded != id)
+                _buttonForms[upgraded] = mode;
+        }
     }
 
     private Suggestion? Resolve(RotationMode mode)

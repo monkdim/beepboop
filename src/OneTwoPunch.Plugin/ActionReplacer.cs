@@ -216,6 +216,39 @@ public sealed unsafe class ActionReplacer : IDisposable
         public void Dispose() => _inOwnWork = _previous;
     }
 
+    /// <summary>
+    /// The form the game currently gives an action - the upgrade the player has learned.
+    /// <para>
+    /// Every combo starter that upgrades made the plugin look completely dead on that job.
+    /// Machinist's button is Split Shot, but from level 54 the hotbar slot carries Heated
+    /// Split Shot, and the id the game asks about is the one on the slot. The button was
+    /// never recognised, so it was never replaced - and Red Mage, Bard, Monk, Samurai and
+    /// Summoner all have the same shape.
+    /// </para>
+    /// <para>
+    /// Asked of the game rather than written down here, because a table of upgrades is a
+    /// table that goes stale on a patch. This is the same call the answer already goes back
+    /// through, and it is called a handful of times per level rather than per frame.
+    /// </para>
+    /// </summary>
+    public uint CurrentFormOf(uint actionId)
+    {
+        var hook = _hook;
+        if (hook is null || !hook.IsEnabled)
+            return actionId;
+
+        try
+        {
+            var manager = ActionManager.Instance();
+            return manager is null ? actionId : hook.Original(manager, actionId);
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "One Two Punch: could not resolve the current form of action {Id}", actionId);
+            return actionId;
+        }
+    }
+
     private uint Detour(ActionManager* actionManager, uint actionId)
     {
         var hook = _hook;
