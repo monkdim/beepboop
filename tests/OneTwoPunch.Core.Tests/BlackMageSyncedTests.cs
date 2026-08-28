@@ -207,6 +207,10 @@ public sealed class BlackMageSyncedTests
     /// Flare empties the bar, and "no High Fire II left" is what marked it as the last cast
     /// of the phase. High Fire II is level 82, so below that Flare was the *first* cast of
     /// every fire phase instead.
+    /// <para>
+    /// This is the shape below level 100 only. At 100 the chart's fire phase is two Flares
+    /// and a Flare Star and Flare is the whole of it - see BlackMageAoeLoopTests.
+    /// </para>
     /// </summary>
     [Fact]
     public void FlareIsNotTheOpeningGlobalOfAnAoeFirePhase()

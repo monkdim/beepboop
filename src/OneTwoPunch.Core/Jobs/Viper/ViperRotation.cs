@@ -216,9 +216,12 @@ public sealed class ViperRotation : JobRotationBase
 
         p.Gcd(A.Vicepit).When(c => !c.Downtime);
 
+        // "Uncoiled Fury and the entire Reawaken combo are also aoe by default", so the AoE
+        // list uses it exactly as the single-target one does - including as the answer to
+        // moving or being out of reach, which is the only ranged global either list has.
         p.Gcd(A.UncoiledFury)
-            .When(c => c.Vpr.RattlingCoils >= 3)
-            .Because("coils are close to capping");
+            .When(c => c.Vpr.RattlingCoils > 0 && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= 3))
+            .Because(c => c.Moving ? "instant, you are moving" : "coils are close to capping");
 
         p.Gcd(A.ReavingMaw).When(c => c.Buff(A.HonedReavers));
         p.Gcd(A.SteelMaw);

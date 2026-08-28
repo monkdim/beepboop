@@ -300,7 +300,16 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return new Suggestion(nextGcd, nextGcd, note, positional);
         }
 
-        return new Suggestion(fallback, fallback, modeNote ?? "nothing to suggest");
+        // "Nothing to suggest" has two very different causes and the log could not tell them
+        // apart. One is a list with no opinion, which is a rotation problem. The other is the
+        // game refusing everything for a frame, which is not - and which a recorded pull
+        // showed once in thirty-eight thousand asks, with the combo starter itself refused.
+        var fallbackNote = modeNote
+            ?? (context.Ready(fallback)
+                ? "nothing to suggest"
+                : $"the game refused everything, {fallback.Name} included");
+
+        return new Suggestion(fallback, fallback, fallbackNote);
     }
 
     /// <summary>
