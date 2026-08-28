@@ -125,6 +125,31 @@ public sealed class BlackMageOpenerWalkTests
         Assert.Contains("Blizzard III", session.OpenerOutcome);
     }
 
+    /// <summary>
+    /// And the reason has to outlive the fight, because that is when a recording is stopped.
+    /// Leaving combat rearms the opener for the next pull and the live report goes with it -
+    /// which is why three recorded pulls carried no line at all, including a Dragoon one
+    /// whose opener plainly aborted on its very first global.
+    /// </summary>
+    [Fact]
+    public void TheReasonOutlivesTheFightItHappenedIn()
+    {
+        var (session, _, actions) = WalkedToTheSwiftcastStep();
+
+        session.NotifyActionUsed(BlackMageActions.Blizzard3.Id);
+        Assert.NotNull(session.OpenerOutcome);
+
+        // The fight ends, which rearms the opener for the next pull.
+        session.Resolve(
+            RotationMode.SingleTarget,
+            AtPull(0f).Gauge(s => s.InCombat = false).Build(),
+            actions);
+
+        Assert.Null(session.OpenerOutcome);
+        Assert.NotNull(session.OpenerReportForLog);
+        Assert.Contains("Blizzard III", session.OpenerReportForLog);
+    }
+
     /// <summary>Walks the first two globals, leaving the opener on its Swiftcast step.</summary>
     private static (RotationSession Session, Opener Opener, FakeActionState Actions) WalkedToTheSwiftcastStep()
     {
