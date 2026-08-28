@@ -118,6 +118,14 @@ All thirteen DPS jobs and all four tanks, single target and AoE:
 | **Physical ranged** | Bard, Machinist, Dancer |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer |
 
+The AoE button always shows the AoE rotation, including against a single enemy, so it can
+be checked on a striking dummy before it is trusted in a party. The old behaviour - fall
+back to single target when only one enemy is in range - is still a toggle in `/otp`.
+
+Melee jobs are told to heal themselves. Second Wind takes the first weave slot going once
+your health drops below three quarters, ahead of the rotation; the mark is a slider and the
+whole thing is a toggle.
+
 The tanks are the damage rotation only. Mitigation - Sheltron, Rampart, Vengeance, Shadow
 Wall, Heart of Corundum, the invulnerabilities, every party cooldown - is deliberately not
 in any rule and never will be: when to press those is a judgement about the fight in front

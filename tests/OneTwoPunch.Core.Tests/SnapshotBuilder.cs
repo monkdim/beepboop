@@ -79,6 +79,13 @@ public sealed class SnapshotBuilder
         return this;
     }
 
+    /// <summary>Your own health, 0 to 1.</summary>
+    public SnapshotBuilder Hp(float fraction)
+    {
+        _snapshot.PlayerHpFraction = fraction;
+        return this;
+    }
+
     public SnapshotBuilder Enemies(int count)
     {
         _snapshot.EnemiesInAoeRange = count;

@@ -27,13 +27,16 @@ public sealed class SessionRecorder
     /// traffic during this pull rather than since the plugin loaded.
     /// </summary>
     private HookTraffic _trafficAtStart;
+    private IconTraffic _iconsAtStart;
 
     public bool IsRecording { get; private set; }
 
     public int Casts => _casts;
 
-    public void Start(string job, byte level, string version, double now, HookTraffic traffic)
+    public void Start(
+        string job, byte level, string version, double now, HookTraffic traffic, IconTraffic icons)
     {
+        _iconsAtStart = icons;
         _lines.Clear();
         _casts = 0;
         _followed = 0;
@@ -100,7 +103,7 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Stops and writes the log out. Returns the path, or null if nothing was recorded.</summary>
-    public string? Stop(double now, HookTraffic traffic, string? openerOutcome = null)
+    public string? Stop(double now, HookTraffic traffic, IconTraffic icons, string? openerOutcome = null)
     {
         if (!IsRecording)
             return null;
@@ -132,6 +135,23 @@ public sealed class SessionRecorder
         // and they land at about one a frame no matter what the hotbar is doing - which is
         // why they are not in the number above.
         _lines.Add($"  ({ours} further asks came from the plugin's own work, not the game.)");
+
+        // And the other hook, which is the one that decides what the slot draws. These two
+        // have been confused before: answering the game about the button is what makes the
+        // key fire the right ability, and it does not touch the icon. A pull where the first
+        // pair of numbers climbs and this pair does not is a button that works and does not
+        // look like it does - which is worse than useless to somebody reading the icon.
+        if (!icons.Active)
+        {
+            _lines.Add("  the icon hook is not installed, so the slot keeps its own art.");
+        }
+        else
+        {
+            var drawn = icons.Drawn - _iconsAtStart.Drawn;
+            var replaced = icons.Replaced - _iconsAtStart.Replaced;
+            _lines.Add($"  a slot holding one of your buttons was drawn {drawn} times "
+                       + $"and showed the suggestion {replaced} of them.");
+        }
 
         // The opener giving up used to be silent, and a pull that stopped being driven at
         // step seven read exactly like one that ran to the end. Giving up is only one of the
@@ -172,3 +192,11 @@ public sealed class SessionRecorder
 /// <param name="LastAnswer">The name of the last replacement handed back, if there was one.</param>
 public readonly record struct HookTraffic(
     long Asked, long Answered, string? LastAnswer, long AskedByOurOwnWork = 0);
+
+/// <summary>
+/// What the icon half of the plugin did. Separate from <see cref="HookTraffic"/> because it
+/// is a different hook answering a different question, and the two have been confused
+/// before: the action counters climbing into the thousands says the key fires the right
+/// ability, and says nothing at all about whether the slot draws it.
+/// </summary>
+public readonly record struct IconTraffic(bool Active, long Drawn, long Replaced);

@@ -66,6 +66,7 @@ public sealed unsafe class GameStateProvider(
         s.Level = player.Level;
         s.Mp = player.CurrentMp;
         s.MaxMp = player.MaxMp;
+        s.PlayerHpFraction = player.MaxHp > 0 ? player.CurrentHp / (float)player.MaxHp : 1f;
         s.InCombat = condition[ConditionFlag.InCombat];
         s.IsCasting = player.IsCasting;
         s.CombatDuration = _combatDuration;

@@ -85,16 +85,20 @@ public sealed class RotationBehaviourTests
 
     // ---- The AoE button --------------------------------------------------
 
+    /// <summary>
+    /// The AoE button shows the AoE rotation even against one enemy, because that is what
+    /// makes it checkable: a striking dummy is one enemy, so falling back by default meant
+    /// the AoE list could not be seen at all without joining a party and hoping.
+    /// </summary>
     [Fact]
-    public void TheAoeButtonFallsBackToSingleTargetOnALoneEnemy()
+    public void TheAoeButtonStaysAoeOnALoneEnemyByDefault()
     {
         var session = DragoonSession();
         var snapshot = new SnapshotBuilder().Gcd(0.1f).Enemies(1).NoCombo().Build();
 
         var suggestion = session.Resolve(RotationMode.Aoe, snapshot, new FakeActionState());
 
-        Assert.Equal(Drg.TrueThrust.Id, suggestion.Action.Id);
-        Assert.Contains("single target", suggestion.Note);
+        Assert.Equal(Drg.DoomSpike.Id, suggestion.Action.Id);
     }
 
     [Fact]
@@ -108,17 +112,19 @@ public sealed class RotationBehaviourTests
         Assert.Equal(Drg.DoomSpike.Id, suggestion.Action.Id);
     }
 
+    /// <summary>And the old behaviour is still there for anyone who wants it back.</summary>
     [Fact]
-    public void TheAoeFallbackCanBeTurnedOff()
+    public void TheAoeFallbackCanBeTurnedOn()
     {
         var settings = NoOpener();
-        settings.AoeFallsBackToSingleTarget = false;
+        settings.AoeFallsBackToSingleTarget = true;
         var session = DragoonSession(settings);
         var snapshot = new SnapshotBuilder().Gcd(0.1f).Enemies(1).NoCombo().Build();
 
         var suggestion = session.Resolve(RotationMode.Aoe, snapshot, new FakeActionState());
 
-        Assert.Equal(Drg.DoomSpike.Id, suggestion.Action.Id);
+        Assert.Equal(Drg.TrueThrust.Id, suggestion.Action.Id);
+        Assert.Contains("single target", suggestion.Note);
     }
 
     // ---- Downtime --------------------------------------------------------

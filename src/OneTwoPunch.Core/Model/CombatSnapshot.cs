@@ -127,6 +127,13 @@ public sealed class CombatSnapshot
     public float TargetHpFraction { get; set; } = 1f;
 
     /// <summary>
+    /// Your own health, 0 to 1. Read so a melee job can be told to heal itself: Second Wind
+    /// is a button that exists to be pressed at a moment you are usually too busy to notice,
+    /// which is exactly the kind of thing this plugin is for.
+    /// </summary>
+    public float PlayerHpFraction { get; set; } = 1f;
+
+    /// <summary>
     /// Enemies that would be hit by the job's AoE around the current target. Counted by
     /// the plugin using the job's own AoE shape and radius.
     /// </summary>

@@ -55,8 +55,28 @@ public sealed class RotationSettings
     /// <summary>
     /// When the AoE button is pressed and only one enemy is in range, fall back to the
     /// single-target rotation instead of suggesting a weak AoE GCD.
+    /// <para>
+    /// Off by default now. It is the friendlier behaviour in a dungeon and it makes the AoE
+    /// button impossible to check: a striking dummy is one enemy, so the AoE list could
+    /// never be seen at all without joining a party and hoping. A button that does what it
+    /// says can be tested before it is trusted, which matters more.
+    /// </para>
     /// </summary>
-    public bool AoeFallsBackToSingleTarget { get; set; } = true;
+    public bool AoeFallsBackToSingleTarget { get; set; }
+
+    /// <summary>Whether a hurt melee is told to heal itself.</summary>
+    public bool SuggestSelfHeal { get; set; } = true;
+
+    /// <summary>
+    /// The health fraction at or below which a self-heal outranks the rotation.
+    /// <para>
+    /// Second Wind is two minutes of cooldown doing nothing most of the time, and noticing
+    /// the moment to press it is exactly the sort of attention this plugin exists to not
+    /// need. It takes the first weave slot going, which costs a little damage and is the
+    /// point.
+    /// </para>
+    /// </summary>
+    public float SelfHealBelowHp { get; set; } = 0.75f;
 
     /// <summary>
     /// Suggest True North (or the job equivalent) when the next GCD wants a positional the

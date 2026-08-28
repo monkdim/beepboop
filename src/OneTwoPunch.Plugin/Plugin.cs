@@ -139,6 +139,12 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.Create<Svc>();
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+
+        // A default only reaches a fresh install; anyone already using the plugin keeps what
+        // was written last time. The AoE fallback needed to reach them too - see
+        // Configuration.Migrate for why that one is not just a preference.
+        if (_config.Migrate())
+            _config.Save();
         _useWatcher = new ActionUseWatcher(Log);
         _gameData = new LuminaGameData(Data);
         _potions = new PotionTracker(Data);
@@ -333,6 +339,10 @@ public sealed class Plugin : IDalamudPlugin
             _replacer.TimesAsked, _replacer.TimesAnswered, last, _replacer.TimesAskedByOurOwnWork);
     }
 
+    /// <summary>What the icon hook has done, for the recorded log.</summary>
+    private IconTraffic Icons() =>
+        new(_icons.IsActive, _icons.TimesDrawn, _icons.TimesReplaced);
+
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
     /// so the two can be read against a known-good rotation afterwards - which is the only
@@ -342,7 +352,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerReportForLog);
+            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog);
 
             if (path is null)
             {
@@ -362,7 +372,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var version = PluginInterface.Manifest.AssemblyVersion.ToString();
-        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now, Traffic());
+        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now, Traffic(), Icons());
         Chat.Print("[One Two Punch] Recording. Do your pull, then /otp record again to write it out.");
     }
 
@@ -401,7 +411,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), _session?.OpenerReportForLog);
+            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog);
             if (path is not null)
                 Chat.Print($"[One Two Punch] Recording written to {path}");
         }

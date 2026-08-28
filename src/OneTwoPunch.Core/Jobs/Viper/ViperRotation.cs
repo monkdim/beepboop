@@ -82,6 +82,12 @@ public sealed class ViperRotation : JobRotationBase
     {
         var p = SingleTarget;
 
+        // Second Wind before anything else once you are hurt. It is a two minute cooldown
+        // that spends most of a fight doing nothing, and noticing the moment to press it is
+        // exactly the attention this plugin exists to not need - so it takes the first weave
+        // slot going. That costs a little damage, which is the trade being made on purpose.
+        p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
+
         // ---- Off-globals -------------------------------------------------
         p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
 
@@ -179,6 +185,12 @@ public sealed class ViperRotation : JobRotationBase
     private void BuildAoe()
     {
         var p = Aoe;
+
+        // Second Wind before anything else once you are hurt. It is a two minute cooldown
+        // that spends most of a fight doing nothing, and noticing the moment to press it is
+        // exactly the attention this plugin exists to not need - so it takes the first weave
+        // slot going. That costs a little damage, which is the trade being made on purpose.
+        p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
 
         p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
 

@@ -10,7 +10,35 @@ namespace OneTwoPunch.Plugin;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
+
+    /// <summary>
+    /// Bumped whenever a stored setting needs bringing forward. See <see cref="Migrate"/>.
+    /// </summary>
+    public const int CurrentVersion = 2;
+
+    /// <summary>
+    /// Brings a config written by an older build forward, and returns true if anything
+    /// changed so the caller knows to save.
+    /// <para>
+    /// Version 2 turns the AoE fallback off. Changing a default only ever helps a fresh
+    /// install, and this one is not a preference so much as a way of making the AoE button
+    /// checkable at all: a striking dummy is one enemy, so with the fallback on the AoE
+    /// rotation could not be seen without joining a party first. The toggle is still there
+    /// for anyone who wants the old behaviour back.
+    /// </para>
+    /// </summary>
+    public bool Migrate()
+    {
+        if (Version >= CurrentVersion)
+            return false;
+
+        if (Version < 2)
+            AoeFallsBackToSingleTarget = false;
+
+        Version = CurrentVersion;
+        return true;
+    }
 
     /// <summary>Master switch. When off the hook passes every action straight through.</summary>
     public bool Enabled = true;
@@ -21,7 +49,11 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool UseOpener = true;
 
-    public bool AoeFallsBackToSingleTarget = true;
+    public bool AoeFallsBackToSingleTarget;
+
+    public bool SuggestSelfHeal = true;
+
+    public float SelfHealBelowHp = 0.75f;
 
     public bool SuggestPositionalRescue = true;
 
@@ -118,6 +150,8 @@ public sealed class Configuration : IPluginConfiguration
         WeaveStyle = WeaveStyle,
         UseOpener = UseOpener,
         AoeFallsBackToSingleTarget = AoeFallsBackToSingleTarget,
+        SuggestSelfHeal = SuggestSelfHeal,
+        SelfHealBelowHp = SelfHealBelowHp,
         SuggestPositionalRescue = SuggestPositionalRescue,
         HoldBurstDuringDowntime = HoldBurstDuringDowntime,
         SuggestionHoldSeconds = SuggestionHoldSeconds,

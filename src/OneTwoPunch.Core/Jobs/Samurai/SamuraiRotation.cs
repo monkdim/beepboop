@@ -77,6 +77,12 @@ public sealed class SamuraiRotation : JobRotationBase
     {
         var p = SingleTarget;
 
+        // Second Wind before anything else once you are hurt. It is a two minute cooldown
+        // that spends most of a fight doing nothing, and noticing the moment to press it is
+        // exactly the attention this plugin exists to not need - so it takes the first weave
+        // slot going. That costs a little damage, which is the trade being made on purpose.
+        p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
+
         // ---- Off-globals -------------------------------------------------
         // Ikishoten grants 50 Kenki, so throwing it at a full gauge wastes most of it.
         p.OGcd(A.Ikishoten)
@@ -161,6 +167,12 @@ public sealed class SamuraiRotation : JobRotationBase
     private void BuildAoe()
     {
         var p = Aoe;
+
+        // Second Wind before anything else once you are hurt. It is a two minute cooldown
+        // that spends most of a fight doing nothing, and noticing the moment to press it is
+        // exactly the attention this plugin exists to not need - so it takes the first weave
+        // slot going. That costs a little damage, which is the trade being made on purpose.
+        p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
 
         p.OGcd(A.Ikishoten).When(c => !c.Downtime).Because("burst window");
 
