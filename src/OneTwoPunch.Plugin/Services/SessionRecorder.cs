@@ -100,7 +100,7 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Stops and writes the log out. Returns the path, or null if nothing was recorded.</summary>
-    public string? Stop(double now, HookTraffic traffic)
+    public string? Stop(double now, HookTraffic traffic, string? openerOutcome = null)
     {
         if (!IsRecording)
             return null;
@@ -132,6 +132,11 @@ public sealed class SessionRecorder
         // and they land at about one a frame no matter what the hotbar is doing - which is
         // why they are not in the number above.
         _lines.Add($"  ({ours} further asks came from the plugin's own work, not the game.)");
+
+        // The opener giving up used to be silent, and a pull that stopped being driven at
+        // step seven read exactly like one that ran to the end.
+        if (openerOutcome is not null)
+            _lines.Add($"  the opener stopped driving: {openerOutcome}");
 
         var directory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");

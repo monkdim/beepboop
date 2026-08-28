@@ -1,5 +1,6 @@
 using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Jobs;
+using OneTwoPunch.Core.Jobs.BlackMage;
 using OneTwoPunch.Core.Model;
 using Xunit;
 
@@ -69,13 +70,61 @@ public sealed class BlackMageOpenerWalkTests
     }
 
     /// <summary>
-    /// The same walk, on the single-weave setting the plugin ships with. The chart draws two
-    /// double weaves - Swiftcast with Amplifier, and Transpose with Triplecast - and on this
-    /// setting the second of each pair cannot fit. Stepping over it is correct; giving up on
-    /// the remaining seventeen steps is not.
+    /// A weave that cannot fit right now makes the opener wait, not give up. On the
+    /// single-weave setting the chart's Swiftcast-then-Amplifier pair cannot both fit, and
+    /// the global is up: the opener has nothing to say for that frame and the priority list
+    /// answers instead.
     /// </summary>
     [Fact]
-    public void ASingleWeaveBudgetStepsOverTheSecondWeaveRatherThanEndingTheOpener()
+    public void AWeaveThatCannotFitLeavesTheOpenerWaitingRatherThanEndingIt()
+    {
+        var (session, opener, actions) = WalkedToTheSwiftcastStep();
+
+        var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+
+        Assert.True(session.OpenerActive, $"the opener gave up: {session.OpenerOutcome}");
+        Assert.Null(session.OpenerOutcome);
+        Assert.NotEqual(opener.Steps[2].Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// And pressing the sequence's next global while that weave is still pending carries the
+    /// opener on, stepping over the weave rather than throwing the rest away.
+    /// </summary>
+    [Fact]
+    public void PressingTheNextGlobalStepsOverAPendingWeave()
+    {
+        var (session, opener, actions) = WalkedToTheSwiftcastStep();
+
+        // Steps 3 and 4 are the Swiftcast and Amplifier weaves; step 5 is the next global.
+        var nextGlobal = opener.Steps[4];
+        session.NotifyActionUsed(nextGlobal.Id);
+
+        var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+
+        Assert.True(session.OpenerActive, $"the opener gave up: {session.OpenerOutcome}");
+        Assert.Equal(opener.Steps[5].Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Going genuinely off script does end it - but it now says so out loud. Both recorded
+    /// pulls that stopped being driven were silent about it, which is why neither could be
+    /// read for a cause.
+    /// </summary>
+    [Fact]
+    public void GoingOffScriptEndsTheOpenerAndSaysWhy()
+    {
+        var (session, _, _) = WalkedToTheSwiftcastStep();
+
+        session.NotifyActionUsed(BlackMageActions.Blizzard3.Id);
+
+        Assert.False(session.OpenerActive);
+        Assert.NotNull(session.OpenerOutcome);
+        Assert.Contains("Blizzard III", session.OpenerOutcome);
+    }
+
+    /// <summary>Walks the first two globals, leaving the opener on its Swiftcast step.</summary>
+    private static (RotationSession Session, Opener Opener, FakeActionState Actions) WalkedToTheSwiftcastStep()
     {
         var job = JobRegistry.Create(25)!;
         var opener = job.Opener!;
@@ -86,24 +135,13 @@ public sealed class BlackMageOpenerWalkTests
         });
 
         var actions = new FakeActionState();
-        var trace = new List<string>();
-        var globalsDriven = 0;
 
-        // Walk far enough to be past both double weaves and well into the second half.
-        for (var frame = 0; frame < 60 && globalsDriven < 20; frame++)
+        for (var i = 0; i < 2; i++)
         {
-            var snapshot = AtPull(frame % 2 == 0 ? 0f : 2.0f).Build();
-            var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
-
-            trace.Add($"  frame {frame,2}: {suggestion.Action.Name,-16} ({suggestion.Note})");
-            session.NotifyActionUsed(suggestion.Action.Id);
-
-            if (suggestion.Kind == ActionKind.Gcd)
-                globalsDriven++;
+            session.Resolve(RotationMode.SingleTarget, AtPull(0f).Build(), actions);
+            session.NotifyActionUsed(opener.Steps[i].Id);
         }
 
-        Assert.True(
-            session.OpenerActive,
-            $"the opener gave up before its twentieth global.\n{string.Join("\n", trace)}");
+        return (session, opener, actions);
     }
 }
