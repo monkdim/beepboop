@@ -232,8 +232,18 @@ public sealed class BlackMageRotation : JobRotationBase
         // into fire - had no rule that could spend it, so the next one overwrote it: nine
         // times in one recorded fight. It is instant, it refreshes the timer, and it leaves
         // Firestarter behind for a free Fire III.
+        // The chart puts this at its eighth global, after three Fire IVs - not the instant
+        // the phase begins. Spending it on arrival costs the climb: Transpose lands on Astral
+        // Fire one, and the global that belongs there is the free Fire III the Firestarter
+        // pays for, which reaches three in a single cast.
+        //
+        // Three Astral Soul is exactly three Fire IVs, which is where the chart draws it. The
+        // escape is for the bar running dry first: a marker that cannot be spent is one that
+        // gets overwritten, which is the thing this rule was written for.
         p.Gcd(A.Paradox)
-            .When(c => c.Blm.InAstralFire && c.Blm.ParadoxActive)
+            .When(c => c.Blm.InAstralFire
+                       && c.Blm.ParadoxActive
+                       && (c.Blm.AstralSoulStacks >= 3 || !c.Ready(A.Fire4)))
             .Because("spend Paradox before it is overwritten");
 
         // The same rung on the other side, and it was missing for the same reason.
@@ -271,8 +281,6 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("free and instant");
 
         // ---- Umbral Ice --------------------------------------------------
-        p.Gcd(A.Paradox).When(c => c.Blm.InUmbralIce && c.Blm.ParadoxActive);
-
         // The rung that was missing, and it cost most of a bar every cycle.
         //
         // Transpose crosses into Umbral Ice *one*, not three, and mana only comes back at
@@ -295,6 +303,13 @@ public sealed class BlackMageRotation : JobRotationBase
             .Because("up to Umbral Ice III, where the mana is");
 
         p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
+
+        // Last of the three, which is where the chart draws it - Blizzard III, Blizzard IV,
+        // Paradox - and not first. Cast here it is the bridge out: it restores the last of
+        // the bar and leaves the Firestarter that makes the climb back to Astral Fire III a
+        // single free instant. Cast on arrival instead, as this used to be, the bridge is
+        // spent before there is anything to cross to.
+        p.Gcd(A.Paradox).When(c => c.Blm.InUmbralIce && c.Blm.ParadoxActive);
 
         // Back into fire, but only once ice has actually done its job. Leaving on a third of
         // a bar is what the missing rung above caused, and this is the guard that says so out

@@ -60,6 +60,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// <summary>How many times leaving combat rewound the opener during this session.</summary>
     private int _openerRewinds;
 
+    /// <summary>
+    /// Whether this run of the opener has already stepped over a global it could not cast.
+    /// <para>
+    /// One is tolerated, a run of them is not. The chart's eighth global is Xenoglossy, and
+    /// the Polyglot it spends comes from the Amplifier woven into its second - so a pull
+    /// that begins with Amplifier still turning from the last attempt reaches that global
+    /// with nothing to spend, and the whole rest of the chart went with it. What the player
+    /// sees is the priority list's own fire, ice, fire, fire in place of the opener.
+    /// </para>
+    /// </summary>
+    private bool _openerSteppedOverAGlobal;
+
     /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
     public string? OpenerReport
     {
@@ -129,6 +141,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _openerDecline = null;
         LastOpenerReport = null;
         _openerRewinds = 0;
+        _openerSteppedOverAGlobal = false;
         _held.Clear();
     }
 
@@ -390,14 +403,33 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         {
             var candidate = opener.Steps[_openerStep];
 
-            if (candidate.Kind != ActionKind.OGcd
-                || context.Ready(candidate)
-                || context.Cd(candidate) <= context.GcdTotal)
+            // A weave whose own cooldown is still turning is not the world diverging.
+            if (candidate.Kind == ActionKind.OGcd
+                && !context.Ready(candidate)
+                && context.Cd(candidate) > context.GcdTotal)
             {
-                break;
+                _openerStep++;
+                continue;
             }
 
-            _openerStep++;
+            // Nor is a single global the chart assumed a resource for. Skipping the weave
+            // above is what takes that resource away, so refusing to skip the global it paid
+            // for turns one missing weave into a missing opener. Only ever one, and only
+            // once the fight is running and nothing is in flight - anything more and the
+            // priority list is the better answer.
+            if (candidate.Kind == ActionKind.Gcd
+                && !_openerSteppedOverAGlobal
+                && context.InCombat
+                && !context.Casting
+                && !context.Ready(candidate)
+                && _openerStep + 1 < opener.Steps.Count)
+            {
+                _openerSteppedOverAGlobal = true;
+                _openerStep++;
+                continue;
+            }
+
+            break;
         }
 
         if (_openerStep >= opener.Steps.Count)
@@ -604,6 +636,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             _openerAborted = false;
             OpenerOutcome = null;
             _openerDecline = null;
+            _openerSteppedOverAGlobal = false;
         }
     }
 

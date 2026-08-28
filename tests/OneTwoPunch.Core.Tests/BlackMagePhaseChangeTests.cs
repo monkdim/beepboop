@@ -249,11 +249,13 @@ public sealed class BlackMagePhaseChangeTests
     }
 
     /// <summary>
-    /// The crossing in full: Paradox first, because it leaves the Firestarter that makes the
-    /// climb free and instant.
+    /// The crossing in full, corrected against The Balance's own chart. The Firestarter that
+    /// makes the climb free comes from the Paradox cast at the *end* of the ice phase, not
+    /// from one spent on arrival in fire - so at Astral Fire one the global that belongs
+    /// there is the climb, and the fire phase's own Paradox waits for its eighth global.
     /// </summary>
     [Fact]
-    public void TheParadoxComesBeforeTheClimb()
+    public void TheClimbComesBeforeTheParadox()
     {
         var suggestion = Suggest(
             new SnapshotBuilder().Job(25).Gcd(0f).NoCombo().Enemies(1)
@@ -265,7 +267,7 @@ public sealed class BlackMagePhaseChangeTests
                     s.Mp = 10000;
                 }));
 
-        Assert.Equal(A.Paradox.Id, suggestion);
+        Assert.Equal(A.Fire3.Id, suggestion);
     }
 
     /// <summary>"Manafont was used before Despair 6 times."</summary>
@@ -314,7 +316,7 @@ public sealed class BlackMagePhaseChangeTests
                     {
                         s.Gauges.BlackMage.AstralFire = 3;
                         s.Gauges.BlackMage.ParadoxActive = true;
-                        s.Gauges.BlackMage.AstralSoulStacks = 2;
+                        s.Gauges.BlackMage.AstralSoulStacks = 3;
                         s.Mp = 10000;
                     })
                     .Build(),
