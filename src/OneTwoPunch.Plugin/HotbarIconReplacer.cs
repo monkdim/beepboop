@@ -45,6 +45,26 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
     private long _drawn;
     private long _replaced;
 
+    /// <summary>Every slot the game drew while the hook was live, ours or not.</summary>
+    private long _slots;
+
+    /// <summary>Slots that were not actions at all - a macro, an item, an emote.</summary>
+    private long _notActions;
+
+    /// <summary>
+    /// A few of the action ids the game asked us to draw and we did not recognise.
+    /// <para>
+    /// This exists because a recorded pull came back reading "a slot holding one of your
+    /// buttons was drawn 0 times" with the action hook answering four thousand times in the
+    /// same fight. Both halves ask the same question of the same dictionary, so the two can
+    /// only disagree about which id they are asking about - and that is a question no amount
+    /// of reading the code was going to settle.
+    /// </para>
+    /// </summary>
+    private readonly HashSet<uint> _unrecognised = [];
+
+    private const int UnrecognisedSampleSize = 12;
+
     public HotbarIconReplacer(
         IGameInteropProvider interop,
         IPluginLog log,
@@ -64,6 +84,16 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
 
     /// <summary>How many of those were given our suggestion to draw instead.</summary>
     public long TimesReplaced => _replaced;
+
+    /// <summary>Every slot drawn, ours or not - so "none of them were ours" can be told
+    /// apart from "the hook never ran".</summary>
+    public long SlotsSeen => _slots;
+
+    /// <summary>Of those, the ones that were not actions.</summary>
+    public long SlotsThatWereNotActions => _notActions;
+
+    /// <summary>A sample of the action ids drawn that were not one of our buttons.</summary>
+    public IReadOnlyCollection<uint> UnrecognisedIds => _unrecognised;
 
     /// <summary>
     /// True while this thread is inside the detour, for the same reason the action hook needs
@@ -145,14 +175,36 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
         _inDetour = true;
         try
         {
-            // The assigned action, not the one the game just resolved: that is the id the
-            // player put on the bar, and the only one our buttons are named by.
-            if (slot->CommandType != RaptureHotbarModule.HotbarSlotType.Action)
-                return original;
+            _slots++;
 
-            var mode = _classify(slot->CommandId);
-            if (mode is null)
+            if (slot->CommandType != RaptureHotbarModule.HotbarSlotType.Action)
+            {
+                _notActions++;
                 return original;
+            }
+
+            // Three ids, because one was not enough and the log could not say which.
+            //
+            // CommandId is what the player put on the bar. OriginalApparentActionId is the
+            // game's own "base action for display", which it keeps precisely so an upgraded
+            // action still knows what it started as. And the resolved id is what the game
+            // has just decided to draw, which is the right answer whenever the slot carries
+            // something that resolves into one of our buttons rather than being one.
+            //
+            // Any of the three matching means this slot is ours. They can only match on a
+            // slot the player put one of our two actions on, so a wider net here cannot
+            // catch somebody else's key.
+            var mode = _classify(slot->CommandId)
+                       ?? _classify(slot->OriginalApparentActionId)
+                       ?? _classify(*actionId);
+
+            if (mode is null)
+            {
+                if (_unrecognised.Count < UnrecognisedSampleSize)
+                    _unrecognised.Add(slot->CommandId);
+
+                return original;
+            }
 
             _drawn++;
 
