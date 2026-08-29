@@ -151,6 +151,22 @@ public sealed class SessionRecorder
             var replaced = icons.Replaced - _iconsAtStart.Replaced;
             _lines.Add($"  a slot holding one of your buttons was drawn {drawn} times "
                        + $"and showed the suggestion {replaced} of them.");
+
+            // A drawn count of zero has three very different causes and the line above
+            // cannot tell them apart: the hook never ran, every slot it saw was something
+            // other than an action, or the ids on the bar are not the ones we are looking
+            // for. All three read as "0". So say which.
+            if (drawn == 0)
+            {
+                var seen = icons.SlotsSeen - _iconsAtStart.SlotsSeen;
+                var notActions = icons.NotActions - _iconsAtStart.NotActions;
+
+                _lines.Add($"  the hook saw {seen} slots drawn, {notActions} of them not actions.");
+
+                var ids = icons.UnrecognisedIds;
+                if (ids is { Count: > 0 })
+                    _lines.Add($"  action ids it drew and did not recognise: {string.Join(", ", ids)}");
+            }
         }
 
         // The opener giving up used to be silent, and a pull that stopped being driven at
@@ -199,4 +215,10 @@ public readonly record struct HookTraffic(
 /// before: the action counters climbing into the thousands says the key fires the right
 /// ability, and says nothing at all about whether the slot draws it.
 /// </summary>
-public readonly record struct IconTraffic(bool Active, long Drawn, long Replaced);
+public readonly record struct IconTraffic(
+    bool Active,
+    long Drawn,
+    long Replaced,
+    long SlotsSeen = 0,
+    long NotActions = 0,
+    IReadOnlyCollection<uint>? UnrecognisedIds = null);

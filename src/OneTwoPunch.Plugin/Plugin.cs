@@ -341,7 +341,12 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>What the icon hook has done, for the recorded log.</summary>
     private IconTraffic Icons() =>
-        new(_icons.IsActive, _icons.TimesDrawn, _icons.TimesReplaced);
+        new(_icons.IsActive,
+            _icons.TimesDrawn,
+            _icons.TimesReplaced,
+            _icons.SlotsSeen,
+            _icons.SlotsThatWereNotActions,
+            _icons.UnrecognisedIds);
 
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
