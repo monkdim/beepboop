@@ -163,6 +163,22 @@ public sealed class SessionRecorder
 
                 _lines.Add($"  the hook saw {seen} slots drawn, {notActions} of them not actions.");
 
+                // And when even that is zero, which is where the last pull landed: the
+                // question is no longer "what did it see" but "did it run at all". These
+                // three are counted before any of the guards, so a zero here is the game
+                // never calling the function we are attached to - which is a different
+                // problem from anything the plugin does after being called.
+                var entered = icons.Entered - _iconsAtStart.Entered;
+                if (seen == 0)
+                {
+                    var noSlot = icons.NoSlot - _iconsAtStart.NoSlot;
+                    var reentrant = icons.Reentrant - _iconsAtStart.Reentrant;
+
+                    _lines.Add($"  the hook was entered {entered} times, {noSlot} of them with "
+                               + $"no slot and {reentrant} while already inside itself.");
+                    _lines.Add($"  it is installed at 0x{icons.Address:X}.");
+                }
+
                 var ids = icons.UnrecognisedIds;
                 if (ids is { Count: > 0 })
                     _lines.Add($"  action ids it drew and did not recognise: {string.Join(", ", ids)}");
@@ -221,4 +237,8 @@ public readonly record struct IconTraffic(
     long Replaced,
     long SlotsSeen = 0,
     long NotActions = 0,
-    IReadOnlyCollection<uint>? UnrecognisedIds = null);
+    IReadOnlyCollection<uint>? UnrecognisedIds = null,
+    long Entered = 0,
+    long NoSlot = 0,
+    long Reentrant = 0,
+    nint Address = 0);
