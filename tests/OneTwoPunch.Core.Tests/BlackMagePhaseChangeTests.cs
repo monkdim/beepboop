@@ -103,15 +103,30 @@ public sealed class BlackMagePhaseChangeTests
         Assert.NotEqual(A.Transpose.Id, suggestion);
     }
 
-    /// <summary>Nor with a free Fire III in hand - that one is full damage and costs nothing.</summary>
+    /// <summary>
+    /// But a held Firestarter is not a reason to stay, and this test used to say it was.
+    /// <para>
+    /// The reasoning was "that one is full damage and costs nothing", which is true of the
+    /// global and false of the phase. Firestarter lasts thirty seconds - longer than the ice
+    /// phase - and carried across it pays for the climb from Astral Fire I to III on the other
+    /// side. That climb taken paid is Fire III's 2000 mana plus an Umbral Heart to halve it,
+    /// and the heart is another 800. So spending the proc here buys one Fire III at Astral
+    /// Fire III and costs the next phase 2800 mana, which is most of two Fire IVs.
+    /// </para>
+    /// <para>
+    /// A recorded twelve minute pull is the whole argument: the proc was burned here fourteen
+    /// times, every one at mana 0 and Astral Fire III, eleven of them at Astral Soul 5 - one
+    /// Fire IV short of a Flare Star - and nine of its ten climbs were paid for.
+    /// </para>
+    /// </summary>
     [Fact]
-    public void FireIsNotAbandonedWithFirestarterHeld()
+    public void FireIsAbandonedWithTheFirestarterStillHeld()
     {
         var suggestion = Suggest(
             FireIsSpent().Buff(A.Firestarter.Id, 20f),
             new FakeActionState().Unusable(A.Fire4.Id).Unusable(A.Despair.Id));
 
-        Assert.NotEqual(A.Transpose.Id, suggestion);
+        Assert.Equal(A.Transpose.Id, suggestion);
     }
 
     /// <summary>Nor holding a Paradox marker, which is instant and about to be worth a Fire III.</summary>
@@ -249,10 +264,15 @@ public sealed class BlackMagePhaseChangeTests
     }
 
     /// <summary>
-    /// The crossing in full, corrected against The Balance's own chart. The Firestarter that
-    /// makes the climb free comes from the Paradox cast at the *end* of the ice phase, not
-    /// from one spent on arrival in fire - so at Astral Fire one the global that belongs
-    /// there is the climb, and the fire phase's own Paradox waits for its eighth global.
+    /// The crossing in full, corrected against The Balance's own chart. At Astral Fire one the
+    /// global that belongs there is the climb, and the fire phase's own Paradox waits for its
+    /// eighth global.
+    /// <para>
+    /// This used to name the ice phase's Paradox as what makes the climb free. It is not -
+    /// only Paradox cast in Astral Fire leaves a Firestarter behind. The proc comes from the
+    /// previous fire phase's Paradox and survives the crossing, which is why a held one is no
+    /// longer a reason to stay in fire.
+    /// </para>
     /// </summary>
     [Fact]
     public void TheClimbComesBeforeTheParadox()

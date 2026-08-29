@@ -170,11 +170,23 @@ public sealed class BlackMageRotation : JobRotationBase
         // that one omission. Blizzard III cast in Astral Fire and Fire III cast in Umbral Ice
         // are both damage-penalised; Transpose crosses the same gap for free, off the global.
         // A recorded fight has nine of each.
+        //
+        // A held Firestarter used to block this, on the reasoning that a free instant is worth
+        // taking before leaving. It is worth far more kept. The proc lasts thirty seconds -
+        // longer than the ice phase - and the Fire III it pays for on the other side is the
+        // climb from Astral Fire I to III, which taken paid costs 2000 mana and an Umbral
+        // Heart to halve it, the heart being another 800. Spent here it buys one global at
+        // Astral Fire III instead, and the phase that follows starts 2800 mana short.
+        //
+        // The ice section below already assumed the proc arrived - "leaves the Firestarter
+        // that makes the climb back to Astral Fire III a single free instant" - but nothing
+        // ever let one across. A recorded twelve minute pull burns it here fourteen times,
+        // every one at mana 0 and Astral Fire III, eleven of them at Astral Soul 5, one Fire
+        // IV short of a Flare Star; nine of its ten climbs were paid for and one was free.
         p.OGcd(A.Transpose)
             .When(c => c.Blm.InAstralFire
                        && c.Blm.AstralSoulStacks < 6
                        && !c.Blm.ParadoxActive
-                       && !c.Buff(A.Firestarter)
                        && FireIsSpent(c))
             .Because("fire is spent, cross to ice without a weakened Blizzard III");
 
@@ -242,8 +254,23 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => c.Blm.AstralSoulStacks >= 6)
             .Because("Astral Soul is full");
 
+        // "Once you can no longer cast another spell in Astral Fire and remain above 800 MP,
+        // cast Despair" - and the old test for that was "Fire IV will not cast", which is a
+        // different question by exactly one Despair. Fire IV costs 1600 in Astral Fire, or 800
+        // with an Umbral Heart to halve it; Despair needs 800 and then takes whatever is left.
+        // So a bar holding 1600 and no hearts passes "Fire IV will cast", casts it, and lands
+        // on nought - and the Despair that 1600 was supposed to buy is gone.
+        //
+        // A recorded twelve minute pull ends on exactly that: Fire IV at 3200, Fire IV at 1600,
+        // mana 0, Astral Soul 5, no Despair and no Flare Star. xivanalysis counted seven Astral
+        // Fire phases missing at least one Despair over the same fight.
+        //
+        // Below 72 there is no Despair to hold mana for, and this rule cannot match at all -
+        // Fire IV keeps the bar to itself, as it should.
         p.Gcd(A.Despair)
-            .When(c => c.Blm.InAstralFire && c.Blm.AstralSoulStacks < 6 && !c.Ready(A.Fire4))
+            .When(c => c.Blm.InAstralFire
+                       && c.Blm.AstralSoulStacks < 6
+                       && !Fire4WouldLeaveADespair(c))
             .Because("last cast before Umbral Ice");
 
         // Above Fire IV on purpose. A marker made in Astral Fire - by Manafont, or by crossing
@@ -294,6 +321,13 @@ public sealed class BlackMageRotation : JobRotationBase
             .When(c => c.Blm.InAstralFire && !c.Has(A.Fire4))
             .Because("spend the bar in Astral Fire");
 
+        // The safety net for a missed crossing, and nothing more.
+        //
+        // This rule sits under Fire IV, so in Astral Fire it only comes up when the bar can no
+        // longer pay for one - the last global of a spent phase, where Transpose is what
+        // should have been pressed. It stays because a missed weave has to leave the list with
+        // something to say, and a free instant Fire III is a fine thing to say; the rule above
+        // it is what stops the phase reaching here in the first place.
         p.Gcd(A.Fire3)
             .When(c => c.Buff(A.Firestarter))
             .Because("free and instant");
@@ -323,10 +357,15 @@ public sealed class BlackMageRotation : JobRotationBase
         p.Gcd(A.Blizzard4).When(c => c.Blm.InUmbralIce && c.Blm.UmbralHearts < 3);
 
         // Last of the three, which is where the chart draws it - Blizzard III, Blizzard IV,
-        // Paradox - and not first. Cast here it is the bridge out: it restores the last of
-        // the bar and leaves the Firestarter that makes the climb back to Astral Fire III a
-        // single free instant. Cast on arrival instead, as this used to be, the bridge is
-        // spent before there is anything to cross to.
+        // Paradox - and not first. Cast here it is the bridge out: free, instant, and it
+        // restores the last of the bar. Cast on arrival instead, as this used to be, the
+        // bridge is spent before there is anything to cross to.
+        //
+        // This used to claim it left a Firestarter behind for the climb as well. It does not -
+        // only Paradox cast in Astral Fire grants one, and the recorded pull shows this cast
+        // going out with no Firestarter after it. The proc the climb runs on comes from the
+        // fire phase's own Paradox and has to survive the crossing, which is what the first
+        // Transpose rule above was quietly preventing.
         p.Gcd(A.Paradox).When(c => c.Blm.InUmbralIce && c.Blm.ParadoxActive);
 
         // Back into fire, but only once ice has actually done its job. Leaving on a third of
@@ -666,6 +705,23 @@ public sealed class BlackMageRotation : JobRotationBase
         c.Blm.InUmbralIce
         && (!c.Has(A.Blizzard4) || c.Blm.UmbralHearts >= 3)
         && c.Mp >= IceExitMp;
+
+    /// <summary>What Despair asks for before it will cast, and takes the whole bar for.</summary>
+    private const uint DespairMp = 800;
+
+    /// <summary>
+    /// What the next Fire IV costs. 1600 in Astral Fire, halved by an Umbral Heart - the heart
+    /// is spent on the cast, so one heart pays for one Fire IV.
+    /// </summary>
+    private static uint Fire4Mp(RotationContext c) => c.Blm.UmbralHearts > 0 ? 800u : 1600u;
+
+    /// <summary>
+    /// Whether there is room in the bar for a Fire IV and still a Despair after it. This is the
+    /// question the Despair rule wants; "will Fire IV cast" is the one it used to ask, and the
+    /// gap between them is a bar sitting on exactly one Fire IV and nothing more.
+    /// </summary>
+    private static bool Fire4WouldLeaveADespair(RotationContext c) =>
+        c.Ready(A.Fire4) && c.Mp >= Fire4Mp(c) + DespairMp;
 
     /// <summary>
     /// Whether Astral Fire has nothing left worth casting, which is the signal to cross back.

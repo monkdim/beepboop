@@ -346,7 +346,11 @@ public sealed class Plugin : IDalamudPlugin
             _icons.TimesReplaced,
             _icons.SlotsSeen,
             _icons.SlotsThatWereNotActions,
-            _icons.UnrecognisedIds);
+            _icons.UnrecognisedIds,
+            _icons.TimesEntered,
+            _icons.EntriesWithNoSlot,
+            _icons.ReentrantEntries,
+            _icons.Address);
 
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,

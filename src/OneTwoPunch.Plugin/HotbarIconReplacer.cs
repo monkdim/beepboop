@@ -45,6 +45,28 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
     private long _drawn;
     private long _replaced;
 
+    /// <summary>
+    /// Every entry into the detour, counted before anything can turn it away.
+    /// <para>
+    /// The counter below it used to be the first thing in the method that ran, but it sits
+    /// behind two guards - a re-entry test and a null slot - and a recorded pull came back
+    /// reading "the hook saw 0 slots drawn" with the hook reporting itself installed. Zero
+    /// there means one of three things and the number could not say which: the detour never
+    /// ran at all, it ran and turned itself away, or it ran and the game handed it no slot.
+    /// So the count of entries is taken first, and the reasons are counted beside it.
+    /// </para>
+    /// </summary>
+    private long _calls;
+
+    /// <summary>Entries where the game passed no slot to draw.</summary>
+    private long _nullSlots;
+
+    /// <summary>Entries turned away because this thread was already inside the detour.</summary>
+    private long _reentrant;
+
+    /// <summary>Where the hook was installed, or 0 if it never was.</summary>
+    private nint _address;
+
     /// <summary>Every slot the game drew while the hook was live, ours or not.</summary>
     private long _slots;
 
@@ -89,6 +111,18 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
     /// apart from "the hook never ran".</summary>
     public long SlotsSeen => _slots;
 
+    /// <summary>Every entry into the detour, before any of the guards.</summary>
+    public long TimesEntered => _calls;
+
+    /// <summary>Of those, the ones the game handed no slot.</summary>
+    public long EntriesWithNoSlot => _nullSlots;
+
+    /// <summary>Of those, the ones turned away as re-entrant.</summary>
+    public long ReentrantEntries => _reentrant;
+
+    /// <summary>The address the hook was installed at, or 0.</summary>
+    public nint Address => _address;
+
     /// <summary>Of those, the ones that were not actions.</summary>
     public long SlotsThatWereNotActions => _notActions;
 
@@ -125,6 +159,7 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
                 }
 
                 _hook = _interop.HookFromAddress<RaptureHotbarModule.Delegates.GetSlotAppearance>(address, Detour);
+                _address = address;
                 _log.Information("One Two Punch: hooked GetSlotAppearance at 0x{Address:X}.", address);
             }
 
@@ -163,14 +198,26 @@ public sealed unsafe class HotbarIconReplacer : IDisposable
         RaptureHotbarModule* module,
         RaptureHotbarModule.HotbarSlot* slot)
     {
+        // First, before any guard can turn this away. See the field for why.
+        _calls++;
+
         var hook = _hook;
         if (hook is null)
             return 0;
 
         var original = hook.Original(slotType, actionId, costOffset, module, slot);
 
-        if (_inDetour || slot is null)
+        if (_inDetour)
+        {
+            _reentrant++;
             return original;
+        }
+
+        if (slot is null)
+        {
+            _nullSlots++;
+            return original;
+        }
 
         _inDetour = true;
         try

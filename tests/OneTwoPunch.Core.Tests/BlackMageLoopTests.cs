@@ -71,7 +71,12 @@ public sealed class BlackMageLoopTests
         Assert.Equal(A.Blizzard4.Id, suggestion);
     }
 
-    /// <summary>Global 3, and the bridge out - it is what leaves the Firestarter.</summary>
+    /// <summary>
+    /// Global 3, and the bridge out: free, instant, and it restores the last of the bar. Not
+    /// the source of the Firestarter, though this used to say it was - only Paradox cast in
+    /// Astral Fire grants one. The proc the climb runs on comes from the previous fire phase
+    /// and has to survive the crossing.
+    /// </summary>
     [Fact]
     public void TheParadoxIsTheLastGlobalOfTheIcePhase()
     {
