@@ -185,6 +185,22 @@ public sealed class SessionRecorder
             }
         }
 
+        // And the painter, which is the path that actually changes an icon. The hook above
+        // is on a function the game turned out never to call, so these are the numbers worth
+        // reading: slots looked at, slots holding one of the two buttons, and times one was
+        // actually given a new picture.
+        {
+            var scanned = icons.Scanned - _iconsAtStart.Scanned;
+            var ours = icons.Ours - _iconsAtStart.Ours;
+            var painted = icons.Painted - _iconsAtStart.Painted;
+
+            _lines.Add($"  the hotbar was read {scanned} times, {ours} of those slots were "
+                       + $"yours, and {painted} of them were repainted.");
+
+            if (icons.Held > 0)
+                _lines.Add($"  {icons.Held} slots are still carrying a suggestion.");
+        }
+
         // The opener giving up used to be silent, and a pull that stopped being driven at
         // step seven read exactly like one that ran to the end. Giving up is only one of the
         // ways it stops, though - the first pass recorded only that, and the pull that
@@ -241,4 +257,8 @@ public readonly record struct IconTraffic(
     long Entered = 0,
     long NoSlot = 0,
     long Reentrant = 0,
-    nint Address = 0);
+    nint Address = 0,
+    long Scanned = 0,
+    long Ours = 0,
+    long Painted = 0,
+    int Held = 0);
