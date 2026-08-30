@@ -131,4 +131,79 @@ public sealed class OpenerResilienceTests
 
         Assert.False(session.OpenerActive);
     }
+
+    // ---- Aborting over the plugin's own suggestion ------------------------
+
+    /// <summary>
+    /// The Red Mage failure, reproduced on Dragoon's machinery because it is the machinery
+    /// that was wrong rather than the job.
+    /// <para>
+    /// A recorded pull ends "step 3 of 36, gave up: step 3 wanted Swiftcast, but Veraero III
+    /// was used" - and Veraero III is what the button was showing at that moment, with the
+    /// priority list's own reason printed beside it in the same log. The opener had stood
+    /// down (an off-global step with no weave slot), the priority list answered instead, the
+    /// player pressed the button, and the opener threw away thirty-three remaining steps over
+    /// its own plugin's suggestion.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void PressingWhatTheButtonWasShowingDoesNotEndTheOpener()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        WalkToTheLanceChargeStep(session, actions);
+
+        // Whatever the button is offering right now - opener step or priority list, it does
+        // not matter which, because the player can only press what they are shown.
+        var shown = session.Resolve(RotationMode.SingleTarget, AtPull(), actions);
+        session.NotifyActionUsed(shown.Action.Id);
+
+        Assert.True(
+            session.OpenerActive,
+            $"the opener gave up over its own suggestion: {session.OpenerOutcome}");
+    }
+
+    /// <summary>
+    /// And the guard is not a blanket amnesty. An action that was never suggested is a real
+    /// divergence and still ends the opener - otherwise the sequence would drive on through
+    /// a rotation it has nothing to do with.
+    /// </summary>
+    [Fact]
+    public void AnActionThatWasNeverSuggestedStillEndsTheOpener()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        WalkToTheLanceChargeStep(session, actions);
+        session.Resolve(RotationMode.SingleTarget, AtPull(), actions);
+
+        // Never offered by either button in this window.
+        session.NotifyActionUsed(A.PiercingTalon.Id);
+
+        Assert.False(session.OpenerActive, "a real divergence was allowed to carry on");
+        Assert.NotNull(session.OpenerOutcome);
+    }
+
+    /// <summary>
+    /// The set is what was on offer leading up to this press, not everything ever suggested -
+    /// so a press that follows a different suggestion is still judged on its own window.
+    /// </summary>
+    [Fact]
+    public void TheAmnestyIsClearedOnceAnActionHasGoneOff()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        WalkToTheLanceChargeStep(session, actions);
+
+        var shown = session.Resolve(RotationMode.SingleTarget, AtPull(), actions);
+        session.NotifyActionUsed(shown.Action.Id);
+
+        // No Resolve between the two presses, so nothing has been offered since - this one
+        // has to be judged as the divergence it is.
+        session.NotifyActionUsed(A.PiercingTalon.Id);
+
+        Assert.False(session.OpenerActive, "a press with nothing on offer was excused");
+    }
 }
