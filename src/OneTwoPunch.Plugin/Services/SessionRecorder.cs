@@ -201,6 +201,13 @@ public sealed class SessionRecorder
 
             if (icons.Held > 0)
                 _lines.Add($"  {icons.Held} slots are still carrying a suggestion.");
+
+            // Printed whenever the hotbar has plenty of slots and almost none of them are
+            // ours, which is what a synced-down button looks like from here: the id in the
+            // slot is a form this level does not have, so nothing matches it.
+            var ids = icons.PainterUnrecognisedIds;
+            if (ids is { Count: > 0 } && scanned > 0 && yours * 200 < scanned)
+                _lines.Add($"  action ids on the bar it did not recognise: {string.Join(", ", ids)}");
         }
 
         // The opener giving up used to be silent, and a pull that stopped being driven at
@@ -263,4 +270,5 @@ public readonly record struct IconTraffic(
     long Scanned = 0,
     long Ours = 0,
     long Painted = 0,
-    int Held = 0);
+    int Held = 0,
+    IReadOnlyCollection<uint>? PainterUnrecognisedIds = null);
