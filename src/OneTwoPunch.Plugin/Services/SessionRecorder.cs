@@ -191,10 +191,12 @@ public sealed class SessionRecorder
         // actually given a new picture.
         {
             var scanned = icons.Scanned - _iconsAtStart.Scanned;
-            var ours = icons.Ours - _iconsAtStart.Ours;
+            // Not "ours" - that name is already taken further up this method by the asks
+            // the plugin makes of its own hook, and the two counts mean opposite things.
+            var yours = icons.Ours - _iconsAtStart.Ours;
             var painted = icons.Painted - _iconsAtStart.Painted;
 
-            _lines.Add($"  the hotbar was read {scanned} times, {ours} of those slots were "
+            _lines.Add($"  the hotbar was read {scanned} times, {yours} of those slots were "
                        + $"yours, and {painted} of them were repainted.");
 
             if (icons.Held > 0)
