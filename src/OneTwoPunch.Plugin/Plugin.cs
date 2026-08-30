@@ -363,7 +363,8 @@ public sealed class Plugin : IDalamudPlugin
             _painter.SlotsScanned,
             _painter.SlotsThatAreOurs,
             _painter.TimesPainted,
-            _painter.SlotsHeld);
+            _painter.SlotsHeld,
+            _painter.UnrecognisedIds);
 
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
@@ -776,6 +777,8 @@ public sealed class Plugin : IDalamudPlugin
         for (var i = 0; i < _job.ExtraButtons.Count; i++)
             Remember(_job.ExtraButtons[i].Host.Id, i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
 
+        RememberSyncedDownForms();
+
         void Remember(uint id, RotationMode mode)
         {
             if (id == 0)
@@ -786,6 +789,62 @@ public sealed class Plugin : IDalamudPlugin
             var upgraded = _replacer.CurrentFormOf(id);
             if (upgraded != 0 && upgraded != id)
                 _buttonForms[upgraded] = mode;
+        }
+    }
+
+    /// <summary>
+    /// Registers the forms of a button that this level does not have, but the hotbar might.
+    /// <para>
+    /// Remember above walks the chain upwards - the button, and whatever the game upgrades it
+    /// into at this level. That is the whole story at your own level and completely wrong
+    /// under a sync. A Monk who put Leaping Opo on the bar at 100 and walks into a level 80
+    /// duty still has Leaping Opo's id in the slot; the game resolves it down to Bootshine
+    /// when it draws and when it fires. The map held only Bootshine, so neither the keypress
+    /// nor the icon recognised the slot as ours.
+    /// </para>
+    /// <para>
+    /// A recorded twenty-seven minute level 80 duty is the evidence: the hotbar was read
+    /// 48 million times and only 4,110 of those slots were recognised - two and a half a
+    /// second, against three hundred and forty-five a second in a level 100 pull - and every
+    /// press that missed produced the raw button. Thirty-six of them, spread evenly across
+    /// the duty rather than clustered, which is what ruled out anything to do with start-up.
+    /// </para>
+    /// <para>
+    /// So the chain is walked downwards too: any action the job declares that the game
+    /// currently resolves *into* one of our buttons is also one of our buttons. Bounded by
+    /// the job's own table and only run when the level changes, so it costs nothing per frame
+    /// - which matters, because the alternative is asking the game about every unrecognised
+    /// hotbar slot, and there are nearly three hundred of those every frame.
+    /// </para>
+    /// </summary>
+    private void RememberSyncedDownForms()
+    {
+        if (_job is null || _buttonForms.Count == 0)
+            return;
+
+        // Snapshotted before the loop so a form registered inside it cannot become the target
+        // of another, which would make what gets registered depend on table order.
+        var buttons = new List<KeyValuePair<uint, RotationMode>>(_buttonForms);
+
+        var all = _job.AllActions;
+        for (var i = 0; i < all.Count; i++)
+        {
+            var id = all[i].Id;
+            if (id == 0 || _buttonForms.ContainsKey(id))
+                continue;
+
+            var resolved = _replacer.CurrentFormOf(id);
+            if (resolved == 0 || resolved == id)
+                continue;
+
+            for (var b = 0; b < buttons.Count; b++)
+            {
+                if (buttons[b].Key != resolved)
+                    continue;
+
+                _buttonForms[id] = buttons[b].Value;
+                break;
+            }
         }
     }
 

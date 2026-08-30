@@ -71,6 +71,18 @@ public sealed unsafe class HotbarIconPainter : IDisposable
     /// </summary>
     private bool _costs = true;
 
+    /// <summary>
+    /// A few of the action ids sitting on real action slots that were not recognised as ours.
+    /// <para>
+    /// The old hook had this and it was never reachable, because the hook never ran. Here it
+    /// is: a level 80 duty read the hotbar 48 million times and recognised 4,110 slots, and
+    /// the question "which id was actually in the slot then" is the one that settles why.
+    /// </para>
+    /// </summary>
+    private readonly HashSet<uint> _unrecognised = [];
+
+    private const int UnrecognisedSampleSize = 12;
+
     private long _scanned;
     private long _ours;
     private long _painting;
@@ -98,6 +110,9 @@ public sealed unsafe class HotbarIconPainter : IDisposable
 
     /// <summary>How many slots are currently carrying a suggestion rather than their own art.</summary>
     public int SlotsHeld => _painted.Count;
+
+    /// <summary>A sample of action ids found on the bar that were not one of our buttons.</summary>
+    public IReadOnlyCollection<uint> UnrecognisedIds => _unrecognised;
 
     /// <summary>
     /// One pass over every hotbar slot. Called once a frame, after both buttons have been
@@ -153,6 +168,9 @@ public sealed unsafe class HotbarIconPainter : IDisposable
         var mode = _classify(slot->CommandId) ?? _classify(slot->OriginalApparentActionId);
         if (mode is null)
         {
+            if (_unrecognised.Count < UnrecognisedSampleSize && slot->CommandId != 0)
+                _unrecognised.Add(slot->CommandId);
+
             Restore(slot, key);
             return;
         }
