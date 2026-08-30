@@ -140,4 +140,62 @@ public sealed class RedMageComboTests
 
         Assert.NotEqual(A.EnchantedRiposte.Id, Suggest(packet));
     }
+
+    // ---- Magicked Swordplay, which pays for the whole chain ---------------
+
+    /// <summary>
+    /// The state a recorded pull sat in for thirty seconds. Manafication had just been pressed
+    /// at white 14 black 8 - which is exactly when its free combo is worth most - and the
+    /// gauge test refused the combo until the buff expired unused. Three free globals gone.
+    /// </summary>
+    [Fact]
+    public void MagickedSwordplayStartsTheChainOnAnEmptyGauge()
+    {
+        var packet = new SnapshotBuilder().Job(35).Level(100).Gcd(0f).Enemies(1).NoCombo()
+            .Buff(A.MagickedSwordplay.Id, 29f)
+            .Gauge(s =>
+            {
+                s.Gauges.RedMage.WhiteMana = 14;
+                s.Gauges.RedMage.BlackMana = 8;
+            });
+
+        Assert.Equal(A.EnchantedRiposte.Id, Suggest(packet));
+    }
+
+    /// <summary>
+    /// And the chain still runs to its end on a gauge that could never have paid for it. The
+    /// buff covers all three globals, which is why it comes in threes.
+    /// </summary>
+    [Fact]
+    public void TheFreeChainRunsToItsEnd()
+    {
+        var mid = new SnapshotBuilder().Job(35).Level(100).Gcd(0f).Enemies(1)
+            .Buff(A.MagickedSwordplay.Id, 26f)
+            .Combo(A.EnchantedRiposte.Id)
+            .Gauge(s =>
+            {
+                s.Gauges.RedMage.WhiteMana = 14;
+                s.Gauges.RedMage.BlackMana = 8;
+                s.Gauges.RedMage.ManaStacks = 1;
+            });
+
+        Assert.Equal(A.EnchantedZwerchhau.Id, Suggest(mid));
+    }
+
+    /// <summary>
+    /// Without the buff an empty gauge still cannot start the chain - the gauge test is not
+    /// being removed, only given the second way of being satisfied that it always needed.
+    /// </summary>
+    [Fact]
+    public void AnEmptyGaugeWithoutTheBuffStillWaits()
+    {
+        var packet = new SnapshotBuilder().Job(35).Level(100).Gcd(0f).Enemies(1).NoCombo()
+            .Gauge(s =>
+            {
+                s.Gauges.RedMage.WhiteMana = 14;
+                s.Gauges.RedMage.BlackMana = 8;
+            });
+
+        Assert.NotEqual(A.EnchantedRiposte.Id, Suggest(packet));
+    }
 }
