@@ -109,8 +109,29 @@ public sealed class RedMageRotation : JobRotationBase
 
         p.Gcd(A.Verflare).When(c => c.Rdm.ManaStacks >= 3);
 
-        p.Gcd(A.EnchantedRedoublement).When(c => c.ComboIs(A.EnchantedZwerchhau));
-        p.Gcd(A.EnchantedZwerchhau).When(c => c.ComboIs(A.EnchantedRiposte));
+        // The melee combo, asked for in both of its spellings.
+        //
+        // Enchanted Riposte and Riposte are different action ids - 7527 and 7504 - and so are
+        // the two Zwerchhaus and the two Redoublements. The list only ever asked about the
+        // enchanted ones, and a recorded pull shows the chain never advancing past its first
+        // step: three Enchanted Ripostes back to back at 03:02, 03:04 and 03:05, then Verholy,
+        // which needs three mana stacks and had them because three Ripostes is three stacks.
+        // Every one of those globals should have been the next step of the combo, and the
+        // spells that took the globals afterwards did so only because the chain had been
+        // abandoned rather than finished.
+        //
+        // Which of the two ids the game writes into its combo tracker is not something that
+        // can be settled from here, and it does not need to be: the pair are the same position
+        // in the same chain, so accepting either cannot start a combo that is not live. This
+        // is the third chain in this plugin that was not where it looked like it should be -
+        // Viper's coils were in the job gauge, Gunbreaker's Reign shared a gauge step - so the
+        // cheap answer is to stop guessing and ask both. DescribeGauge below now prints the
+        // live combo id, which settles it from the next log rather than from reasoning.
+        p.Gcd(A.EnchantedRedoublement)
+            .When(c => ComboAt(c, A.EnchantedZwerchhau, A.Zwerchhau));
+
+        p.Gcd(A.EnchantedZwerchhau)
+            .When(c => ComboAt(c, A.EnchantedRiposte, A.Riposte));
 
         // Enough of both colours to see the combo through without dropping out of it.
         p.Gcd(A.EnchantedRiposte)
@@ -249,5 +270,46 @@ public sealed class RedMageRotation : JobRotationBase
         p.Gcd(A.VerthunderII).Because("build the lower colour");
 
         p.Gcd(c => c.Has(A.Impact) ? A.Impact : A.Scatter);
+    }
+
+    /// <summary>
+    /// Whether the live combo step is either spelling of the same action. The enchanted and
+    /// unenchanted forms are one position in one chain, so asking about both is free.
+    /// </summary>
+    private static bool ComboAt(RotationContext c, ActionRef enchanted, ActionRef plain) =>
+        c.ComboIs(enchanted) || c.ComboIs(plain);
+
+    /// <summary>
+    /// What the recorded log prints for a Red Mage line. There was none, which is most of why
+    /// the combo above went unnoticed: the two mana colours drive nearly every rule in the
+    /// list and none of them were on the page, and neither was the combo the chain turns on.
+    /// <para>
+    /// The combo prints its id beside its name on purpose. The whole question above is which
+    /// id the game writes for an enchanted step, and one line of a real log answers it.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.RedMage;
+        var stacks = g.ManaStacks > 0 ? $" | stacks {g.ManaStacks}" : string.Empty;
+
+        var combo = snapshot.ComboTimeRemaining > 0f
+            ? $" | combo {ComboName(snapshot.LastComboAction)} #{snapshot.LastComboAction}"
+              + $" {snapshot.ComboTimeRemaining:0.0}s"
+            : string.Empty;
+
+        return $"white {g.WhiteMana} black {g.BlackMana}{stacks}{combo}";
+    }
+
+    /// <summary>The name of a live combo action, or nothing when it is not one of ours.</summary>
+    private static string ComboName(uint actionId)
+    {
+        foreach (var action in A.All)
+        {
+            if (action.Id == actionId)
+                return action.Name;
+        }
+
+        return "something else";
     }
 }
