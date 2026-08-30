@@ -1,6 +1,6 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
-using OneTwoPunch.Core.Engine;
+using OneTwoPunch.Core.Model;
 
 namespace OneTwoPunch.Plugin;
 
