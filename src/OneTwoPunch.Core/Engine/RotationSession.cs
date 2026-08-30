@@ -73,6 +73,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     private bool _openerSteppedOverAGlobal;
 
     /// <summary>
+    /// The actions this session has suggested since the last one actually went off, so an
+    /// abort can tell a player who went off script from one who did exactly what the button
+    /// said.
+    /// <para>
+    /// A set rather than a single id: both buttons are resolved every frame and either may
+    /// be the one pressed. It is cleared the moment an action goes off, so it only ever
+    /// holds what was genuinely on offer leading up to that press.
+    /// </para>
+    /// </summary>
+    private readonly HashSet<uint> _suggestedSinceLastUse = [];
+
+    /// <summary>
     /// The step the settle clock below is running for, and when it started. -1 when no step
     /// has been looked at yet.
     /// </summary>
@@ -173,6 +185,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         _openerRewinds = 0;
         _openerSteppedOverAGlobal = false;
         _openerSettlingStep = -1;
+        _suggestedSinceLastUse.Clear();
         _held.Clear();
     }
 
@@ -220,6 +233,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // Set after stabilisation and every frame, so the display tracks the player moving
         // even while the suggestion itself is being held steady.
         stabilised.Position = snapshot.Position;
+
+        // Recorded so the opener can tell "the player went off script" from "the player
+        // pressed the button and got what we had put on it". See NotifyActionUsed.
+        if (stabilised.Action.Id != 0)
+            _suggestedSinceLastUse.Add(stabilised.Action.Id);
+
         return stabilised;
     }
 
@@ -590,6 +609,11 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     public void NotifyActionUsed(uint actionId)
     {
+        // Taken before the set is cleared: this press is judged against what was on offer
+        // leading up to it, not against whatever gets suggested after it.
+        var wasOurs = _suggestedSinceLastUse.Contains(actionId);
+        _suggestedSinceLastUse.Clear();
+
         if (_gcdIds.Contains(actionId))
             _weavesThisWindow = 0;
         else if (_oGcdIds.Contains(actionId))
@@ -619,7 +643,27 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 break;
         }
 
-        if (_wasInCombat)
+        // Whatever this was, it was not the opener's idea - had it been, the loop above would
+        // have matched it and returned. So the last question worth asking before throwing
+        // thirty-odd scripted steps away is whether it was nonetheless *our* idea.
+        //
+        // It very often is. The opener stands down for perfectly ordinary reasons - an
+        // off-global step with no weave slot open, a step the game calls unusable before the
+        // pull - and returns null, and the priority list answers that global instead. The
+        // player presses the button, gets what we had put on it, and the opener aborts over
+        // its own plugin's suggestion. A recorded Red Mage pull dies exactly there: "step 3
+        // of 36, gave up: step 3 wanted Swiftcast, but Veraero III was used" - and Veraero
+        // III is what the button was showing at that moment, with the priority list's own
+        // reason printed beside it in the same log.
+        //
+        // The method below already says this for the sibling case: you cannot go off script
+        // by doing exactly what the script said. It is no less true when the script was
+        // standing down and something else of ours was doing the talking.
+        //
+        // Held rather than aborted, so the step stays where it is: the weave slot opens, the
+        // cooldown comes back, and the opener picks up. The log then reads "held there"
+        // instead of "gave up", which is also what actually happened.
+        if (_wasInCombat && !wasOurs)
         {
             Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
                   + $"but {NameOf(actionId)} was used");
