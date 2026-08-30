@@ -79,9 +79,15 @@ public sealed class RedMageRotation : JobRotationBase
         // ---- Off-globals -------------------------------------------------
         p.OGcd(A.Embolden).When(c => !c.Downtime).Because("raid buff");
 
+        // Not "refill both colours", which is what this used to say and what Manafication
+        // used to do. In Dawntrail it adds no mana at all - a recorded pull has white 14
+        // black 8 before it and white 14 black 8 after. What it grants is three stacks of
+        // Magicked Swordplay, and the melee combo is three globals, so the press is worth
+        // exactly one free combo and nothing else. The gauge test stays because a low gauge
+        // is when a free combo is worth most; the rule that spends it is with the combo.
         p.OGcd(A.Manafication)
             .When(c => !c.Downtime && c.Rdm.ManaStacks == 0 && c.Rdm.LowerMana <= 50)
-            .Because("refill both colours");
+            .Because("three free melee globals");
 
         p.OGcd(A.Fleche).When(c => !c.Downtime);
         p.OGcd(A.ContreSixte).When(c => !c.Downtime);
@@ -133,10 +139,28 @@ public sealed class RedMageRotation : JobRotationBase
         p.Gcd(A.EnchantedZwerchhau)
             .When(c => ComboAt(c, A.EnchantedRiposte, A.Riposte));
 
-        // Enough of both colours to see the combo through without dropping out of it.
+        // Enough of both colours to see the combo through without dropping out of it - or
+        // Magicked Swordplay, which means it costs nothing at all.
+        //
+        // Manafication in Dawntrail does not refill the gauge. It grants three stacks of
+        // Magicked Swordplay, and the melee combo is exactly three globals, so what it
+        // actually hands you is the whole combo for free. A recorded pull shows both halves
+        // of that: the combo taken without it costs 20, 15 and 15 of each colour, and the one
+        // taken under it leaves white 55 black 51 completely untouched across all three.
+        //
+        // The buff was declared and asked about nowhere. So the first Manafication of that
+        // pull was pressed at white 14 black 8 - which is exactly when its free combo is worth
+        // most - and then the gauge test refused the combo for thirty seconds until the buff
+        // expired unused. Three free globals thrown away. The one window that did fire only
+        // did so because the gauge happened to reach 55 and 51 on its own, which is the player
+        // reporting "we ended up using it ONCE at our 2 minute but only because we had 50
+        // white and black mana".
         p.Gcd(A.EnchantedRiposte)
-            .When(c => c.Rdm.LowerMana >= 50 && !c.Downtime && c.InRange)
-            .Because("spend the gauge");
+            .When(c => (c.Rdm.LowerMana >= 50 || c.Buff(A.MagickedSwordplay))
+                       && !c.Downtime && c.InRange)
+            .Because(c => c.Buff(A.MagickedSwordplay)
+                ? "free under Magicked Swordplay"
+                : "spend the gauge");
 
         // ---- The filler, which is a pair of globals rather than one ------
         // This was the whole of what was wrong with the list, and it was wrong twice.
@@ -231,7 +255,8 @@ public sealed class RedMageRotation : JobRotationBase
 
         p.OGcd(A.Embolden).When(c => !c.Downtime).Because("raid buff");
         p.OGcd(A.Manafication)
-            .When(c => !c.Downtime && c.Rdm.ManaStacks == 0 && c.Rdm.LowerMana <= 50);
+            .When(c => !c.Downtime && c.Rdm.ManaStacks == 0 && c.Rdm.LowerMana <= 50)
+            .Because("three free melee globals");
         p.OGcd(A.Fleche).When(c => !c.Downtime);
         p.OGcd(A.ContreSixte).When(c => !c.Downtime);
         p.OGcd(A.ViceOfThorns).When(c => c.Buff(A.ThornedFlourish));
@@ -249,9 +274,14 @@ public sealed class RedMageRotation : JobRotationBase
         p.Gcd(A.EnchantedMoulinetTrois).When(c => c.Ready(A.EnchantedMoulinetTrois));
         p.Gcd(A.EnchantedMoulinetDeux).When(c => c.Ready(A.EnchantedMoulinetDeux));
 
+        // Magicked Swordplay pays for this chain too - it is the same three melee globals,
+        // and the buff does not care which of the two the player is spending them on.
         p.Gcd(A.EnchantedMoulinet)
-            .When(c => c.Rdm.LowerMana >= 50 && !c.Downtime && c.InRange)
-            .Because("spend the gauge");
+            .When(c => (c.Rdm.LowerMana >= 50 || c.Buff(A.MagickedSwordplay))
+                       && !c.Downtime && c.InRange)
+            .Because(c => c.Buff(A.MagickedSwordplay)
+                ? "free under Magicked Swordplay"
+                : "spend the gauge");
 
         p.Gcd(A.GrandImpact).When(c => c.Buff(A.GrandImpactReady)).Because("free and instant");
 
