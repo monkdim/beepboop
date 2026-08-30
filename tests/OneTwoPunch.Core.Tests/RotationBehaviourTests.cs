@@ -238,6 +238,11 @@ public sealed class RotationBehaviourTests
 
     // ---- Positionals -----------------------------------------------------
 
+    // All four of these sit inside the positional rescue window rather than merely near it.
+    // The window is a setting now, defaulting to 0.8s, so 0.9s - which used to be inside the
+    // old fixed 1.3s - is outside it. Three of the four assert that True North is *not*
+    // offered, and at 0.9s they would all have passed without testing anything at all.
+
     [Fact]
     public void TrueNorthIsOfferedWhenStandingInTheWrongPlaceForAPositional()
     {
@@ -245,7 +250,7 @@ public sealed class RotationBehaviourTests
 
         // Chaotic Spring is next and wants the rear; we are standing in front of the boss.
         var snapshot = new SnapshotBuilder()
-            .Gcd(0.9f)
+            .Gcd(0.78f)
             .Combo(Drg.SpiralBlow)
             .Position(RelativePosition.Front)
             .Build();
@@ -261,7 +266,7 @@ public sealed class RotationBehaviourTests
     {
         var session = DragoonSession();
         var snapshot = new SnapshotBuilder()
-            .Gcd(0.9f)
+            .Gcd(0.78f)
             .Combo(Drg.SpiralBlow)
             .Position(RelativePosition.Rear)
             .Build();
@@ -276,7 +281,7 @@ public sealed class RotationBehaviourTests
     {
         var session = DragoonSession();
         var snapshot = new SnapshotBuilder()
-            .Gcd(0.9f)
+            .Gcd(0.78f)
             .Combo(Drg.SpiralBlow)
             .Position(RelativePosition.Front)
             .Buff(Drg.TrueNorthBuff, 8f)
@@ -295,7 +300,7 @@ public sealed class RotationBehaviourTests
         var session = DragoonSession(settings);
 
         var snapshot = new SnapshotBuilder()
-            .Gcd(0.9f)
+            .Gcd(0.78f)
             .Combo(Drg.SpiralBlow)
             .Position(RelativePosition.Front)
             .Build();

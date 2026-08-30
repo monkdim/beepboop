@@ -202,14 +202,78 @@ public sealed class MonkRotation : JobRotationBase
     }
 
     /// <summary>
-    /// What to press while Perfect Balance suspends forms. Opo-opo hits hardest, so its
-    /// chakra is banked whenever the fury to spend is already there; otherwise build it.
+    /// What to press while Perfect Balance suspends forms, and which Blitz that builds.
+    /// <para>
+    /// This used to bank Opo-opo three times, every window, for ever. Opo-opo does hit
+    /// hardest, so three of it is the strongest Blitz available in isolation - but three
+    /// matching chakra is an Elixir Burst, which lights the Lunar Nadi, and lighting a Nadi
+    /// that is already lit does nothing at all.
+    /// </para>
+    /// <para>
+    /// Phantom Rush needs both Nadi, and the only thing that lights Solar is a Blitz of three
+    /// *different* chakra. So a list that always builds matching chakra gets exactly one
+    /// Phantom Rush - the one its scripted opener happens to set up - and never another. A
+    /// recorded pull shows it precisely: Rising Phoenix and Elixir Burst in the opener, Phantom
+    /// Rush at 00:49, and then Elixir Burst again at 01:30 and 02:05 with Lunar already lit
+    /// both times. Two windows spent lighting a lamp that was on.
+    /// </para>
+    /// <para>
+    /// So the windows alternate. With Lunar lit and Solar dark, build one of each chakra and
+    /// take Rising Phoenix; otherwise build Opo-opo, which is both the hardest hitting and
+    /// what lights Lunar for the pair. NadiFlags was already in the gauge and read by nothing.
+    /// </para>
     /// </summary>
     private static ActionRef PerfectBalanceAction(RotationContext c)
     {
-        if (c.Mnk.OpoOpoFury > 0)
-            return c.Has(A.LeapingOpo) ? A.LeapingOpo : A.Bootshine;
+        if (WantsSolarNadi(c))
+        {
+            // One of each, in whatever order the window has not covered yet. Asked of the
+            // gauge rather than counted, so a global pressed by hand mid-window does not put
+            // the rest of the window out of step.
+            if (!c.Mnk.HasOpoChakra)
+                return OpoChakra(c);
 
-        return A.DragonKick;
+            if (!c.Mnk.HasRaptorChakra)
+                return RaptorChakra(c);
+
+            if (!c.Mnk.HasCoeurlChakra)
+                return CoeurlChakra(c);
+        }
+
+        return OpoChakra(c);
     }
+
+    /// <summary>
+    /// Whether this Perfect Balance window should be spent on three different chakra.
+    /// <para>
+    /// Only when Lunar is already lit and Solar is not: that is the one arrangement where a
+    /// matching Blitz is worth nothing and a mixed one completes the pair for Phantom Rush.
+    /// With neither lit, or both, Opo-opo is the harder hitting build.
+    /// </para>
+    /// <para>
+    /// Below the level that has Rising Phoenix there are no Nadi to pair, and the flags read
+    /// zero for ever - so this is false and the window builds Opo-opo, which is the rotation
+    /// those levels actually have.
+    /// </para>
+    /// </summary>
+    private static bool WantsSolarNadi(RotationContext c) =>
+        c.Has(A.RisingPhoenix) && c.Mnk.HasLunarNadi && !c.Mnk.HasSolarNadi;
+
+    /// <summary>The Opo-opo chakra: spend the fury if it is there, otherwise build it.</summary>
+    private static ActionRef OpoChakra(RotationContext c) =>
+        c.Mnk.OpoOpoFury > 0
+            ? c.Has(A.LeapingOpo) ? A.LeapingOpo : A.Bootshine
+            : A.DragonKick;
+
+    /// <summary>The Raptor chakra, the same way round.</summary>
+    private static ActionRef RaptorChakra(RotationContext c) =>
+        c.Mnk.RaptorFury > 0
+            ? c.Has(A.RisingRaptor) ? A.RisingRaptor : A.TrueStrike
+            : A.TwinSnakes;
+
+    /// <summary>And the Coeurl chakra.</summary>
+    private static ActionRef CoeurlChakra(RotationContext c) =>
+        c.Mnk.CoeurlFury > 0
+            ? c.Has(A.PouncingCoeurl) ? A.PouncingCoeurl : A.SnapPunch
+            : A.Demolish;
 }

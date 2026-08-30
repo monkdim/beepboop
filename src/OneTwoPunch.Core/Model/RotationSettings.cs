@@ -85,6 +85,23 @@ public sealed class RotationSettings
     public bool SuggestPositionalRescue { get; set; } = true;
 
     /// <summary>
+    /// How close the next global has to be before a positional is rescued, in seconds.
+    /// <para>
+    /// This used to be <see cref="AssumedAnimationLock"/> doubled, which answers a different
+    /// question: "will an off-global fit in this weave window". Nobody ever chose 1.3 seconds
+    /// as a repositioning deadline - it fell out of weave arithmetic and was then used to
+    /// decide whether a player had run out of time to walk round a boss.
+    /// </para>
+    /// <para>
+    /// It is a setting because the answer is different for different people, which is the
+    /// whole point of this plugin. Wind it up and the rescue comes early and often; wind it
+    /// down and it only arrives when there is genuinely no time left. The floor is just above
+    /// the animation lock, because past that the weave clips the global it was rescuing.
+    /// </para>
+    /// </summary>
+    public float PositionalRescueWindow { get; set; } = 0.8f;
+
+    /// <summary>
     /// Do not suggest raid buffs or burst cooldowns while the boss is untargetable.
     /// </summary>
     public bool HoldBurstDuringDowntime { get; set; } = true;

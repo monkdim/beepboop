@@ -286,6 +286,15 @@ public sealed unsafe class GameStateProvider(
                     else if (value != first)
                         matching = false;
 
+                    // 1 Opo-opo, 2 Raptor, 3 Coeurl. Which ones are open is what tells the
+                    // list whether it can still build a Blitz of three different chakra.
+                    if (value == 1)
+                        t.HasOpoChakra = true;
+                    else if (value == 2)
+                        t.HasRaptorChakra = true;
+                    else if (value == 3)
+                        t.HasCoeurlChakra = true;
+
                     opened++;
                 }
 
