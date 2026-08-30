@@ -276,4 +276,53 @@ public sealed class MonkRotation : JobRotationBase
         c.Mnk.CoeurlFury > 0
             ? c.Has(A.PouncingCoeurl) ? A.PouncingCoeurl : A.SnapPunch
             : A.Demolish;
+
+    /// <summary>
+    /// Everything the list actually reads, printed beside every cast.
+    /// <para>
+    /// Monk had no gauge line at all, and it cost two whole recorded pulls. Both showed
+    /// Perfect Balance banking three Opo-opo when the list should have been asking for one
+    /// of each, and with nothing but form buffs in the log there was no way to tell a Nadi
+    /// that was read wrong from beast chakra that were - so the fix went to the wrong one
+    /// first. The Red Mage combo bug was found the moment its gauge reached the log; this
+    /// is the same line for the same reason.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Monk;
+
+        var nadi = (g.HasLunarNadi, g.HasSolarNadi) switch
+        {
+            (true, true) => "lunar+solar",
+            (true, false) => "lunar",
+            (false, true) => "solar",
+            _ => "none",
+        };
+
+        var beast = g.BeastChakraCount == 0
+            ? "none"
+            : string.Join('+', OpenChakraNames(g));
+
+        var blitz = g.BlitzTimeRemaining > 0f ? $" {g.BlitzTimeRemaining:0.0}s" : string.Empty;
+
+        return $"chakra {g.Chakra} | beast {beast}{blitz} | nadi {nadi}"
+               + $" | fury opo {g.OpoOpoFury} raptor {g.RaptorFury} coeurl {g.CoeurlFury}";
+    }
+
+    /// <summary>
+    /// The beast chakra that are open, by name. Which ones, not how many: it is the missing
+    /// one that decides what Perfect Balance asks for next.
+    /// </summary>
+    private static IEnumerable<string> OpenChakraNames(MonkGauge g)
+    {
+        if (g.HasOpoChakra)
+            yield return "opo";
+
+        if (g.HasRaptorChakra)
+            yield return "raptor";
+
+        if (g.HasCoeurlChakra)
+            yield return "coeurl";
+    }
 }
