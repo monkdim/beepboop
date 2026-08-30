@@ -527,6 +527,35 @@ public sealed class BlackMageRotation : JobRotationBase
                        && !c.Blm.InAstralFire && !c.Blm.InUmbralIce && c.Mp >= NeutralFireMp)
             .Because("full mana, open in Astral Fire");
 
+        // The global the crossing weaves off, and the reason the crossing needs one.
+        //
+        // Transpose is an off-global, so it is only ever offered in a weave window. The AoE
+        // fire phase ends on an empty bar with nothing left to cast, so no global goes off,
+        // so no window opens - and what comes up instead is this hard-cast High Blizzard II,
+        // which in Astral Fire is damage-penalised. A recorded duty crosses that way nine
+        // times out of eleven, and every one of the nine is at "gcd 0.0s": the global was up
+        // and the weave never existed.
+        //
+        // Single target does not have this problem because its phase ends on Despair, which
+        // fills that last global and hands Transpose the window straight after. The chart
+        // gives the AoE loop the same thing and calls it a filler - Foul or High Thunder II
+        // before each Transpose - which is what the two Transpose rules above were already
+        // written to wait for. Nothing ever produced one.
+        //
+        // Foul is instant, unaspected and worth the same in either phase, and here it
+        // displaces nothing: the phase is over and the bar is empty, so a banked Polyglot
+        // spent on this global is free and buys the unpenalised crossing. Naming it also
+        // makes the Transpose stand down for exactly one global, which is the interaction
+        // that rule was built for.
+        p.Gcd(A.Foul)
+            .When(c => AoeUsesTranspose(c)
+                       && c.Blm.InAstralFire
+                       && AoeFireIsSpent(c)
+                       && c.Blm.PolyglotStacks > 0)
+            .Because("the global the Transpose weaves off");
+
+        // Still the floor, and deliberately still reachable: with no Polyglot banked there is
+        // no filler to be had, and a penalised cast into ice beats no answer at all.
         p.Gcd(c => AoeIceSpell(c))
             .When(c => !c.Blm.InUmbralIce)
             .Because("into Umbral Ice");

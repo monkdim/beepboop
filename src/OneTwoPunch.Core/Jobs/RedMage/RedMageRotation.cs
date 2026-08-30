@@ -117,10 +117,44 @@ public sealed class RedMageRotation : JobRotationBase
             .When(c => c.Rdm.LowerMana >= 50 && !c.Downtime && c.InRange)
             .Because("spend the gauge");
 
-        // Free instants.
-        p.Gcd(A.GrandImpact).When(c => c.Buff(A.GrandImpactReady)).Because("free and instant");
+        // ---- The filler, which is a pair of globals rather than one ------
+        // This was the whole of what was wrong with the list, and it was wrong twice.
+        //
+        // Cast times, from BossMod's own annotations: Verthunder III and Veraero III are
+        // five seconds. Jolt III, Verfire and Verstone are two. Grand Impact is instant.
+        // Dualcast makes the next spell instant and is earned by finishing a spell that had
+        // a cast time - so the filler is two globals, not one: spend two seconds earning
+        // Dualcast, then spend Dualcast on a five second spell that now costs nothing.
+        //
+        // The list had no pairing at all. "Build the lower colour" on Verthunder III carried
+        // no condition whatsoever, so it matched every single time the list reached it: the
+        // five second casts went out hard, one after another, which is what a Red Mage looks
+        // like when they do not know about Dualcast. And because it always matched, the Jolt
+        // underneath it was unreachable - not rarely chosen, but dead. Reported from a pull
+        // as "Jolt isn't being cast at all, it's hard casting my 5 second casts".
 
-        // Procs are instant, so they are what you want while moving.
+        // Dualcast in hand: spend it on the spell that costs the most to hard cast, taking
+        // whichever colour is behind. This is above the procs on purpose - a proc is a two
+        // second cast and belongs in the half of the pair that earns the next Dualcast, so
+        // spending Dualcast on one would waste four fifths of it.
+        p.Gcd(c => AeroSpell(c))
+            .When(c => NextCastIsFree(c) && c.Rdm.WhiteMana <= c.Rdm.BlackMana)
+            .Because("free under Dualcast, and white is behind");
+
+        p.Gcd(c => ThunderSpell(c))
+            .When(c => NextCastIsFree(c))
+            .Because("free under Dualcast");
+
+        // No Dualcast: a two second spell, which earns the one the global above spends.
+        //
+        // Grand Impact is already instant, so a Dualcast spent on it is a Dualcast thrown
+        // away - hence it waits here rather than sitting above the pair.
+        p.Gcd(A.GrandImpact)
+            .When(c => c.Buff(A.GrandImpactReady) && !NextCastIsFree(c))
+            .Because("free and instant");
+
+        // Procs first among the two second casts: they expire, and the pair comes round
+        // again within two globals either way.
         p.Gcd(A.Verstone)
             .When(c => c.Buff(A.VerstoneReady) && c.Rdm.WhiteMana <= c.Rdm.BlackMana)
             .Because(c => c.Moving ? "instant, you are moving" : "proc");
@@ -131,16 +165,44 @@ public sealed class RedMageRotation : JobRotationBase
 
         p.Gcd(A.Verstone).When(c => c.Buff(A.VerstoneReady)).Because("proc");
 
-        // Hard casts, taking whichever colour is behind.
-        p.Gcd(c => c.Has(A.VeraeroIII) ? A.VeraeroIII : A.Veraero)
+        // And with no proc either, Jolt - two seconds for the Dualcast, rather than five for
+        // a spell the Dualcast was about to make free. Jolt is level 2, so this rung always
+        // exists and the list can never run out of an answer here.
+        p.Gcd(c => JoltSpell(c)).Because("two seconds, and it earns the Dualcast");
+
+        // The five second casts taken hard, which is what is left when Dualcast cannot be
+        // earned in time - a proc-less opener step, or coming back from downtime with the
+        // pair out of phase. Below Jolt because it is the worse half of every trade above.
+        p.Gcd(c => AeroSpell(c))
             .When(c => c.Rdm.WhiteMana <= c.Rdm.BlackMana)
             .Because("build the lower colour");
 
-        p.Gcd(c => c.Has(A.VerthunderIII) ? A.VerthunderIII : A.Verthunder)
-            .Because("build the lower colour");
-
-        p.Gcd(c => c.Has(A.JoltIII) ? A.JoltIII : c.Has(A.JoltII) ? A.JoltII : A.Jolt);
+        p.Gcd(c => ThunderSpell(c)).Because("build the lower colour");
     }
+
+    /// <summary>
+    /// Whether the next spell will go off instantly, and so whether a five second cast is
+    /// actually a five second cast.
+    /// <para>
+    /// Only the statuses are asked, not what granted them - Acceleration grants Dualcast on
+    /// the levels that have it, and asking about Dualcast picks that up without this needing
+    /// to know which patch changed what.
+    /// </para>
+    /// </summary>
+    private static bool NextCastIsFree(RotationContext c) =>
+        c.Buff(A.Dualcast) || c.Buff(A.SwiftcastBuff);
+
+    /// <summary>The white five second cast, at whichever rank the player has.</summary>
+    private static ActionRef AeroSpell(RotationContext c) =>
+        c.Has(A.VeraeroIII) ? A.VeraeroIII : A.Veraero;
+
+    /// <summary>The black five second cast, at whichever rank the player has.</summary>
+    private static ActionRef ThunderSpell(RotationContext c) =>
+        c.Has(A.VerthunderIII) ? A.VerthunderIII : A.Verthunder;
+
+    /// <summary>The two second cast that earns the Dualcast, at whichever rank.</summary>
+    private static ActionRef JoltSpell(RotationContext c) =>
+        c.Has(A.JoltIII) ? A.JoltIII : c.Has(A.JoltII) ? A.JoltII : A.Jolt;
 
     private void BuildAoe()
     {
@@ -172,6 +234,14 @@ public sealed class RedMageRotation : JobRotationBase
 
         p.Gcd(A.GrandImpact).When(c => c.Buff(A.GrandImpactReady)).Because("free and instant");
 
+        // The cast times run the other way round here, so this ordering is right as it
+        // stands and is not the single-target bug wearing AoE clothes.
+        //
+        // Veraero II and Verthunder II are two second casts; Scatter and Impact are five.
+        // So the two spells that build mana are also the cheap ones, they alternate into
+        // each other's Dualcast by themselves, and the five second rung below is correctly
+        // never reached above level 18 - which is where Verthunder II arrives and Scatter
+        // stops being the only thing there is.
         p.Gcd(A.VeraeroII)
             .When(c => c.Rdm.WhiteMana <= c.Rdm.BlackMana)
             .Because("build the lower colour");
