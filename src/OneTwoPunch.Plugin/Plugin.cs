@@ -52,6 +52,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PotionTracker _potions;
     private readonly ActionReplacer _replacer;
     private readonly HotbarIconReplacer _icons;
+    private readonly HotbarIconPainter _painter;
     private readonly PartyTargetRedirect _partyTargeting;
     private readonly CastMovementLock _castLock;
     private readonly SessionRecorder _recorder = new();
@@ -169,6 +170,7 @@ public sealed class Plugin : IDalamudPlugin
         // until there is a character standing in the world. See OnUpdate.
         _replacer = new ActionReplacer(Interop, Log, Classify, Resolve);
         _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
+        _painter = new HotbarIconPainter(Log, Classify, Resolve);
         _partyTargeting = new PartyTargetRedirect(
             Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank);
 
@@ -320,6 +322,13 @@ public sealed class Plugin : IDalamudPlugin
                 Resolve(i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
         }
 
+        // And now the icons, with both buttons already worked out - so every lookup the
+        // painter does is a cache hit rather than a fresh snapshot.
+        //
+        // This is the half that was missing. The hook that was supposed to do it is on a
+        // function the game never calls; see HotbarIconPainter for the evidence.
+        _painter.Paint();
+
         // Nothing else to poll: uses arrive from the UseActionLocation hook.
     }
 
@@ -350,7 +359,11 @@ public sealed class Plugin : IDalamudPlugin
             _icons.TimesEntered,
             _icons.EntriesWithNoSlot,
             _icons.ReentrantEntries,
-            _icons.Address);
+            _icons.Address,
+            _painter.SlotsScanned,
+            _painter.SlotsThatAreOurs,
+            _painter.TimesPainted,
+            _painter.SlotsHeld);
 
     /// <summary>
     /// Starts or stops recording a pull. Writes what was pressed beside what was suggested,
@@ -474,6 +487,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         _replacer.Disable();
         _icons.Disable();
+
+        // Put every icon back before anything else - leaving the world with a slot still
+        // holding a suggestion is the one way this could outlive the plugin driving it.
+        _painter.RestoreAll();
         _partyTargeting.Disable();
         _castLock.Disable();
         _useWatcher.Disable();
@@ -1002,6 +1019,7 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.ActionUsed -= OnActionUsed;
 
         _replacer.Dispose();
+        _painter.Dispose();
         _icons.Dispose();
         _partyTargeting.Dispose();
         _castLock.Dispose();
