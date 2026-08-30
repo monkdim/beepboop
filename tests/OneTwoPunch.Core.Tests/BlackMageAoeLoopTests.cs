@@ -212,4 +212,73 @@ public sealed class BlackMageAoeLoopTests
 
         Assert.NotEqual(A.Transpose.Id, suggestion.Action.Id);
     }
+
+    // ---- The global the crossing weaves off -------------------------------
+
+    /// <summary>Astral Fire with the AoE bar spent: Flare will not cast and Astral Soul is
+    /// short of Flare Star.</summary>
+    private static SnapshotBuilder FireIsSpentOnThePack(byte polyglot) =>
+        Pack().Mp(0).Debuff(A.HighThunderII.Id, 25f)
+            .Gauge(s =>
+            {
+                s.Gauges.BlackMage.AstralFire = 3;
+                s.Gauges.BlackMage.AstralSoulStacks = 3;
+                s.Gauges.BlackMage.UmbralHearts = 0;
+                s.Gauges.BlackMage.PolyglotStacks = polyglot;
+            });
+
+    /// <summary>
+    /// The bar spent, as the game reports it: neither Flare nor High Fire II will cast. High
+    /// Fire II matters as much as Flare - the rule above this one offers it in Astral Fire
+    /// with no mana test of its own, and the fake grants every action unless a test says
+    /// otherwise, so leaving it out would answer High Fire II and test nothing.
+    /// </summary>
+    private static FakeActionState BarIsSpent() =>
+        Weaves().Unusable(A.Flare.Id).Unusable(A.HighFire2.Id);
+
+    /// <summary>
+    /// The defect, from a recorded duty: the AoE loop crossed back to ice by hard-casting
+    /// High Blizzard II nine times out of eleven, every one at "gcd 0.0s". Transpose is an
+    /// off-global and the phase ended with nothing left to cast, so no weave window ever
+    /// opened. Foul is the chart's filler and costs nothing here - the phase is over.
+    /// </summary>
+    [Fact]
+    public void TheCrossingOutOfFireGetsAGlobalToWeaveOff()
+    {
+        var suggestion = Suggest(FireIsSpentOnThePack(polyglot: 1), BarIsSpent());
+
+        Assert.Equal(A.Foul.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// And with no Polyglot banked there is no filler to be had, so the penalised cast into
+    /// ice stays reachable. Withholding it would leave the list with nothing to say, which is
+    /// the failure this rule exists to avoid rather than cause.
+    /// </summary>
+    [Fact]
+    public void WithNoPolyglotTheCrossingStillHasAnAnswer()
+    {
+        var suggestion = Suggest(FireIsSpentOnThePack(polyglot: 0), BarIsSpent());
+
+        Assert.Equal(A.HighBlizzard2.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// In the weave window that the filler above opens, Transpose is what crosses - free and
+    /// off the global, rather than a High Blizzard II cast in Astral Fire.
+    /// </summary>
+    [Fact]
+    public void TheWeaveThatFollowsIsTheTranspose()
+    {
+        var packet = PackWeaving().Mp(0).Debuff(A.HighThunderII.Id, 25f)
+            .Gauge(s =>
+            {
+                s.Gauges.BlackMage.AstralFire = 3;
+                s.Gauges.BlackMage.AstralSoulStacks = 3;
+                s.Gauges.BlackMage.UmbralHearts = 0;
+                s.Gauges.BlackMage.PolyglotStacks = 0;
+            });
+
+        Assert.Equal(A.Transpose.Id, Suggest(packet, BarIsSpent()).Action.Id);
+    }
 }
