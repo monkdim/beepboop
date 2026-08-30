@@ -98,8 +98,27 @@ public struct MonkGauge
     /// <summary>All three beast chakra match, which makes the Blitz an Elixir Burst.</summary>
     public bool BeastChakraMatching;
 
+    /// <summary>
+    /// Which of the three beast chakra are open, as raw values so the engine needs no Dalamud
+    /// enum: 1 Opo-opo, 2 Raptor, 3 Coeurl. Counting was not enough - to build a Blitz of
+    /// three *different* chakra the list has to know which of the three it is still missing.
+    /// </summary>
+    public bool HasOpoChakra;
+
+    public bool HasRaptorChakra;
+
+    public bool HasCoeurlChakra;
+
     /// <summary>Raw Nadi flags. Compared as a value so the engine needs no Dalamud enum.</summary>
     public byte NadiFlags;
+
+    /// <summary>
+    /// Lunar Nadi, lit by a Blitz of three matching chakra. ClientStructs: Lunar = 1, Solar = 2.
+    /// </summary>
+    public readonly bool HasLunarNadi => (NadiFlags & 1) != 0;
+
+    /// <summary>Solar Nadi, lit by a Blitz of three different chakra.</summary>
+    public readonly bool HasSolarNadi => (NadiFlags & 2) != 0;
 
     public float BlitzTimeRemaining;
 

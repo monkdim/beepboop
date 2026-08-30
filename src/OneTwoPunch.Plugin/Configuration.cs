@@ -57,6 +57,9 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool SuggestPositionalRescue = true;
 
+    /// <summary>How close the next global has to be before a positional is rescued.</summary>
+    public float PositionalRescueWindow = 0.8f;
+
     public bool HoldBurstDuringDowntime = true;
 
     public float SuggestionHoldSeconds = 0.15f;
@@ -153,6 +156,7 @@ public sealed class Configuration : IPluginConfiguration
         SuggestSelfHeal = SuggestSelfHeal,
         SelfHealBelowHp = SelfHealBelowHp,
         SuggestPositionalRescue = SuggestPositionalRescue,
+        PositionalRescueWindow = PositionalRescueWindow,
         HoldBurstDuringDowntime = HoldBurstDuringDowntime,
         SuggestionHoldSeconds = SuggestionHoldSeconds,
         WeaveSafetyMargin = WeaveSafetyMargin,

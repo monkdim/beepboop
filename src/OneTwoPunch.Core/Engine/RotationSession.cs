@@ -397,8 +397,24 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (!settings.SuggestPositionalRescue || positional == PositionalHint.None)
             return null;
 
-        // Only rescue when the GCD is imminent - there is no point burning it two globals early.
-        if (context.GcdRemaining > context.Settings.AssumedAnimationLock * 2f)
+        // Only rescue once the global is close enough that there is no time left to walk.
+        //
+        // This asked whether a weave would fit - AssumedAnimationLock doubled, so 1.3 seconds
+        // - and used the answer to decide whether the player could still reposition. They are
+        // not the same question, and a second and a third of a second is a long time to a
+        // player who was already halfway round the boss. Reported as "the facing was right but
+        // it fires a little prematurely because I could easily make it in time", from a pull
+        // where True North went out four times in two and a half minutes on a two charge
+        // cooldown - full uptime, and so nothing banked for the moment it is really needed.
+        //
+        // Never tighter than a weave actually fits, whatever the setting says. CanWeave above
+        // is the real gate and enforces the same floor, so this only stops the setting from
+        // promising a rescue the engine would then decline to offer.
+        var window = Math.Max(
+            settings.PositionalRescueWindow,
+            settings.AssumedAnimationLock + settings.WeaveSafetyMargin);
+
+        if (context.GcdRemaining > window)
             return null;
 
         var standingCorrectly = positional switch

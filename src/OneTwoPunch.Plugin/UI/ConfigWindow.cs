@@ -132,6 +132,22 @@ public sealed class ConfigWindow(
             "Offers True North when the next hit wants a flank or rear position you are not "
             + "standing in. For anyone who cannot reliably reposition.");
 
+        if (config.SuggestPositionalRescue)
+        {
+            var window = config.PositionalRescueWindow;
+            if (ImGui.SliderFloat("Rescue when the global is within", ref window, 0.7f, 2.0f, "%.1fs"))
+            {
+                config.PositionalRescueWindow = window;
+                config.Save();
+            }
+
+            Help("How long you get to walk there yourself before True North is offered. Low "
+                 + "and it only arrives when there is genuinely no time left, so charges stay "
+                 + "banked for the moments you cannot turn at all. High and it comes early and "
+                 + "often. There is no right answer - it is your reaction time, not the "
+                 + "game's, so set it to what you can actually make.");
+        }
+
         Toggle("Hold burst during downtime", ref config.HoldBurstDuringDowntime,
             "Stops raid buffs and big cooldowns being suggested while the boss is untargetable.");
 
