@@ -85,12 +85,16 @@ public sealed class MonkRotation : JobRotationBase
         p.OGcd(A.RiddleOfWind).When(c => !c.Downtime);
 
         // Perfect Balance banks chakra for a Blitz; pointless to start one while a Blitz is
-        // already waiting to be spent.
+        // already waiting to be spent, and wasteful to start one whose Blitz will land with
+        // no damage window on it.
         p.OGcd(A.PerfectBalance)
             .When(c => !c.Downtime
                        && !c.Buff(A.PerfectBalanceBuff)
-                       && c.Mnk.BeastChakraCount == 0)
-            .Because("bank Beast Chakra");
+                       && c.Mnk.BeastChakraCount == 0
+                       && (BlitzWouldLandInRiddleOfFire(c) || PerfectBalanceIsAboutToOvercap(c)))
+            .Because(c => PerfectBalanceIsAboutToOvercap(c) && !BlitzWouldLandInRiddleOfFire(c)
+                ? "bank Beast Chakra before a charge is lost"
+                : "bank Beast Chakra for the damage window");
 
         p.OGcd(A.ForbiddenChakra)
             .When(c => c.Mnk.Chakra >= 5)
@@ -276,6 +280,67 @@ public sealed class MonkRotation : JobRotationBase
         c.Mnk.CoeurlFury > 0
             ? c.Has(A.PouncingCoeurl) ? A.PouncingCoeurl : A.SnapPunch
             : A.Demolish;
+
+    /// <summary>
+    /// How long a Perfect Balance window takes to pay out: three globals to bank the chakra
+    /// and a fourth to spend the Blitz. Read off a recorded pull - Perfect Balance at 01:22.9,
+    /// Blitz at 01:29.6 - rather than assumed from the global count, because the window is
+    /// opened as a weave and the Blitz is a global, so it is never a whole number of them.
+    /// </summary>
+    private const float BlitzLead = 7f;
+
+    /// <summary>
+    /// How much of Riddle of Fire's cooldown may still be turning when the window opens. The
+    /// list weaves Riddle of Fire the instant it is up and the Blitz is four globals out, so
+    /// a couple of seconds is nothing - but it has to come up clearly *before* the Blitz, not
+    /// alongside it, or the two race and the Blitz loses about half the time.
+    /// </summary>
+    private const float RiddleLead = 4f;
+
+    /// <summary>
+    /// Whether the Blitz this window builds will land inside Riddle of Fire.
+    /// <para>
+    /// Perfect Balance used to be pressed the moment it came off cooldown, with no idea a
+    /// damage window was coming. A recorded pull shows what that costs: Phantom Rush - the
+    /// hardest hitting button the job has - at 00:51.0 with no Riddle of Fire and no
+    /// Brotherhood on it at all, and Elixir Burst at 01:29.6 three seconds after Riddle of
+    /// Fire fell off. Both windows opened with the damage window twenty-odd seconds away or
+    /// four seconds from ending.
+    /// </para>
+    /// <para>
+    /// Brotherhood needs no rule of its own. It is two minutes to Riddle of Fire's one, so
+    /// aligning to Riddle of Fire puts every second Blitz inside Brotherhood for free.
+    /// </para>
+    /// <para>
+    /// Below the level that has Riddle of Fire there is no window to align to and the answer
+    /// is always yes - a rung that cannot be climbed must not hang the phase.
+    /// </para>
+    /// </summary>
+    private static bool BlitzWouldLandInRiddleOfFire(RotationContext c)
+    {
+        if (!c.Has(A.RiddleOfFire))
+            return true;
+
+        // Running: enough left for the Blitz to land before it drops.
+        if (c.Buff(A.RiddleOfFireBuff))
+            return c.BuffTime(A.RiddleOfFireBuff) >= BlitzLead;
+
+        // Or about to be pressed, with the Blitz still four globals behind it.
+        return c.ReadyIn(A.RiddleOfFire, RiddleLead);
+    }
+
+    /// <summary>
+    /// Whether holding Perfect Balance any longer would throw a charge away.
+    /// <para>
+    /// The escape hatch on the rule above, and the reason it cannot deadlock. Waiting for a
+    /// damage window is only ever worth it while the waiting is free: a charge sitting at the
+    /// cap is a Blitz that will never happen, which is worse than a Blitz with no buff on it.
+    /// It is also what keeps this honest if Riddle of Fire's timer ever reads wrong - the
+    /// window still opens, just without the alignment.
+    /// </para>
+    /// </summary>
+    private static bool PerfectBalanceIsAboutToOvercap(RotationContext c) =>
+        c.Charges(A.PerfectBalance) >= c.MaxCharges(A.PerfectBalance);
 
     /// <summary>
     /// Everything the list actually reads, printed beside every cast.
