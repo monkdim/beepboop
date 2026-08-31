@@ -271,6 +271,15 @@ public sealed unsafe class GameStateProvider(
                 t.CoeurlFury = g.CoeurlFury;
                 t.NadiFlags = (byte)g.Nadi;
 
+                // The snapshot is one object reused every frame, so these have to be cleared
+                // before they are filled. Left to latch, the first Blitz of a pull turns all
+                // three on for good and Perfect Balance never asks for anything but Opo-opo
+                // again - which is exactly what a recorded pull did: five Blitzes, one
+                // Phantom Rush, and the two Solar windows both coming out Lunar.
+                t.HasOpoChakra = false;
+                t.HasRaptorChakra = false;
+                t.HasCoeurlChakra = false;
+
                 // Compared as raw values so the engine needs no Dalamud enum.
                 var opened = 0;
                 var first = 0;

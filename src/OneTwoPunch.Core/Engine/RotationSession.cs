@@ -679,18 +679,28 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // Held rather than aborted, so the step stays where it is: the weave slot opens, the
         // cooldown comes back, and the opener picks up. The log then reads "held there"
         // instead of "gave up", which is also what actually happened.
-        if (_wasInCombat && !wasOurs)
+        if (_wasInCombat)
         {
-            Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
-                  + $"but {NameOf(actionId)} was used");
+            if (!wasOurs)
+            {
+                Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
+                      + $"but {NameOf(actionId)} was used");
+            }
+
+            // Ours, mid-pull: hold. The step stays exactly where it is, which is what the
+            // note above promises and what the code below quietly did not do. Sending it
+            // back to step one mid-fight is worse than aborting, because the guard that
+            // refuses to start an opener late then fires on the very next frame and the
+            // log blames the wrong thing entirely: a recorded Monk pull ran five steps
+            // cleanly, took one priority-list global while the opener stood down waiting
+            // for a weave slot, and reported "step 1 of 20, gave up: the fight was already
+            // 4.9s old at the first step" - a rewind wearing a late-start's clothes.
+            return;
         }
-        else
-        {
-            // A stray press while waiting for the pull is somebody fidgeting on a dummy,
-            // not a divergence worth throwing the opener away over. Start the pre-pull
-            // walk again instead.
-            _openerStep = 0;
-        }
+
+        // A stray press while waiting for the pull is somebody fidgeting on a dummy, not a
+        // divergence worth throwing the opener away over. Start the pre-pull walk again.
+        _openerStep = 0;
     }
 
     /// <summary>

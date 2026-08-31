@@ -186,6 +186,84 @@ public sealed class OpenerResilienceTests
     }
 
     /// <summary>
+    /// Not ending the opener is not the same as leaving it where it was, and for a long time
+    /// it was not: the press was excused and then the step was sent back to one anyway.
+    /// <para>
+    /// Mid-pull that is worse than aborting, because the guard that refuses to start an
+    /// opener late fires on the very next frame and the log blames the wrong thing entirely.
+    /// A recorded Monk pull ran five steps cleanly, took one priority-list global while the
+    /// opener stood down waiting for a weave slot, and reported "step 1 of 20, gave up: the
+    /// fight was already 4.9s old at the first step" - fifteen scripted steps thrown away
+    /// and the reason given for it never happened.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void PressingWhatTheButtonWasShowingDoesNotRewindTheOpenerToStepOne()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        WalkToTheLanceChargeStep(session, actions);
+
+        var shown = session.Resolve(RotationMode.SingleTarget, AtPull(), actions);
+        session.NotifyActionUsed(shown.Action.Id);
+
+        Assert.StartsWith(
+            "step 3 of ",
+            session.OpenerReport ?? string.Empty,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// And it picks up from there. The whole point of holding is that the weave slot opens a
+    /// moment later and the scripted step is still the one on offer.
+    /// </summary>
+    [Fact]
+    public void AfterHoldingTheOpenerCarriesOnFromTheStepItHeld()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        WalkToTheLanceChargeStep(session, actions);
+
+        // No weave slot, so the opener stands down and the priority list answers.
+        var shown = session.Resolve(RotationMode.SingleTarget, AtPull(), actions);
+        session.NotifyActionUsed(shown.Action.Id);
+
+        // Slot open. The step it was holding, not the one it started at.
+        var next = session.Resolve(RotationMode.SingleTarget, AtPull(2.4f), actions);
+
+        Assert.Equal(A.LanceCharge.Id, next.Action.Id);
+    }
+
+    /// <summary>
+    /// Before the pull the rewind is still right: somebody fidgeting on a dummy has not gone
+    /// off script, they have moved the standing start, and the pre-pull walk begins again.
+    /// </summary>
+    [Fact]
+    public void AStrayPressBeforeThePullStartsThePreOpenerWalkAgain()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        CombatSnapshot BeforeThePull() =>
+            new SnapshotBuilder().Gcd(0f).NoCombo().OutOfCombat().Build();
+
+        // Two scripted globals, all of it before the pull.
+        session.Resolve(RotationMode.SingleTarget, BeforeThePull(), actions);
+        session.NotifyActionUsed(A.TrueThrust.Id);
+        session.Resolve(RotationMode.SingleTarget, BeforeThePull(), actions);
+        session.NotifyActionUsed(A.SpiralBlow.Id);
+
+        session.NotifyActionUsed(A.PiercingTalon.Id);
+
+        Assert.True(session.OpenerActive, "a pre-pull fidget ended the opener");
+        Assert.Equal(
+            A.TrueThrust.Id,
+            session.Resolve(RotationMode.SingleTarget, BeforeThePull(), actions).Action.Id);
+    }
+
+    /// <summary>
     /// The set is what was on offer leading up to this press, not everything ever suggested -
     /// so a press that follows a different suggestion is still judged on its own window.
     /// </summary>
