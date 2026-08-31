@@ -295,7 +295,25 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         context.NextGcd = nextGcd;
         context.NextPositional = positional;
 
-        if (context.CanWeave)
+        // Before the pull, with a script still standing by, an off-global out of the priority
+        // list is a cooldown thrown away.
+        //
+        // The opener declines for a frame or two at a standing start - the game refuses
+        // everything during the animation lock of the global before, so "is step two usable"
+        // comes back no - and the priority list answers into that gap. A recorded Monk pull
+        // shows what that costs: Dragon Kick as opener step one at 00:03.2, then Brotherhood
+        // out of the priority list at 00:03.8, still out of combat. The chart puts Brotherhood
+        // at step five, beside Riddle of Fire; spending it 1.8s before the pull threw away
+        // that much of a twenty second raid buff and left it 5.6s out of phase with Riddle of
+        // Fire for the rest of the fight, because both are then used on cooldown from where
+        // they first went off.
+        //
+        // Only while the opener is still standing by, and only off-globals: the global the
+        // list picks pre-pull is the one that starts the fight, and it is the same one the
+        // opener is about to ask for anyway.
+        var scriptStandingBy = OpenerActive && !context.InCombat;
+
+        if (context.CanWeave && !scriptStandingBy)
         {
             // A positional we cannot stand in is worth more than the next cooldown.
             var rescue = ResolvePositionalRescue(context, positional);
@@ -679,22 +697,26 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // Held rather than aborted, so the step stays where it is: the weave slot opens, the
         // cooldown comes back, and the opener picks up. The log then reads "held there"
         // instead of "gave up", which is also what actually happened.
+        // Ours: hold, wherever we are. The step stays exactly where it is, which is what the
+        // note above promises and what this quietly did not do. Mid-fight the rewind was
+        // worse than aborting, because the guard that refuses to start an opener late then
+        // fires on the very next frame and the log blames the wrong thing entirely: a
+        // recorded Monk pull ran five steps cleanly, took one priority-list global while the
+        // opener stood down waiting for a weave slot, and reported "step 1 of 20, gave up:
+        // the fight was already 4.9s old at the first step" - a rewind wearing a late-start's
+        // clothes.
+        //
+        // Before the pull it was quieter and no less wrong. A later pull walked Dragon Kick
+        // as step one, took a priority-list Brotherhood 0.6s behind it while the opener was
+        // still settling, and went back to step one - so the chart's own Dragon Kick was
+        // pressed twice and Brotherhood, which belongs at step five, had already gone.
+        if (wasOurs)
+            return;
+
         if (_wasInCombat)
         {
-            if (!wasOurs)
-            {
-                Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
-                      + $"but {NameOf(actionId)} was used");
-            }
-
-            // Ours, mid-pull: hold. The step stays exactly where it is, which is what the
-            // note above promises and what the code below quietly did not do. Sending it
-            // back to step one mid-fight is worse than aborting, because the guard that
-            // refuses to start an opener late then fires on the very next frame and the
-            // log blames the wrong thing entirely: a recorded Monk pull ran five steps
-            // cleanly, took one priority-list global while the opener stood down waiting
-            // for a weave slot, and reported "step 1 of 20, gave up: the fight was already
-            // 4.9s old at the first step" - a rewind wearing a late-start's clothes.
+            Abort($"step {_openerStep + 1} wanted {opener.Steps[_openerStep].Name}, "
+                  + $"but {NameOf(actionId)} was used");
             return;
         }
 
