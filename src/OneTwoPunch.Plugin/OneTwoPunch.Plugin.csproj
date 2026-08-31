@@ -16,7 +16,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
 
   <PropertyGroup>
-    <Version>1.0.56.0</Version>
+    <Version>1.0.57.0</Version>
     <Authors>monkdim</Authors>
     <Company>-</Company>
     <Description>Collapses each supported job into a single-target button and an AoE button.</Description>
