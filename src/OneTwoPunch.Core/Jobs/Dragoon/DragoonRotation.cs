@@ -84,6 +84,13 @@ public sealed class DragoonRotation : JobRotationBase
         // slot going. That costs a little damage, which is the trade being made on purpose.
         p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
 
+        // And Bloodbath behind it. Second Wind is two minutes and a dungeon is much
+        // longer than that, so the button used to have nothing left to offer once it
+        // had gone - two recorded Monk runs have the player reaching past us for this
+        // seventeen times between them. Second in order, so it is only ever the answer
+        // when Second Wind is unavailable.
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
+
         // ---- Off-globals -------------------------------------------------
         // Burst first: everything else lines up behind the two-minute window.
         p.OGcd(A.LanceCharge)
@@ -186,6 +193,13 @@ public sealed class DragoonRotation : JobRotationBase
         // exactly the attention this plugin exists to not need - so it takes the first weave
         // slot going. That costs a little damage, which is the trade being made on purpose.
         p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
+
+        // And Bloodbath behind it. Second Wind is two minutes and a dungeon is much
+        // longer than that, so the button used to have nothing left to offer once it
+        // had gone - two recorded Monk runs have the player reaching past us for this
+        // seventeen times between them. Second in order, so it is only ever the answer
+        // when Second Wind is unavailable.
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
         p.OGcd(A.LanceCharge).When(c => !c.Downtime).Because("burst window");
         p.OGcd(A.BattleLitany).When(c => !c.Downtime).Because("raid buff");

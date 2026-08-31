@@ -57,6 +57,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// <summary>The report a recorded log should carry: the live one, or the last pull's.</summary>
     public string? OpenerReportForLog => OpenerReport ?? LastOpenerReport;
 
+    /// <summary>
+    /// Drops the carried report, so a recording can only ever print one from inside itself.
+    /// <para>
+    /// The belt to the braces above. A session outlives any number of recordings - a whole
+    /// evening of duties - and a footer that describes a pull the reader was not looking at
+    /// is worse than no footer, because it reads as a finding. Two synced dungeon logs said
+    /// "held there: Brotherhood is still on cooldown" for a Monk opener that is written for
+    /// level 100 and could not have been consulted at either level.
+    /// </para>
+    /// </summary>
+    public void ForgetOpenerReport() => LastOpenerReport = null;
+
     /// <summary>How many times leaving combat rewound the opener during this session.</summary>
     private int _openerRewinds;
 
@@ -457,13 +469,45 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
     private ActionRef? ResolveOpener(RotationContext context)
     {
-        var opener = job.Opener;
-        if (opener is null || !settings.UseOpener || _openerAborted)
+        // The opener is a single-target chart and it drives the single-target button only.
+        //
+        // It used to answer both, because this never looked at which button was asking. A
+        // recorded level 100 dungeon has the player pressing the *area* button into a six
+        // target pull and being walked through Twin Snakes, Demolish, Leaping Opo, Dragon
+        // Kick, Leaping Opo - five single target globals on six enemies - with Rockbreaker
+        // sitting right there in the other list.
+        //
+        // Read off the mode the context was built with, not the one the caller asked for, so
+        // the area button still shows the opener when it has fallen back to single target on
+        // one enemy - which is the same fallback that makes that button safe to hold down.
+        //
+        // Returns before the line below, so a frame spent answering the area button neither
+        // writes a reason nor clears the one the single-target frame wrote.
+        if (context.Mode != RotationMode.SingleTarget)
             return null;
 
+        // Cleared first so every path below writes its own reason and none can be read as
+        // the reason for a frame it was not decided on. Two recorded synced dungeons had
+        // the log naming a cooldown for a stand-down that was really about level.
+        _openerDecline = null;
+
+        var opener = job.Opener;
+        if (opener is null || _openerAborted)
+            return null;
+
+        if (!settings.UseOpener)
+        {
+            _openerDecline = "the opener is switched off in the settings";
+            return null;
+        }
+
+        // Named with both numbers. "The level is below the one it is written for" is true of
+        // a level 99 pull and of a level 60 one, and reading a synced log you want to know
+        // which without going and looking the opener up.
         if (context.Level < opener.MinimumLevel)
         {
-            _openerDecline = "the level is below the one the opener is written for";
+            _openerDecline =
+                $"the opener is written for level {opener.MinimumLevel} and you are {context.Level}";
             return null;
         }
 
@@ -814,6 +858,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 LastOpenerReport = _openerRewinds > 1
                     ? $"{report} (combat ended {_openerRewinds} times, rewinding it each time)"
                     : report;
+            }
+            else
+            {
+                // Assigned either way. Held only when it had something to say, it survived
+                // the pull it belonged to and turned up in the footer of a later one.
+                LastOpenerReport = null;
             }
 
             _openerStep = 0;

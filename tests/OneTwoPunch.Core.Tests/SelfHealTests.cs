@@ -1,95 +1,66 @@
 using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Jobs;
+using OneTwoPunch.Core.Jobs.Monk;
 using OneTwoPunch.Core.Model;
 using Xunit;
+using A = OneTwoPunch.Core.Jobs.Monk.MonkActions;
 
 namespace OneTwoPunch.Core.Tests;
 
 /// <summary>
-/// Second Wind on the melee jobs. It is two minutes of cooldown doing nothing for most of a
-/// fight, and noticing the moment to press it is the sort of attention this plugin exists to
-/// not need - so once you are hurt it takes the first weave slot going, ahead of the burst.
+/// The second rung of the self-heal, which the melee jobs did not have.
+/// <para>
+/// Second Wind is two minutes and a dungeon is a great deal longer than that, so once it had
+/// gone the button had nothing left to offer. Two recorded Monk runs have the player reaching
+/// past the plugin for Bloodbath seventeen times between them - ten in one twenty-seven
+/// minute dungeon - which is exactly the attention this is meant to not need.
+/// </para>
 /// </summary>
 public sealed class SelfHealTests
 {
-    /// <summary>Second Wind, the melee and ranged role action.</summary>
-    private const uint SecondWind = 7541u;
-
-    /// <summary>Every job that has it in a rule: the six melee.</summary>
-    public static TheoryData<uint, string> MeleeJobs() => new()
+    private static uint Suggest(FakeActionState actions, float hp)
     {
-        { 20, "Monk" },
-        { 22, "Dragoon" },
-        { 30, "Ninja" },
-        { 34, "Samurai" },
-        { 39, "Reaper" },
-        { 41, "Viper" },
-    };
+        var snapshot = new SnapshotBuilder()
+            .Job(20).Level(100).Gcd(1.3f).NoCombo().Enemies(1)
+            .Gauge(s => s.PlayerHpFraction = hp)
+            .Build();
 
-    private static Suggestion Resolve(uint jobId, SnapshotBuilder builder, RotationSettings settings) =>
-        new RotationSession(JobRegistry.Create(jobId)!, settings)
-            .Resolve(RotationMode.SingleTarget, builder.Build(), new FakeActionState());
-
-    private static RotationSettings Settings() => new()
-    {
-        UseOpener = false,
-        SuggestionHoldSeconds = 0f,
-    };
-
-    /// <summary>Mid-global, so an off-global can be suggested at all.</summary>
-    private static SnapshotBuilder Weaving(uint jobId) =>
-        new SnapshotBuilder().Job(jobId).Level(100).Gcd(2f).Enemies(1).NoCombo();
-
-    [Theory]
-    [MemberData(nameof(MeleeJobs))]
-    public void AHurtMeleeIsToldToHealItself(uint jobId, string name)
-    {
-        var suggestion = Resolve(jobId, Weaving(jobId).Hp(0.5f), Settings());
-
-        Assert.True(
-            suggestion.Action.Id == SecondWind,
-            $"{name} suggested {suggestion.Action.Name} at half health instead of Second Wind");
+        return new RotationSession(JobRotationBase.Create<MonkRotation>(),
+            new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f })
+            .Resolve(RotationMode.SingleTarget, snapshot, actions).Action.Id;
     }
 
-    /// <summary>And a healthy one is not: the rotation is what the button is for.</summary>
-    [Theory]
-    [MemberData(nameof(MeleeJobs))]
-    public void AHealthyMeleeIsNot(uint jobId, string name)
-    {
-        var suggestion = Resolve(jobId, Weaving(jobId).Hp(1f), Settings());
+    /// <summary>Nothing else is competing for the slot, so each test is only about the heal.</summary>
+    private static FakeActionState Quiet() =>
+        new FakeActionState()
+            .OnCooldown(A.Brotherhood.Id, 90f)
+            .OnCooldown(A.RiddleOfFire.Id, 45f)
+            .OnCooldown(A.RiddleOfWind.Id, 45f)
+            .OnCooldown(A.PerfectBalance.Id, 30f);
 
-        Assert.True(
-            suggestion.Action.Id != SecondWind,
-            $"{name} suggested Second Wind at full health");
-    }
-
-    /// <summary>Just above the mark is still healthy.</summary>
+    /// <summary>Second Wind still comes first: it is the bigger heal and it is free.</summary>
     [Fact]
-    public void TheThresholdIsWhereItSays()
+    public void SecondWindIsStillTheFirstAnswer()
     {
-        var settings = Settings();
-
-        Assert.NotEqual(SecondWind, Resolve(41, Weaving(41).Hp(0.76f), settings).Action.Id);
-        Assert.Equal(SecondWind, Resolve(41, Weaving(41).Hp(0.75f), settings).Action.Id);
+        Assert.Equal(A.SecondWind.Id, Suggest(Quiet(), hp: 0.4f));
     }
 
-    /// <summary>And it can be moved, or turned off entirely.</summary>
+    /// <summary>The defect: with Second Wind spent, the button had nothing.</summary>
     [Fact]
-    public void TheThresholdMoves()
+    public void BloodbathAnswersOnceSecondWindIsSpent()
     {
-        var settings = Settings();
-        settings.SelfHealBelowHp = 0.4f;
-
-        Assert.NotEqual(SecondWind, Resolve(41, Weaving(41).Hp(0.5f), settings).Action.Id);
-        Assert.Equal(SecondWind, Resolve(41, Weaving(41).Hp(0.3f), settings).Action.Id);
+        Assert.Equal(
+            A.Bloodbath.Id,
+            Suggest(Quiet().OnCooldown(A.SecondWind.Id, 90f), hp: 0.4f));
     }
 
+    /// <summary>And neither is offered while you are fine.</summary>
     [Fact]
-    public void ItCanBeTurnedOff()
+    public void NeitherIsOfferedAtFullHealth()
     {
-        var settings = Settings();
-        settings.SuggestSelfHeal = false;
+        var suggestion = Suggest(Quiet(), hp: 1f);
 
-        Assert.NotEqual(SecondWind, Resolve(41, Weaving(41).Hp(0.1f), settings).Action.Id);
+        Assert.NotEqual(A.SecondWind.Id, suggestion);
+        Assert.NotEqual(A.Bloodbath.Id, suggestion);
     }
 }

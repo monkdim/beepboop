@@ -80,6 +80,13 @@ public sealed class ReaperRotation : JobRotationBase
         // slot going. That costs a little damage, which is the trade being made on purpose.
         p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
 
+        // And Bloodbath behind it. Second Wind is two minutes and a dungeon is much
+        // longer than that, so the button used to have nothing left to offer once it
+        // had gone - two recorded Monk runs have the player reaching past us for this
+        // seventeen times between them. Second in order, so it is only ever the answer
+        // when Second Wind is unavailable.
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
+
         // ---- Off-globals -------------------------------------------------
         p.OGcd(A.ArcaneCircle)
             .When(c => !c.Downtime)
@@ -203,6 +210,13 @@ public sealed class ReaperRotation : JobRotationBase
         // exactly the attention this plugin exists to not need - so it takes the first weave
         // slot going. That costs a little damage, which is the trade being made on purpose.
         p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
+
+        // And Bloodbath behind it. Second Wind is two minutes and a dungeon is much
+        // longer than that, so the button used to have nothing left to offer once it
+        // had gone - two recorded Monk runs have the player reaching past us for this
+        // seventeen times between them. Second in order, so it is only ever the answer
+        // when Second Wind is unavailable.
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
         p.OGcd(A.ArcaneCircle).When(c => !c.Downtime).Because("raid buff");
 
