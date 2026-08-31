@@ -469,6 +469,23 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
     private ActionRef? ResolveOpener(RotationContext context)
     {
+        // The opener is a single-target chart and it drives the single-target button only.
+        //
+        // It used to answer both, because this never looked at which button was asking. A
+        // recorded level 100 dungeon has the player pressing the *area* button into a six
+        // target pull and being walked through Twin Snakes, Demolish, Leaping Opo, Dragon
+        // Kick, Leaping Opo - five single target globals on six enemies - with Rockbreaker
+        // sitting right there in the other list.
+        //
+        // Read off the mode the context was built with, not the one the caller asked for, so
+        // the area button still shows the opener when it has fallen back to single target on
+        // one enemy - which is the same fallback that makes that button safe to hold down.
+        //
+        // Returns before the line below, so a frame spent answering the area button neither
+        // writes a reason nor clears the one the single-target frame wrote.
+        if (context.Mode != RotationMode.SingleTarget)
+            return null;
+
         // Cleared first so every path below writes its own reason and none can be read as
         // the reason for a frame it was not decided on. Two recorded synced dungeons had
         // the log naming a cooldown for a stand-down that was really about level.
