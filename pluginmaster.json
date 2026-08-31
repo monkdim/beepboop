@@ -3,7 +3,7 @@
     "Author": "monkdim",
     "Name": "One Two Punch",
     "InternalName": "OneTwoPunch",
-    "AssemblyVersion": "1.0.55.0",
+    "AssemblyVersion": "1.0.56.0",
     "Description": "Collapses each supported job into a single-target button and an AoE button. The button shows the action that is correct right now given your cooldowns, gauge, buffs, target count and whether you are moving. It never presses anything for you: one keypress is always exactly one action.\n\nBuilt for players who cannot sustain a full hotbar - limited hand mobility, chronic pain, tremor, fatigue, one-handed play - who want to keep playing themselves rather than hand the fight to an automation plugin.",
     "ApplicableVersion": "any",
     "Tags": [
@@ -30,6 +30,6 @@
     "DownloadLinkTesting": "https://github.com/monkdim/beepboop/releases/latest/download/latest.zip",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": 1788130940
+    "LastUpdate": 1788134971
   }
 ]
