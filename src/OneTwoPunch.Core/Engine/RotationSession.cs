@@ -481,6 +481,39 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return null;
         }
 
+        // An opener whose burst cooldown is still turning is not an opener. It is the priority
+        // list with the resource management taken out - and worse than that, because the
+        // chart spends Perfect Balance, Meikyo Shisui, whatever the job banks, into a window
+        // that has no buffs in it.
+        //
+        // A recorded alliance raid is the whole case. Combat ends ten times across nineteen
+        // minutes - every trash pack, every boss boundary - and the opener re-arms each time.
+        // Twice it got going with Brotherhood and Riddle of Fire both still down, stepped over
+        // exactly those two steps because they were not ready, and drove Perfect Balance
+        // straight into a Blitz with nothing on it: a Phantom Rush at 07:34.0 and a Rising
+        // Phoenix at 14:41.8, the only two naked Blitzes in twenty-two. The second one spent
+        // the charge eighteen seconds after the priority list had correctly saved the first
+        // one for a damage window.
+        //
+        // Out of combat this waits rather than gives up: standing on a boss waiting for a
+        // two minute cooldown is exactly when the opener is worth having. Once the fight is
+        // running without it, it is not happening.
+        if (_openerStep == 0
+            && job.BurstAction is { } burst
+            && context.Has(burst)
+            && !context.Ready(burst)
+            && context.Cd(burst) > context.GcdTotal)
+        {
+            if (!context.InCombat)
+            {
+                _openerDecline = $"{burst.Name} is still on cooldown";
+                return null;
+            }
+
+            Abort($"{burst.Name} was still on cooldown at the first step");
+            return null;
+        }
+
         // An off-global whose own cooldown is still turning is not the world diverging from
         // the script - it is a cooldown that was already running when the pull started,
         // which on a striking dummy is most of them. Two recorded pulls died here: Dragoon

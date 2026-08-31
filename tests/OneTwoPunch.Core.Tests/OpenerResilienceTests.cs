@@ -40,22 +40,42 @@ public sealed class OpenerResilienceTests
         session.NotifyActionUsed(A.SpiralBlow.Id);
     }
 
-    /// <summary>The bug, stated directly.</summary>
+    /// <summary>Walks the first four steps, leaving the opener on its Battle Litany step.</summary>
+    private static void WalkToTheBattleLitanyStep(RotationSession session, IActionState actions)
+    {
+        foreach (var step in new[]
+                 { A.TrueThrust, A.SpiralBlow, A.LanceCharge, A.ChaoticSpring })
+        {
+            session.Resolve(RotationMode.SingleTarget, AtPull(2.4f), actions);
+            session.NotifyActionUsed(step.Id);
+        }
+    }
+
+    /// <summary>
+    /// The bug, stated directly.
+    /// <para>
+    /// Battle Litany rather than Lance Charge, which this used to use: Lance Charge is the
+    /// job's burst, and an opener whose burst is down no longer starts at all - see
+    /// <see cref="OpenerBurstReadinessTests"/>. That is a different rule about a different
+    /// moment, and this one is still exactly what it was: a weave partway through the chart,
+    /// left turning by the last pull, must not throw the rest of the chart away.
+    /// </para>
+    /// </summary>
     [Fact]
     public void AWeaveLeftOnCooldownFromTheLastPullIsSteppedOverRatherThanEndingTheOpener()
     {
         var session = Session();
 
-        // Lance Charge is a minute long and was pressed thirty seconds ago.
-        var actions = new FakeActionState().OnCooldown(A.LanceCharge.Id, 30f);
+        // Battle Litany is two minutes long and was pressed thirty seconds ago.
+        var actions = new FakeActionState().OnCooldown(A.BattleLitany.Id, 30f);
 
-        WalkToTheLanceChargeStep(session, actions);
+        WalkToTheBattleLitanyStep(session, actions);
 
         // Wide open window, so nothing here is about the weave slot.
         var suggestion = session.Resolve(RotationMode.SingleTarget, AtPull(2.4f), actions);
 
         Assert.True(session.OpenerActive, "the opener gave up over one unavailable weave");
-        Assert.Equal(A.ChaoticSpring.Id, suggestion.Action.Id);
+        Assert.Equal(A.Geirskogul.Id, suggestion.Action.Id);
     }
 
     /// <summary>
