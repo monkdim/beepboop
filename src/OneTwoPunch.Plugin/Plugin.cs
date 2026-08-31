@@ -395,6 +395,11 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var version = PluginInterface.Manifest.AssemblyVersion.ToString();
+
+        // A session outlives any number of recordings, so the report carried from the last
+        // pull has to go here or it turns up in the footer of this one.
+        _session?.ForgetOpenerReport();
+
         _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now, Traffic(), Icons());
         Chat.Print("[One Two Punch] Recording. Do your pull, then /otp record again to write it out.");
     }
