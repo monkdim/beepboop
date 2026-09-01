@@ -25,6 +25,27 @@ public interface IJobRotation
     /// <summary>Radius in yalms used to count enemies for the AoE button.</summary>
     float AoeRadius { get; }
 
+    /// <summary>
+    /// How many enemies the AoE list is a gain over the single-target one. Below this, the
+    /// AoE button falls back to single target when that setting is on. Two for most jobs;
+    /// three for one whose area combos are written for three.
+    /// </summary>
+    int AoeMinimumEnemies { get; }
+
+    /// <summary>
+    /// The fewest off-globals per window this job's rotation is written for, applied over
+    /// the player's weave setting when theirs is lower. <see cref="WeaveStyle.None"/> means
+    /// the job asks nothing beyond what the player chose.
+    /// <para>
+    /// The accessible default is one weave per window, and for most jobs that costs a little
+    /// damage and nothing else. Viper's coils and Uncoiled Fury each hand out two off-globals
+    /// that must both go out before the next global, so on one weave the job silently drops
+    /// half of them - about a sixth of its off-global damage. A player who chose "globals
+    /// only" is still honoured: the minimum only raises a setting that already allows weaving.
+    /// </para>
+    /// </summary>
+    WeaveStyle MinimumWeaveStyle { get; }
+
     /// <summary>Every action the job's plans can suggest. Used for id verification.</summary>
     IReadOnlyList<ActionRef> AllActions { get; }
 

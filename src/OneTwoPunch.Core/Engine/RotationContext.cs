@@ -17,13 +17,15 @@ public sealed class RotationContext
         IActionState actions,
         RotationSettings settings,
         RotationMode mode,
-        int weavesUsedThisWindow)
+        int weavesUsedThisWindow,
+        int? weaveBudget = null)
     {
         _snapshot = snapshot;
         _actions = actions;
         Settings = settings;
         Mode = mode;
         WeavesUsedThisWindow = weavesUsedThisWindow;
+        MaxWeaves = weaveBudget ?? settings.MaxWeavesPerGcd;
     }
 
     public RotationSettings Settings { get; }
@@ -32,6 +34,12 @@ public sealed class RotationContext
 
     /// <summary>Off-globals already woven into the current GCD window.</summary>
     public int WeavesUsedThisWindow { get; }
+
+    /// <summary>
+    /// Off-globals allowed per window: the player's setting, raised to the job's minimum
+    /// where the job asks for one - see <see cref="Jobs.IJobRotation.MinimumWeaveStyle"/>.
+    /// </summary>
+    public int MaxWeaves { get; }
 
     public CombatSnapshot Snapshot => _snapshot;
 
@@ -337,10 +345,10 @@ public sealed class RotationContext
     {
         get
         {
-            if (Settings.MaxWeavesPerGcd <= 0)
+            if (MaxWeaves <= 0)
                 return false;
 
-            if (WeavesUsedThisWindow >= Settings.MaxWeavesPerGcd)
+            if (WeavesUsedThisWindow >= MaxWeaves)
                 return false;
 
             var needed = _snapshot.AnimationLock
@@ -367,7 +375,7 @@ public sealed class RotationContext
                 + Settings.WeaveSafetyMargin;
 
             return _snapshot.GcdRemaining < oneMore
-                || WeavesUsedThisWindow + 1 >= Settings.MaxWeavesPerGcd;
+                || WeavesUsedThisWindow + 1 >= MaxWeaves;
         }
     }
 }
