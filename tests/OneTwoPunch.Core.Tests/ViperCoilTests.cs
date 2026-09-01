@@ -19,14 +19,14 @@ namespace OneTwoPunch.Core.Tests;
 /// </summary>
 public sealed class ViperCoilTests
 {
-    private static uint Suggest(byte coils, bool moving = false)
+    private static uint Suggest(byte coils, bool outOfReach = false)
     {
         var builder = new SnapshotBuilder()
             .Job(41).Level(100).Gcd(0f).NoCombo().Enemies(1)
             .Gauge(s => s.Gauges.Viper.RattlingCoils = coils);
 
-        if (moving)
-            builder.Moving();
+        if (outOfReach)
+            builder.OutOfRange();
 
         // Vicewinder is the global above this one and it is unconditional, which is right -
         // the Balance puts the twinblade combo at priority five and the coils at six. Turning
@@ -89,17 +89,22 @@ public sealed class ViperCoilTests
         Assert.NotEqual(A.UncoiledFury.Id, Suggest(coils: 1));
     }
 
-    /// <summary>Unless the reserve is being used for the thing it is reserved for.</summary>
+    /// <summary>
+    /// Unless the reserve is being used for the thing it is reserved for: a disengage. This
+    /// used to say "when you are moving", and that was the rule - a recorded raid spent the
+    /// reserve on "you are moving" 32 times in 31 minutes and then had nothing for two real
+    /// disconnects. Moving in reach is covered, the other way round, in ViperBurstSetupTests.
+    /// </summary>
     [Fact]
-    public void TheReserveIsSpentWhenYouAreMoving()
+    public void TheReserveIsSpentWhenYouAreOutOfReach()
     {
-        Assert.Equal(A.UncoiledFury.Id, Suggest(coils: 1, moving: true));
+        Assert.Equal(A.UncoiledFury.Id, Suggest(coils: 1, outOfReach: true));
     }
 
     /// <summary>An empty gauge suggests something else entirely, rather than a dud press.</summary>
     [Fact]
     public void AnEmptyGaugeIsNotOffered()
     {
-        Assert.NotEqual(A.UncoiledFury.Id, Suggest(coils: 0, moving: true));
+        Assert.NotEqual(A.UncoiledFury.Id, Suggest(coils: 0, outOfReach: true));
     }
 }
