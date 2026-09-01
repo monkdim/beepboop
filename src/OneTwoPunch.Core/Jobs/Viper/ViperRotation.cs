@@ -257,6 +257,33 @@ public sealed class ViperRotation : JobRotationBase
     /// Whichever follow-up Serpent's Tail is offering. The gauge names it outright, so
     /// there is nothing here to keep in step with the rest of the rotation.
     /// </summary>
+    /// <summary>
+    /// Everything the list actually reads, printed beside every cast.
+    /// <para>
+    /// Viper had no gauge line, and it is the job that needs one most: five separate things
+    /// drive its rules and not one of them reached the log. A recorded four and a half minute
+    /// pull is structurally perfect - seven Reawaken chains, every follow-up matched, Swiftscaled
+    /// at ninety-nine percent - and it still cannot answer the only question asked of it,
+    /// which was whether the resources were being held or spent, because Serpent Offering
+    /// is not in it.
+    /// </para>
+    /// <para>
+    /// Both chain trackers are named too. Neither is the ordinary combo state - Vicewinder
+    /// leaves Steel Fangs' combo running underneath it - and both have already been the cause
+    /// of a rule that fired for nobody.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Viper;
+
+        var tribute = g.AnguineTribute > 0 ? $" | tribute {g.AnguineTribute}" : string.Empty;
+        var dread = g.DreadCombo != DreadCombo.None ? $" | dread {g.DreadCombo}" : string.Empty;
+        var tail = g.SerpentCombo != SerpentCombo.None ? $" | tail {g.SerpentCombo}" : string.Empty;
+
+        return $"coils {g.RattlingCoils} | offering {g.SerpentOffering}{tribute}{dread}{tail}";
+    }
+
     private static ActionRef SerpentsTailAction(RotationContext c) => c.Vpr.SerpentCombo switch
     {
         SerpentCombo.DeathRattle => A.DeathRattle,
