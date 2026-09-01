@@ -178,8 +178,9 @@ public sealed class ViperRotation : JobRotationBase
 
         // Uncoiled Fury is ranged and instant, so it doubles as the movement option.
         p.Gcd(A.UncoiledFury)
-            .When(c => c.Vpr.RattlingCoils > 0 && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= 3))
-            .Because(c => c.Moving ? "instant, you are moving" : "coils are close to capping");
+            .When(c => c.Vpr.RattlingCoils > 0
+                       && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= CoilReserve + 1))
+            .Because(c => c.Moving ? "instant, you are moving" : "spend down to the reserve coil");
 
         p.Gcd(A.ReavingFangs).When(c => c.Buff(A.HonedReavers));
         p.Gcd(A.SteelFangs);
@@ -246,8 +247,9 @@ public sealed class ViperRotation : JobRotationBase
         // list uses it exactly as the single-target one does - including as the answer to
         // moving or being out of reach, which is the only ranged global either list has.
         p.Gcd(A.UncoiledFury)
-            .When(c => c.Vpr.RattlingCoils > 0 && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= 3))
-            .Because(c => c.Moving ? "instant, you are moving" : "coils are close to capping");
+            .When(c => c.Vpr.RattlingCoils > 0
+                       && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= CoilReserve + 1))
+            .Because(c => c.Moving ? "instant, you are moving" : "spend down to the reserve coil");
 
         p.Gcd(A.ReavingMaw).When(c => c.Buff(A.HonedReavers));
         p.Gcd(A.SteelMaw);
@@ -283,6 +285,24 @@ public sealed class ViperRotation : JobRotationBase
 
         return $"coils {g.RattlingCoils} | offering {g.SerpentOffering}{tribute}{dread}{tail}";
     }
+
+    /// <summary>
+    /// How many Rattling Coils to keep in the bank. Everything above this is spent.
+    /// <para>
+    /// The list used to spend only at three, which is the cap - so a coil earned while full
+    /// was simply lost, and the Balance's basic priority list says the opposite in as many
+    /// words: "Spend Rattling Coils as you get them. Save one at all times to cover potential
+    /// disengages, but spend them before using Serpent's Ire as it will grant another. Avoid
+    /// overcapping Coils."
+    /// </para>
+    /// <para>
+    /// One is the reserve because that is what a disengage costs, and Uncoiled Fury is the
+    /// only ranged global either list has - which is why the moving and out-of-range clauses
+    /// spend the reserve itself. Sitting at one also means Serpent's Ire's own coil lands in
+    /// an empty slot rather than on a full gauge.
+    /// </para>
+    /// </summary>
+    private const int CoilReserve = 1;
 
     private static ActionRef SerpentsTailAction(RotationContext c) => c.Vpr.SerpentCombo switch
     {
