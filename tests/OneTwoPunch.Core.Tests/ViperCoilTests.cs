@@ -31,7 +31,13 @@ public sealed class ViperCoilTests
         // Vicewinder is the global above this one and it is unconditional, which is right -
         // the Balance puts the twinblade combo at priority five and the coils at six. Turning
         // it means these tests are about the coil rule rather than about that ordering.
-        var actions = new FakeActionState().OnCooldown(A.Vicewinder.Id, 30f);
+        //
+        // Serpent's Ire a minute away, because an Ire that is off cooldown reads as a burst
+        // about to start - and that spends the reserve coil, which is its own rule with its
+        // own test in ViperBurstSetupTests.
+        var actions = new FakeActionState()
+            .OnCooldown(A.Vicewinder.Id, 30f)
+            .OnCooldown(A.SerpentsIre.Id, 60f);
 
         return new RotationSession(JobRotationBase.Create<ViperRotation>(),
             new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f })
@@ -53,7 +59,8 @@ public sealed class ViperCoilTests
 
         var suggestion = new RotationSession(JobRotationBase.Create<ViperRotation>(),
             new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f })
-            .Resolve(RotationMode.SingleTarget, full, new FakeActionState()).Action.Id;
+            .Resolve(RotationMode.SingleTarget, full,
+                new FakeActionState().OnCooldown(A.SerpentsIre.Id, 60f)).Action.Id;
 
         Assert.Equal(A.Vicewinder.Id, suggestion);
     }
