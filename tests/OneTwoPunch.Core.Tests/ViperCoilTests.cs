@@ -28,10 +28,34 @@ public sealed class ViperCoilTests
         if (moving)
             builder.Moving();
 
+        // Vicewinder is the global above this one and it is unconditional, which is right -
+        // the Balance puts the twinblade combo at priority five and the coils at six. Turning
+        // it means these tests are about the coil rule rather than about that ordering.
+        var actions = new FakeActionState().OnCooldown(A.Vicewinder.Id, 30f);
+
         return new RotationSession(JobRotationBase.Create<ViperRotation>(),
             new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f })
-            .Resolve(RotationMode.SingleTarget, builder.Build(), new FakeActionState())
+            .Resolve(RotationMode.SingleTarget, builder.Build(), actions)
             .Action.Id;
+    }
+
+    /// <summary>
+    /// And the ordering itself, so turning Vicewinder off above cannot quietly become the
+    /// thing being tested. Priority five is the twinblade combo; six is the coils.
+    /// </summary>
+    [Fact]
+    public void VicewinderStillOutranksTheCoils()
+    {
+        var full = new SnapshotBuilder()
+            .Job(41).Level(100).Gcd(0f).NoCombo().Enemies(1)
+            .Gauge(s => s.Gauges.Viper.RattlingCoils = 3)
+            .Build();
+
+        var suggestion = new RotationSession(JobRotationBase.Create<ViperRotation>(),
+            new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f })
+            .Resolve(RotationMode.SingleTarget, full, new FakeActionState()).Action.Id;
+
+        Assert.Equal(A.Vicewinder.Id, suggestion);
     }
 
     /// <summary>The defect: a coil earned at the cap was lost, because nothing spent below it.</summary>
