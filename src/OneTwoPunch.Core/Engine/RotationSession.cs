@@ -164,6 +164,16 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
     public RotationSettings Settings => settings;
 
+    /// <summary>
+    /// Off-globals per window: the player's setting, raised to the job's minimum where the
+    /// job asks for one. "Globals only" is left alone - a minimum raises a setting that
+    /// already allows weaving, it never turns weaving on.
+    /// </summary>
+    public int WeaveBudget =>
+        settings.MaxWeavesPerGcd <= 0
+            ? 0
+            : Math.Max(settings.MaxWeavesPerGcd, (int)job.MinimumWeaveStyle);
+
     /// <summary>Index into the opener, or -1 when the opener is not running.</summary>
     public int OpenerStep => OpenerActive ? _openerStep : -1;
 
@@ -213,16 +223,20 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         var effectiveMode = mode;
         string? modeNote = null;
 
-        // The AoE button on a single target is almost always a mistake, not an intent.
+        // The AoE button on too few enemies is almost always a mistake, not an intent. How
+        // few is the job's to say: most area combos are a gain at two, Viper's at three.
         if (mode == RotationMode.Aoe
             && settings.AoeFallsBackToSingleTarget
-            && snapshot.EnemiesInAoeRange <= 1)
+            && snapshot.EnemiesInAoeRange < job.AoeMinimumEnemies)
         {
             effectiveMode = RotationMode.SingleTarget;
-            modeNote = "only one enemy, using single target";
+            modeNote = snapshot.EnemiesInAoeRange <= 1
+                ? "only one enemy, using single target"
+                : $"only {snapshot.EnemiesInAoeRange} enemies, using single target";
         }
 
-        var context = new RotationContext(snapshot, actions, settings, effectiveMode, _weavesThisWindow);
+        var context = new RotationContext(
+            snapshot, actions, settings, effectiveMode, _weavesThisWindow, WeaveBudget);
         var extra = ExtraFor(mode);
 
         var plan = extra?.Plan

@@ -76,7 +76,10 @@ public sealed class ConfigWindow(
 
         Help("Off-globals are the abilities that do not use the global cooldown. Fitting two "
              + "of them into every gap is where most of a rotation's button presses come from. "
-             + "On 'One' you lose a little damage and a lot of typing.");
+             + "On 'One' you lose a little damage and a lot of typing.\n\n"
+             + "A job whose rotation is written for two - Viper, whose coils each hand out a "
+             + "pair - uses two on 'One' regardless, because on one it would silently drop "
+             + "half of them. 'None' is always respected.");
 
         var hold = config.SuggestionHoldSeconds;
         if (ImGui.SliderFloat("Hold suggestions for", ref hold, 0f, 0.5f, "%.2f s"))
@@ -106,8 +109,9 @@ public sealed class ConfigWindow(
             + "something else, and never starts one mid-fight.");
 
         Toggle("AoE button falls back to single target", ref config.AoeFallsBackToSingleTarget,
-            "When only one enemy is in range, the AoE button uses the single-target rotation "
-            + "instead of a weak AoE combo.\n\n"
+            "When too few enemies are in range, the AoE button uses the single-target rotation "
+            + "instead of a weak AoE combo. How few is the job's call: two for most, three "
+            + "for Viper, whose area combos only gain at three.\n\n"
             + "Off by default, so the AoE button always shows the AoE rotation. That is what "
             + "makes it testable: a striking dummy is one enemy, so with this on you could "
             + "never see the AoE list at all without joining a party first.");

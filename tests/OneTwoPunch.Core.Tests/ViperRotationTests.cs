@@ -28,13 +28,15 @@ public sealed class ViperRotationTests
 
     private static uint Suggest(SnapshotBuilder builder, RotationMode mode = RotationMode.SingleTarget)
     {
-        var actions = new FakeActionState();
+        // Serpent's Ire on cooldown rather than unusable: an Ire that is off cooldown reads
+        // as "the burst is imminent", which holds Vicewinder and Vicepit for it - so these
+        // tests, which are about the ordinary loop, keep it a minute away.
+        var actions = new FakeActionState().OnCooldown(A.SerpentsIre.Id, 60f);
 
         // The Reawaken chain is offered by readiness rather than by a gauge check, so in a
         // test where everything is usable it would win every global.
         foreach (var id in new[]
                  {
-                     A.SerpentsIre.Id,
                      A.FirstGeneration.Id, A.SecondGeneration.Id,
                      A.ThirdGeneration.Id, A.FourthGeneration.Id, A.Ouroboros.Id,
                  })

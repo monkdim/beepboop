@@ -39,6 +39,19 @@ public sealed class ViperRotation : JobRotationBase
     public override ActionRef? BurstAction => A.SerpentsIre;
 
     /// <summary>
+    /// "It is only a gain to use the AoE forms when fighting three or more targets. For one
+    /// or two enemies, continue to use the single target versions." - the Basic guide.
+    /// </summary>
+    public override int AoeMinimumEnemies => 3;
+
+    /// <summary>
+    /// Every coil and every Uncoiled Fury hands out two off-globals that both have to go
+    /// out before the next global. On one weave per window the job drops half of them - a
+    /// recorded 31 minute raid on two weaves still lost 17 - so the rotation asks for two.
+    /// </summary>
+    public override WeaveStyle MinimumWeaveStyle => WeaveStyle.Double;
+
+    /// <summary>
     /// The Balance's "Standard Opener" for Viper level 100, Dawntrail patch 7.5, up to the
     /// end of the burst.
     /// <para>
@@ -93,10 +106,16 @@ public sealed class ViperRotation : JobRotationBase
         // had gone - two recorded Monk runs have the player reaching past us for this
         // seventeen times between them. Second in order, so it is only ever the answer
         // when Second Wind is unavailable.
-        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
-
         // ---- Off-globals -------------------------------------------------
-        p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
+        // The follow-ups come before everything else that could take a weave slot, Serpent's
+        // Ire and Bloodbath included. A follow-up not woven this window is usually gone: the
+        // next coil or Uncoiled Fury overwrites the venom that named it. A recorded 31 minute
+        // raid lost 17 of them, and of the ones the plugin could have prevented, four went
+        // to Serpent's Ire taking the slot and two to the heals. Ire a global later costs
+        // nothing the guide does not already allow for; a bite is 120 potency gone.
+        //
+        // Second Wind stays above them on purpose - see the note beside it. Bloodbath is the
+        // weaker heal and can wait one global, so it drops below.
 
         // Serpent's Tail. The gauge says which follow-up is live, so it is asked rather
         // than guessed at: Death Rattle after a venom finisher, a Legacy after each
@@ -112,6 +131,10 @@ public sealed class ViperRotation : JobRotationBase
         // Uncoiled Fury's own pair, the same chain one step apart.
         p.OGcd(A.UncoiledTwinfang).When(c => c.Buff(A.PoisedForTwinfang));
         p.OGcd(A.UncoiledTwinblood).When(c => c.Buff(A.PoisedForTwinblood));
+
+        p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
+
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
         // ---- GCDs --------------------------------------------------------
         // Reawaken replaces the bar and its tribute drains, so it outranks everything.
@@ -146,15 +169,24 @@ public sealed class ViperRotation : JobRotationBase
         p.Gcd(A.HindstingStrike).When(c => c.Buff(A.HindstungVenom)).Needs(PositionalHint.Rear);
         p.Gcd(A.HindsbaneFang).When(c => c.Buff(A.HindsbaneVenom)).Needs(PositionalHint.Rear);
 
-        // Second step. Which one depends on the self-buff that is closer to dropping -
-        // losing either costs damage on everything after it.
+        // Second step. The venom finisher buff you are holding decides it, because it names
+        // the finisher, and each sting only leads to two of the four: Hunter's Sting to the
+        // flank pair, Swiftskin's Sting to the rear pair. Take the other sting and "it is no
+        // longer possible to press the buffed combo finisher" - the guide's words - which
+        // here means no finisher rule matches at all and the list restarts the combo.
+        //
+        // This used to be decided by whichever self-buff was closer to dropping. In full
+        // uptime the two happen to agree, and a recorded 4:29 pull is 17 for 17. They part
+        // company after forty to sixty seconds of downtime, when the 40s self-buffs have gone
+        // and the 60s venom has not. Only with no venom held - the first combo, coming back
+        // from a death - does the self-buff decide, and then it is the one closer to dropping.
         p.Gcd(A.SwiftskinsSting)
-            .When(c => ComboStarted(c) && NeedsSwiftscaled(c))
-            .Because("refresh Swiftscaled");
+            .When(c => ComboStarted(c) && WantsSwiftskinsSting(c))
+            .Because(c => HoldsARearVenom(c) ? "the venom you hold wants a rear finisher" : "refresh Swiftscaled");
 
         p.Gcd(A.HuntersSting)
             .When(c => ComboStarted(c))
-            .Because("refresh Hunter's Instinct");
+            .Because(c => HoldsAFlankVenom(c) ? "the venom you hold wants a flank finisher" : "refresh Hunter's Instinct");
 
         // Reawaken and Vicewinder are not gated on the combo being broken any more, they are
         // *placed* where the combo starter goes - below every finisher and both stings, above
@@ -171,15 +203,24 @@ public sealed class ViperRotation : JobRotationBase
         // Placing them here cannot interrupt a combo, because anything mid-combo has already
         // matched above.
         p.Gcd(A.Reawaken)
-            .When(c => !c.Downtime && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady)))
-            .Because("spend Serpent Offering");
+            .When(c => !c.Downtime && ReawakenIsAffordable(c))
+            .Because(c => ReawakenReason(c));
 
-        p.Gcd(A.Vicewinder).When(c => !c.Downtime);
+        // Not inside the last ten seconds before Serpent's Ire. "Around 10s left on Ire's
+        // cooldown, you should start to use only dual wield combos" - a twinblade combo is
+        // three globals and its coils each want two weaves, so Ire landing inside one has
+        // nowhere to go. The guide accepts holding a charge for this.
+        p.Gcd(A.Vicewinder)
+            .When(c => !c.Downtime && !BurstIsImminent(c));
 
-        // Uncoiled Fury is ranged and instant, so it doubles as the movement option.
+        // Uncoiled Fury is ranged and instant, so it is the answer to being out of reach.
+        // Moving on its own is not a reason: every other Viper global is instant too, and a
+        // recorded raid spent the reserve coil on "you are moving" 32 times in 31 minutes,
+        // then had nothing for two real disconnects and threw Writhing Snap. Out of reach,
+        // or moving and out of reach this instant - the start of a real disengage - is.
         p.Gcd(A.UncoiledFury)
-            .When(c => c.Vpr.RattlingCoils > 0 && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= 3))
-            .Because(c => c.Moving ? "instant, you are moving" : "coils are close to capping");
+            .When(c => c.Vpr.RattlingCoils > 0 && WantsUncoiledFury(c))
+            .Because(c => UncoiledFuryReason(c));
 
         p.Gcd(A.ReavingFangs).When(c => c.Buff(A.HonedReavers));
         p.Gcd(A.SteelFangs);
@@ -204,10 +245,7 @@ public sealed class ViperRotation : JobRotationBase
         // had gone - two recorded Monk runs have the player reaching past us for this
         // seventeen times between them. Second in order, so it is only ever the answer
         // when Second Wind is unavailable.
-        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
-
-        p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
-
+        // Follow-ups before Ire and Bloodbath, for the reason on the single-target list.
         p.OGcd(c => SerpentsTailAction(c)).When(c => c.Vpr.SerpentCombo != SerpentCombo.None);
 
         p.OGcd(A.TwinfangThresh).When(c => c.Buff(A.FellhuntersVenom));
@@ -215,6 +253,10 @@ public sealed class ViperRotation : JobRotationBase
 
         p.OGcd(A.UncoiledTwinfang).When(c => c.Buff(A.PoisedForTwinfang));
         p.OGcd(A.UncoiledTwinblood).When(c => c.Buff(A.PoisedForTwinblood));
+
+        p.OGcd(A.SerpentsIre).When(c => !c.Downtime).Because("burst window");
+
+        p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
         p.Gcd(A.Ouroboros).When(c => c.Vpr.AnguineTribute == 1);
         p.Gcd(c => GenerationAction(c)).When(c => c.Vpr.AnguineTribute > 0);
@@ -237,17 +279,17 @@ public sealed class ViperRotation : JobRotationBase
         // Placed where the combo starter goes, for the reason spelled out on the
         // single-target list: gating these on a broken combo meant they never fired at all.
         p.Gcd(A.Reawaken)
-            .When(c => !c.Downtime && (c.Vpr.SerpentOffering >= 50 || c.Buff(A.ReawakenReady)))
-            .Because("spend Serpent Offering");
+            .When(c => !c.Downtime && ReawakenIsAffordable(c))
+            .Because(c => ReawakenReason(c));
 
-        p.Gcd(A.Vicepit).When(c => !c.Downtime);
+        p.Gcd(A.Vicepit)
+            .When(c => !c.Downtime && !BurstIsImminent(c));
 
         // "Uncoiled Fury and the entire Reawaken combo are also aoe by default", so the AoE
-        // list uses it exactly as the single-target one does - including as the answer to
-        // moving or being out of reach, which is the only ranged global either list has.
+        // list uses it exactly as the single-target one does.
         p.Gcd(A.UncoiledFury)
-            .When(c => c.Vpr.RattlingCoils > 0 && (c.Moving || !c.InRange || c.Vpr.RattlingCoils >= 3))
-            .Because(c => c.Moving ? "instant, you are moving" : "coils are close to capping");
+            .When(c => c.Vpr.RattlingCoils > 0 && WantsUncoiledFury(c))
+            .Because(c => UncoiledFuryReason(c));
 
         p.Gcd(A.ReavingMaw).When(c => c.Buff(A.HonedReavers));
         p.Gcd(A.SteelMaw);
@@ -257,6 +299,170 @@ public sealed class ViperRotation : JobRotationBase
     /// Whichever follow-up Serpent's Tail is offering. The gauge names it outright, so
     /// there is nothing here to keep in step with the rest of the rotation.
     /// </summary>
+    /// <summary>
+    /// Everything the list actually reads, printed beside every cast.
+    /// <para>
+    /// Viper had no gauge line, and it is the job that needs one most: five separate things
+    /// drive its rules and not one of them reached the log. A recorded four and a half minute
+    /// pull is structurally perfect - seven Reawaken chains, every follow-up matched, Swiftscaled
+    /// at ninety-nine percent - and it still cannot answer the only question asked of it,
+    /// which was whether the resources were being held or spent, because Serpent Offering
+    /// is not in it.
+    /// </para>
+    /// <para>
+    /// Both chain trackers are named too. Neither is the ordinary combo state - Vicewinder
+    /// leaves Steel Fangs' combo running underneath it - and both have already been the cause
+    /// of a rule that fired for nobody.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Viper;
+
+        var tribute = g.AnguineTribute > 0 ? $" | tribute {g.AnguineTribute}" : string.Empty;
+        var dread = g.DreadCombo != DreadCombo.None ? $" | dread {g.DreadCombo}" : string.Empty;
+        var tail = g.SerpentCombo != SerpentCombo.None ? $" | tail {g.SerpentCombo}" : string.Empty;
+
+        return $"coils {g.RattlingCoils} | offering {g.SerpentOffering}{tribute}{dread}{tail}";
+    }
+
+    // ---- Burst ----------------------------------------------------------
+
+    /// <summary>
+    /// How far ahead of Serpent's Ire the list starts setting up for it. "Around 10s left
+    /// on Ire's cooldown, you should start to use only dual wield combos."
+    /// </summary>
+    private const float BurstLeadSeconds = 10f;
+
+    /// <summary>
+    /// Serpent Offering earned per second in full uptime. The Intermediate guide: "Viper
+    /// generates enough Offerings to use one Reawaken per minute" - fifty in sixty seconds.
+    /// Downtime only makes this an over-estimate, which errs towards spending, never
+    /// towards a Reawaken that cannot be afforded.
+    /// </summary>
+    private const float OfferingPerSecond = 50f / 60f;
+
+    private const int ReawakenCost = 50;
+
+    private const int OfferingCap = 100;
+
+    /// <summary>What one dual wield finisher adds - the largest single step the gauge takes.</summary>
+    private const int OfferingPerFinisher = 10;
+
+    /// <summary>
+    /// Serpent's Ire is up, or about to be. True while it is ready and unpressed, so that
+    /// the globals the burst is written around are not started in the frame before it.
+    /// Below the level that has it there is no burst to set up for.
+    /// </summary>
+    private static bool BurstIsImminent(RotationContext c) =>
+        c.Has(A.SerpentsIre) && c.ReadyIn(A.SerpentsIre, BurstLeadSeconds);
+
+    /// <summary>
+    /// Whether the fifty Offerings can be spent now without the two-minute window going
+    /// short - the Intermediate guide's rule, made arithmetic.
+    /// <para>
+    /// "While it is possible to purely follow the priority system mentioned in the basic
+    /// guide, which would involve sending Reawakens essentially as soon as they are
+    /// available, this comes at a significant loss of potency inside party buffs. [...] The
+    /// simplest way to manage these Reawakens and still put maximum potency into party
+    /// buffs is to save at least 50 Offerings for when [Serpent's Ire comes up]." That was
+    /// exactly the old rule, and a recorded 31 minute raid shows the cost: fifteen burst
+    /// windows, seven of them a double Reawaken, eight a single with the second one landing
+    /// somewhere outside the buffs.
+    /// </para>
+    /// <para>
+    /// So a paid Reawaken goes only when what is left will have grown back to fifty by the
+    /// time Ire returns. At fifty Offerings that means Ire is a minute or more away, which is
+    /// the guide's one-between-windows. Three things override it: the free Reawaken from
+    /// Ire is always taken; a gauge that would cap on the next finisher is spent, because
+    /// holding would waste generation; and below the level that has Serpent's Ire there is
+    /// no window to save for - a rung that cannot be climbed must not hang the phase.
+    /// </para>
+    /// </summary>
+    private static bool ReawakenIsAffordable(RotationContext c)
+    {
+        if (c.Buff(A.ReawakenReady))
+            return true;
+
+        var offering = c.Vpr.SerpentOffering;
+        if (offering < ReawakenCost)
+            return false;
+
+        if (!c.Has(A.SerpentsIre))
+            return true;
+
+        if (offering + OfferingPerFinisher > OfferingCap)
+            return true;
+
+        var regrown = offering - ReawakenCost + OfferingPerSecond * c.Cd(A.SerpentsIre);
+        return regrown >= ReawakenCost;
+    }
+
+    private static string ReawakenReason(RotationContext c)
+    {
+        if (c.Buff(A.ReawakenReady))
+            return "free from Serpent's Ire";
+
+        if (c.Vpr.SerpentOffering + OfferingPerFinisher > OfferingCap)
+            return "the gauge would cap";
+
+        return !c.Has(A.SerpentsIre)
+            ? "spend Serpent Offering"
+            : "spend Serpent Offering, it will be back for the burst";
+    }
+
+    /// <summary>
+    /// When a coil is spent. Out of reach, or moving and out of reach this instant, is a
+    /// disengage and what the reserve is for. Everything above the reserve is spent as it
+    /// comes. And in the last seconds before Serpent's Ire the reserve itself goes, because
+    /// Ire grants another and the guide says to "spend them before using Serpent's Ire".
+    /// </summary>
+    private static bool WantsUncoiledFury(RotationContext c) =>
+        !c.InRange
+        || (c.Moving && !c.InRangeRightNow)
+        || c.Vpr.RattlingCoils >= CoilReserve + 1
+        || BurstIsImminent(c);
+
+    private static string UncoiledFuryReason(RotationContext c)
+    {
+        if (!c.InRange || (c.Moving && !c.InRangeRightNow))
+            return "instant, you are out of reach";
+
+        return c.Vpr.RattlingCoils >= CoilReserve + 1
+            ? "spend down to the reserve coil"
+            : "spend the reserve, Serpent's Ire grants another";
+    }
+
+    // ---- Combo ----------------------------------------------------------
+
+    private static bool HoldsAFlankVenom(RotationContext c) =>
+        c.Buff(A.FlankstungVenom) || c.Buff(A.FlanksbaneVenom);
+
+    private static bool HoldsARearVenom(RotationContext c) =>
+        c.Buff(A.HindstungVenom) || c.Buff(A.HindsbaneVenom);
+
+    /// <summary>The venom decides; only with none held does the self-buff.</summary>
+    private static bool WantsSwiftskinsSting(RotationContext c) =>
+        HoldsARearVenom(c) || (!HoldsAFlankVenom(c) && NeedsSwiftscaled(c));
+
+    /// <summary>
+    /// How many Rattling Coils to keep in the bank. Everything above this is spent.
+    /// <para>
+    /// The list used to spend only at three, which is the cap - so a coil earned while full
+    /// was simply lost, and the Balance's basic priority list says the opposite in as many
+    /// words: "Spend Rattling Coils as you get them. Save one at all times to cover potential
+    /// disengages, but spend them before using Serpent's Ire as it will grant another. Avoid
+    /// overcapping Coils."
+    /// </para>
+    /// <para>
+    /// One is the reserve because that is what a disengage costs, and Uncoiled Fury is the
+    /// only ranged global either list has - which is why the moving and out-of-range clauses
+    /// spend the reserve itself. Sitting at one also means Serpent's Ire's own coil lands in
+    /// an empty slot rather than on a full gauge.
+    /// </para>
+    /// </summary>
+    private const int CoilReserve = 1;
+
     private static ActionRef SerpentsTailAction(RotationContext c) => c.Vpr.SerpentCombo switch
     {
         SerpentCombo.DeathRattle => A.DeathRattle,

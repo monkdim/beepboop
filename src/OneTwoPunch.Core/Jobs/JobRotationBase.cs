@@ -22,6 +22,10 @@ public abstract class JobRotationBase : IJobRotation
 
     public virtual float AoeRadius => 5f;
 
+    public virtual int AoeMinimumEnemies => 2;
+
+    public virtual WeaveStyle MinimumWeaveStyle => WeaveStyle.None;
+
     public abstract IReadOnlyList<ActionRef> AllActions { get; }
 
     public abstract IReadOnlyList<StatusRef> AllStatuses { get; }
