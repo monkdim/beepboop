@@ -335,12 +335,43 @@ public sealed class ViperRotation : JobRotationBase
     private const float BurstLeadSeconds = 10f;
 
     /// <summary>
-    /// Serpent Offering earned per second in full uptime. The Intermediate guide: "Viper
-    /// generates enough Offerings to use one Reawaken per minute" - fifty in sixty seconds.
-    /// Downtime only makes this an over-estimate, which errs towards spending, never
-    /// towards a Reawaken that cannot be afforded.
+    /// Serpent Offering earned per second in full uptime at the reference global below. The
+    /// Intermediate guide: "Viper generates enough Offerings to use one Reawaken per minute"
+    /// - fifty in sixty seconds. Downtime only makes this an over-estimate, which errs
+    /// towards spending, never towards a Reawaken that cannot be afforded.
     /// </summary>
-    private const float OfferingPerSecond = 50f / 60f;
+    private const float ReferenceOfferingPerSecond = 50f / 60f;
+
+    /// <summary>
+    /// The global that figure is quoted at: the guide gives Viper's dual wield recast as
+    /// "2.5s (2.12s with 15% haste buff) with no skill speed", and quotes the one-Reawaken-
+    /// per-minute rate for full uptime, which is Swiftscaled up.
+    /// </summary>
+    private const float ReferenceGcd = 2.12f;
+
+    /// <summary>
+    /// Offering per second at the global the player actually has.
+    /// <para>
+    /// Offering is earned per action, not per second, so the rate above only holds at the
+    /// global it was quoted at. A player melded into skill speed earns it faster and one
+    /// without Swiftscaled up earns it slower, and the constant alone was blind to both. A
+    /// recorded pull put this beyond argument: a 2.04s global, four percent faster than the
+    /// reference, which moves the boundary at fifty Offerings from sixty seconds of Serpent's
+    /// Ire cooldown to 57.7 - so the hold sat on a full gauge 2.3s longer than it needed to.
+    /// Small, but it is worst for exactly the gear that reports it.
+    /// </para>
+    /// <para>
+    /// Read off the single-target button's own recast, so it is one global tier rather than
+    /// whichever of Viper's four was used last, and it already carries haste. Clamped to a
+    /// plausible range: a rate derived from a nonsense reading would be worse than the
+    /// constant it replaced.
+    /// </para>
+    /// </summary>
+    private static float OfferingPerSecond(RotationContext c)
+    {
+        var gcd = Math.Clamp(c.GcdTotal, 1.5f, 3.5f);
+        return ReferenceOfferingPerSecond * (ReferenceGcd / gcd);
+    }
 
     private const int ReawakenCost = 50;
 
@@ -394,7 +425,7 @@ public sealed class ViperRotation : JobRotationBase
         if (offering + OfferingPerFinisher > OfferingCap)
             return true;
 
-        var regrown = offering - ReawakenCost + OfferingPerSecond * c.Cd(A.SerpentsIre);
+        var regrown = offering - ReawakenCost + OfferingPerSecond(c) * c.Cd(A.SerpentsIre);
         return regrown >= ReawakenCost;
     }
 

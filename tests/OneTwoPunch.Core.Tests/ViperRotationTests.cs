@@ -30,8 +30,15 @@ public sealed class ViperRotationTests
     {
         // Serpent's Ire on cooldown rather than unusable: an Ire that is off cooldown reads
         // as "the burst is imminent", which holds Vicewinder and Vicepit for it - so these
-        // tests, which are about the ordinary loop, keep it a minute away.
-        var actions = new FakeActionState().OnCooldown(A.SerpentsIre.Id, 60f);
+        // tests, which are about the ordinary loop, keep it well away.
+        //
+        // Ninety seconds rather than sixty, because the Reawaken hold asks whether fifty
+        // Offerings will grow back before Ire returns, and the rate it asks at is derived
+        // from the global. At sixty it sat exactly on the boundary at a 2.12s global and the
+        // wrong side of it at the 2.5s the builder defaults to - so the answer turned on a
+        // detail none of these tests are about, and one of them on a float comparison
+        // against exactly fifty. At ninety it is affordable at any plausible global.
+        var actions = new FakeActionState().OnCooldown(A.SerpentsIre.Id, 90f);
 
         // The Reawaken chain is offered by readiness rather than by a gauge check, so in a
         // test where everything is usable it would win every global.
