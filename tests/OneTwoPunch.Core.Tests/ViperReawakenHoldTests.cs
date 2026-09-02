@@ -23,11 +23,22 @@ namespace OneTwoPunch.Core.Tests;
 /// </summary>
 public sealed class ViperReawakenHoldTests
 {
+    /// <summary>
+    /// The global the Balance quotes "one Reawaken per minute" at: 2.5s base under a 15%
+    /// haste buff. Stated rather than left to the builder's default, because the offering
+    /// rate is derived from it and these tests are about where the boundary sits.
+    /// </summary>
+    private const float ReferenceGcd = 2.12f;
+
     private static uint Suggest(
-        byte offering, float ireCooldown, bool ready = false, bool ireLearned = true)
+        byte offering,
+        float ireCooldown,
+        bool ready = false,
+        bool ireLearned = true,
+        float gcd = ReferenceGcd)
     {
         var builder = new SnapshotBuilder()
-            .Job(41).Level(100).Gcd(0f).NoCombo().Enemies(1)
+            .Job(41).Level(100).Gcd(0f, total: gcd).NoCombo().Enemies(1)
             .Gauge(s => s.Gauges.Viper.SerpentOffering = offering);
 
         if (ready)
@@ -104,5 +115,47 @@ public sealed class ViperReawakenHoldTests
     public void WithNoSerpentsIreFiftyIsSpentOnSight()
     {
         Assert.Equal(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 30f, ireLearned: false));
+    }
+
+    /// <summary>
+    /// Offering is earned per action, not per second, so a faster global earns it faster and
+    /// the hold has to let go sooner. The rate used to be a constant quoted at a 2.12s
+    /// global; at the 2.04s of a recorded pull the boundary moves from sixty seconds of
+    /// Serpent's Ire cooldown to 57.7, so the hold sat on a full gauge 2.3s longer than it
+    /// needed to. Fifty-nine seconds is inside that gap and outside both boundaries.
+    /// </summary>
+    [Fact]
+    public void AFasterGlobalLetsGoSooner()
+    {
+        // Held at the reference global, because fifty needs the full minute to come back.
+        Assert.NotEqual(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 59f));
+
+        // Spent at 2.04s, where the same fifty is back with a second to spare.
+        Assert.Equal(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 59f, gcd: 2.04f));
+    }
+
+    /// <summary>And the mirror: without Swiftscaled the global is slower, so it holds longer.</summary>
+    [Fact]
+    public void ASlowerGlobalHoldsLonger()
+    {
+        Assert.Equal(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 62f));
+        Assert.NotEqual(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 62f, gcd: 2.5f));
+    }
+
+    /// <summary>
+    /// A nonsense reading cannot produce a nonsense rate. Clamped, so the worst a bad global
+    /// can do is behave like a plausible one.
+    /// </summary>
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(0.01f)]
+    [InlineData(60f)]
+    public void AnImplausibleGlobalIsClamped(float gcd)
+    {
+        // Ire two minutes out: affordable at any rate inside the clamp.
+        Assert.Equal(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 120f, gcd: gcd));
+
+        // Ire imminent: affordable at none of them.
+        Assert.NotEqual(A.Reawaken.Id, Suggest(offering: 50, ireCooldown: 5f, gcd: gcd));
     }
 }
