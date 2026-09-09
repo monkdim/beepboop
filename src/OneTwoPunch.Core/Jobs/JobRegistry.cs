@@ -1,4 +1,5 @@
 using OneTwoPunch.Core.Jobs.Bard;
+using OneTwoPunch.Core.Jobs.Beastmaster;
 using OneTwoPunch.Core.Jobs.BlackMage;
 using OneTwoPunch.Core.Jobs.Dancer;
 using OneTwoPunch.Core.Jobs.DarkKnight;
@@ -50,6 +51,7 @@ public static class JobRegistry
         (39, JobRotationBase.Create<ReaperRotation>),
         (41, JobRotationBase.Create<ViperRotation>),
         (42, JobRotationBase.Create<PictomancerRotation>),
+        (43, JobRotationBase.Create<BeastmasterRotation>),
     ];
 
     /// <summary>Builds a fresh instance of every supported rotation.</summary>
