@@ -235,6 +235,35 @@ public sealed class BeastmasterTests
     }
 
     /// <summary>
+    /// Rally is declared as the burst marker because it is genuinely the cooldown damage
+    /// aligns to - three stacks of Mastered Instinct is 40 + 210 = exactly 250 TP, a full
+    /// bar, which is what upgrades an instinctual to its 1,200 potency form. It is a marker
+    /// only: filling the bar is pointless while the ring that spends it is not driven, so
+    /// nothing suggests it. The engine still needs it to know when a potion is worth
+    /// prompting for, which is what AllJobsSmokeTests checks.
+    /// </summary>
+    [Fact]
+    public void RallyIsTheBurstMarkerButIsNotSuggestedYet()
+    {
+        var job = JobRotationBase.Create<BeastmasterRotation>();
+
+        Assert.Same(A.Rally, job.BurstAction);
+        Assert.Null(job.BurstStatus);
+
+        var session = Session();
+        foreach (var gcd in new[] { 0.1f, 1.6f })
+        {
+            foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
+            {
+                var suggestion = session.Resolve(
+                    mode, Bst().Gcd(gcd).NoCombo().Build(), new FakeActionState());
+
+                Assert.NotEqual(A.Rally.Id, suggestion.Action.Id);
+            }
+        }
+    }
+
+    /// <summary>
     /// Nobody has published a Beastmaster opener. The guide for adding a job is explicit
     /// that a guessed one is worse than none, and a hurt player following a made-up chart is
     /// exactly the harm this plugin exists to avoid.

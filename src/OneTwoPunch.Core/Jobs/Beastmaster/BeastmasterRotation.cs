@@ -60,8 +60,22 @@ public sealed class BeastmasterRotation : JobRotationBase
 
     public override IReadOnlyList<StatusRef> AllStatuses => A.AllStatuses;
 
+    /// <summary>
+    /// Rally, on a 90 second cooldown from level 42, is Beastmaster's burst - not because it
+    /// deals damage but because of what it arms. It converts stacks of Mastered Instinct into
+    /// TP at 40 plus 70 a stack, which at three stacks is exactly 250: a full bar, and a full
+    /// bar is what upgrades an instinctual into its 1,200 potency form. The job has no raid
+    /// buff, so this is the periodic cooldown damage actually aligns to.
+    /// <para>
+    /// Declared as a marker only - nothing suggests it yet. Filling the bar is pointless
+    /// while the ring that spends it is not driven, and the engine uses this to know when a
+    /// potion is worth prompting for, which does not depend on a rule existing.
+    /// </para>
+    /// </summary>
+    public override ActionRef? BurstAction => A.Rally;
+
     // No PositionalRescue: True North is a role action, and this job has none.
-    // No BurstAction or BurstStatus: there is no raid buff to align to.
+    // No BurstStatus: Rally leaves no buff behind, it just fills the gauge.
     // No Opener: nobody has published one, and the guide is explicit that guessing is worse
     // than having none.
 
