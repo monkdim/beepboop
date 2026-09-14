@@ -204,6 +204,6 @@ public sealed unsafe class ActionStateAdapter : IActionState
         const bool unlocked = true;
 
         return new Entry(
-            unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0, status);
+            unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0, (int)status);
     }
 }
