@@ -182,33 +182,122 @@ public sealed class BeastmasterTests
 
     // ---- The omissions, pinned -------------------------------------------
 
+    // ---- The instinctual ring ---------------------------------------------
+
     /// <summary>
-    /// The four instinctual skills carry the job's damage and are deliberately not driven:
-    /// they sit on a cooldown group that is neither the global nor the ability lock, and the
-    /// engine has no third clock yet. If someone wires them up, this test should fail and be
-    /// deleted along with the caveats in the rotation's own summary.
+    /// Trick into an instinctual is an intentional combo and banks a stack of Mastered
+    /// Instinct; the same instinctual pressed first banks nothing. So when both are
+    /// available the button asks for Trick.
     /// </summary>
     [Fact]
-    public void TheInstinctualRingIsNotDrivenYet()
+    public void TrickComesBeforeTheInstinctual()
     {
-        var session = Session();
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Build(),
+            new FakeActionState());
+
+        Assert.Equal(A.Trick.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Each Heart names the instinctual that combos off it, so the buff is the position on
+    /// the ring and no state of ours is needed. This is the whole rotation.
+    /// </summary>
+    [Theory]
+    [InlineData(4595u, 44884u)] // Volant   -> Avalanche Axe
+    [InlineData(4596u, 44887u)] // Rampant  -> Mistral Axe
+    [InlineData(4597u, 44888u)] // Durant   -> Spinning Axe
+    [InlineData(4598u, 44889u)] // Eldritch -> Gale Axe
+    public void TheHeldHeartNamesTheNextInstinctual(uint heart, uint expected)
+    {
+        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Buff(heart, 7f).Build(),
+            actions);
+
+        Assert.Equal(expected, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// With no Heart in hand any of the four is a legal start. Which is best depends on the
+    /// familiar, which the engine cannot see - so the opener is ordered by level and must
+    /// never offer one the player has not learned.
+    /// </summary>
+    [Fact]
+    public void WithNoHeartTheRingIsOpenedWithSomethingLearned()
+    {
+        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
         var instinctuals = new[] { A.GaleAxe.Id, A.AvalancheAxe.Id, A.MistralAxe.Id, A.SpinningAxe.Id };
 
-        foreach (var heart in new[] { A.VolantHeart, A.RampantHeart, A.DurantHeart, A.EldritchHeart })
-        {
-            // Both states matter: a ready global, and a global mid-roll with a weave
-            // window open - which is where an off-global rule would fire if one existed.
-            foreach (var gcd in new[] { 0.1f, 1.6f })
-            {
-                var snapshot = Bst().Gcd(gcd).NoCombo().Buff(heart.Id, 7f).Build();
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Bst().Gcd(1.6f).NoCombo().Build(), actions);
 
-                foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
-                {
-                    var suggestion = session.Resolve(mode, snapshot, new FakeActionState());
-                    Assert.DoesNotContain(suggestion.Action.Id, instinctuals);
-                }
-            }
-        }
+        Assert.Contains(suggestion.Action.Id, instinctuals);
+    }
+
+    [Fact]
+    public void BelowGaleTheRingOpensOnSomethingTheJobActuallyHas()
+    {
+        // Level 10: Avalanche (4) and Mistral (8) only.
+        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst(level: 10).Gcd(1.6f).NoCombo().Build(),
+            actions);
+
+        Assert.NotEqual(A.GaleAxe.Id, suggestion.Action.Id);
+        Assert.NotEqual(A.SpinningAxe.Id, suggestion.Action.Id);
+        Assert.Contains(suggestion.Action.Id, new[] { A.AvalancheAxe.Id, A.MistralAxe.Id });
+    }
+
+    /// <summary>The ring is held while the boss is untargetable, like every other damage rule.</summary>
+    [Fact]
+    public void TheRingIsHeldDuringDowntime()
+    {
+        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+        var instinctuals = new[] { A.GaleAxe.Id, A.AvalancheAxe.Id, A.MistralAxe.Id, A.SpinningAxe.Id };
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Downtime().Build(),
+            actions);
+
+        Assert.DoesNotContain(suggestion.Action.Id, instinctuals);
+    }
+
+    /// <summary>
+    /// The instinctuals are the damage at any number of targets - the job has no area
+    /// weaponskill line - so the area button walks the same ring.
+    /// </summary>
+    [Fact]
+    public void TheAreaButtonWalksTheRingToo()
+    {
+        var actions = new FakeActionState()
+            .OnCooldown(A.Trick.Id, 20f)
+            .OnCooldown(A.ShieldCharge.Id, 40f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.Aoe,
+            Bst().Gcd(1.6f).Enemies(4).NoCombo().Buff(A.RampantHeart.Id, 7f).Build(),
+            actions);
+
+        Assert.Equal(A.MistralAxe.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// One instinctual per two globals needs a second weave slot, so the job raises the
+    /// floor the way Viper and Ninja do.
+    /// </summary>
+    [Fact]
+    public void TheJobAsksForRoomToWeave()
+    {
+        Assert.Equal(
+            WeaveStyle.Double,
+            JobRotationBase.Create<BeastmasterRotation>().MinimumWeaveStyle);
     }
 
     /// <summary>

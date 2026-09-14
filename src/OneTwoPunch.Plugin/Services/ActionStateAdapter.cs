@@ -115,6 +115,30 @@ public sealed unsafe class ActionStateAdapter : IActionState
             charges = remaining <= 0f ? 1 : 0;
         }
 
+        // The authority on whether anything is actually on cooldown.
+        //
+        // GetRecastTimeElapsed reports zero for a group whose timer is not running, and zero
+        // is also what it reports for an action used this instant - so the arithmetic above
+        // cannot tell "never used" from "just used" and answers "a full recast to go" for
+        // both. On a single-charge action that is mostly harmless, because the game refuses
+        // it anyway and GetRecastTime tends to answer zero alongside. On a charged action it
+        // is fatal: charges works out to elapsed/perCharge = 0, so the action reports no
+        // charges and no rule can ever offer it.
+        //
+        // Ninja's mudras are the case that proved it, and the failure was a deadlock. Ten
+        // holds two charges on a twenty second timer, and its group had never been started -
+        // so it reported zero charges, so no rule suggested it, so it was never pressed, so
+        // the group was never started. A recorded pull shows the button walking past Ten to
+        // a Ninki spender three rules further down, in every weave window of eighty seconds.
+        //
+        // IsRecastTimerActive answers the question directly: not running means off cooldown,
+        // with every charge in hand.
+        if (!manager->IsRecastTimerActive(ActionType.Action, actionId))
+        {
+            remaining = 0f;
+            charges = maxCharges;
+        }
+
         // GetActionStatus reports 0 when the game would accept the action right now. This is
         // what keeps a suggestion from ever being something that just makes an error noise:
         // out of range, wrong target, not enough resource, not learned.
