@@ -134,6 +134,14 @@ themselves, and the game already knows — usually in one of two ways:
   mudras *would* cast: Fuma Shuriken after one, Raiton or Katon after the matching two, Suiton
   after three.
 
+A mechanic whose presses do not roll the global is not automatically an extra key. Mudras
+do not roll it, which makes them *weaves* — so they belong in the off-global section of the
+two main lists, and the global the button was already pointing at becomes the ninjutsu.
+Ninja keeps its third key only as a fallback for players who have turned weaving off
+entirely, where the main buttons cannot offer an off-global at all. Raise
+`MinimumWeaveStyle` when a job genuinely needs the room; it lifts a setting that already
+allows weaving and never turns weaving on.
+
 That second read is what lets one button walk both two- and three-mudra ninjutsu. Suiton is
 Ten-Chi-Jin, whose first two mudras *are* Raiton — so after them the game will happily fire
 Raiton, and a button that only knew "a ninjutsu is charged" could not tell "Raiton, finished"
