@@ -51,6 +51,32 @@ public abstract class JobRotationBase : IJobRotation
     /// </summary>
     public virtual string? DescribeGauge(CombatSnapshot snapshot) => null;
 
+    /// <summary>
+    /// See <see cref="IJobRotation.DescribeReadiness"/>. Null for jobs that have not needed
+    /// it; a job earns one the moment a rule of its own goes quiet with no visible reason.
+    /// </summary>
+    public virtual string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) => null;
+
+    /// <summary>
+    /// One action's readiness, in the four facts that decide whether a rule can offer it:
+    /// learned, accepted by the game right now, charges in hand, and seconds of cooldown
+    /// left. Written tight because a log line carries several of them.
+    /// <para>
+    /// Reads as <c>Ten=.y2/2</c> - learned, usable, two charges of two, no cooldown - or
+    /// <c>Ten=Ln0/2:20.0</c> for locked, refused, no charges, twenty seconds to go.
+    /// </para>
+    /// </summary>
+    protected static string Probe(IActionState actions, ActionRef action)
+    {
+        var learned = actions.IsUnlocked(action.Id) ? "." : "L";
+        var usable = actions.CanUse(action.Id) ? "y" : "n";
+        var charges = $"{actions.ChargesAvailable(action.Id)}/{actions.MaxCharges(action.Id)}";
+        var cd = actions.CooldownRemaining(action.Id);
+        var left = cd > 0.05f ? $":{cd:0.0}" : string.Empty;
+
+        return $"{action.Name}={learned}{usable}{charges}{left}";
+    }
+
     public RotationPlan SingleTarget { get; }
 
     public RotationPlan Aoe { get; }

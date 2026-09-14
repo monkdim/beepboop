@@ -507,6 +507,20 @@ public sealed class NinjaRotation : JobRotationBase
             + $"{mudra}{tcj}{kassatsu}{shadow}{raiju}{phantom}{bunshin}{tenri}{meisui}";
     }
 
+    /// <summary>
+    /// Why the mudras are or are not offerable.
+    /// <para>
+    /// Two recorded pulls showed the button walking past Ten in every weave window for eighty
+    /// seconds, with Kassatsu expiring unused beside it, and neither log could say why. The
+    /// gauge line showed a healthy Ninki bar and the right buffs; what it could not show was
+    /// whether the engine believed it was allowed to suggest Ten at all. This closes that.
+    /// </para>
+    /// </summary>
+    public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
+        $"{Probe(actions, A.Ten1)} {Probe(actions, A.Chi1)} {Probe(actions, A.Chi2)} "
+        + $"{Probe(actions, A.Jin2)} {Probe(actions, A.Ninjutsu)} "
+        + $"{Probe(actions, A.TenChiJin)} {Probe(actions, A.KunaisBane)}";
+
     private static bool Holding(CombatSnapshot snapshot, StatusRef status)
     {
         for (var i = 0; i < snapshot.SelfStatuses.Count; i++)

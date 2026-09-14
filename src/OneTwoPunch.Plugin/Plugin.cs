@@ -710,6 +710,14 @@ public sealed class Plugin : IDalamudPlugin
         if (!string.IsNullOrEmpty(gauge))
             text.Append(" | ").Append(gauge);
 
+        // What the engine believes it may suggest, which is a different question from what
+        // the player has. A rule that never fires leaves no other trace: the gauge can be
+        // full, the window open and the buffs right, and the action still be reported locked,
+        // uncharged, or refused by the game.
+        var readiness = _job?.DescribeReadiness(s, _actionState);
+        if (!string.IsNullOrEmpty(readiness))
+            text.Append(" | ").Append(readiness);
+
         // Whether the plugin thinks the fight has started. The opener waits for the pull
         // rather than burning itself before it, so a log that cannot say this cannot say
         // why the opener was holding.
