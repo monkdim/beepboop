@@ -1,3 +1,4 @@
+using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Model;
 using A = OneTwoPunch.Core.Jobs.Beastmaster.BeastmasterActions;
 
@@ -20,11 +21,19 @@ namespace OneTwoPunch.Core.Jobs.Beastmaster;
 /// clockwise. Walking the ring is the whole rotation.
 /// </para>
 /// <para>
-/// Those four are not driven here because they do not fit the engine's model yet. They are
-/// weaponskills on their own 5.0s cooldown group carrying neither the global's group 58 nor
-/// the ability lock's group 71 - a third clock that is neither <c>Gcd</c> nor <c>OGcd</c>.
-/// Guessing at it would put a wrong shape in a job people are meant to rely on. The engine
-/// decision comes first, and a real log makes that decision on evidence.
+/// <b>The third clock, settled.</b> The instinctuals are weaponskills on their own 5.0s
+/// cooldown group carrying neither the global's group 58 nor the ability lock's group 71.
+/// They do not roll the global and the global does not block them, which is what an
+/// off-global is - so <c>OGcd</c> is not a compromise after all, it is the right shape. The
+/// one thing it costs is weave budget they do not really consume, and at one instinctual per
+/// two globals there is room to spare.
+/// </para>
+/// <para>
+/// <b>Trick comes first.</b> An instinctual pressed after Trick is an <em>intentional</em>
+/// combo and banks a stack of Mastered Instinct; the same skill pressed before Trick banks
+/// nothing and leaves Rallying Cheer as the consolation. Three stacks is what Rally turns
+/// into the full bar that arms the Lv50 finishers, so the order is the whole rotation, not a
+/// refinement of it.
 /// </para>
 /// <para>
 /// Two consequences of the job's own rules are worth recording here for whoever writes the
@@ -56,6 +65,13 @@ public sealed class BeastmasterRotation : JobRotationBase
 
     public override int AoeMinimumEnemies => 3;
 
+    /// <summary>
+    /// The instinctuals are off-globals that do not really compete for the window - they run
+    /// on their own 5.0s timer and carry no shared ability lock - so the job asks for the
+    /// room to weave one alongside whatever else was due.
+    /// </summary>
+    public override WeaveStyle MinimumWeaveStyle => WeaveStyle.Double;
+
     public override IReadOnlyList<ActionRef> AllActions => A.All;
 
     public override IReadOnlyList<StatusRef> AllStatuses => A.AllStatuses;
@@ -67,9 +83,10 @@ public sealed class BeastmasterRotation : JobRotationBase
     /// bar is what upgrades an instinctual into its 1,200 potency form. The job has no raid
     /// buff, so this is the periodic cooldown damage actually aligns to.
     /// <para>
-    /// Declared as a marker only - nothing suggests it yet. Filling the bar is pointless
-    /// while the ring that spends it is not driven, and the engine uses this to know when a
-    /// potion is worth prompting for, which does not depend on a rule existing.
+    /// Still a marker only - nothing suggests it. The ring that banks the stacks is driven
+    /// now, but what to do with a full bar is the Lv50 finishers, which arrive through the
+    /// game's own ActionIndirection table and are not in the action list yet. The engine uses
+    /// this to know when a potion is worth prompting for, which does not depend on a rule.
     /// </para>
     /// </summary>
     public override ActionRef? BurstAction => A.Rally;
@@ -88,6 +105,8 @@ public sealed class BeastmasterRotation : JobRotationBase
     private void BuildSingleTarget()
     {
         var p = SingleTarget;
+
+        AddInstinctualRing(p);
 
         // Finishers first - first match wins, so the deepest live combo step has to be
         // tested before the step that feeds it.
@@ -110,12 +129,75 @@ public sealed class BeastmasterRotation : JobRotationBase
             .When(c => !c.Downtime && c.Enemies >= AoeMinimumEnemies)
             .Because("300 potency to the group, and it holds three charges");
 
+        // The instinctuals are the damage at any number of targets - the job has no area
+        // weaponskill line at all - so the ring is walked here too.
+        AddInstinctualRing(p);
+
         // Beastmaster has no AoE combo, so the single-target line is genuinely the right
         // answer at any number of targets. This is not a placeholder.
         p.Gcd(A.Shieldsplitter).When(c => c.ComboIs(A.AxebladeBite));
         p.Gcd(A.AxebladeBite).When(c => c.ComboIs(A.SmashAxe));
         p.Gcd(A.SmashAxe);
     }
+
+    /// <summary>
+    /// The instinctual ring, which is where the damage lives.
+    /// <para>
+    /// <b>Trick first.</b> Trick into an instinctual is an intentional combo and banks a
+    /// stack of Mastered Instinct. The same instinctual pressed first banks nothing, so Trick
+    /// sits above the ring rather than beside it: when both are available the button asks for
+    /// Trick, and the instinctual follows in the next slot.
+    /// </para>
+    /// <para>
+    /// <b>Then follow the Heart.</b> Each instinctual grants the Heart that makes the next
+    /// one combo, and the Heart in hand names that next one outright - Volant wants
+    /// Avalanche, Rampant wants Mistral, Durant wants Spinning, Eldritch wants Gale. That is
+    /// the official guide's Inner Compass read clockwise, and it means the ring needs no
+    /// state of ours: the buff <em>is</em> the position.
+    /// </para>
+    /// <para>
+    /// <b>Opening it is the one guess.</b> With no Heart in hand any of the four is a legal
+    /// start, and which one is best depends on the familiar - the community's reading is
+    /// "the instinctual counter-clockwise from your pet", which is not something the engine
+    /// can see. So the opener is ordered by level, highest first, which at least never offers
+    /// a skill that has not been learned and never stalls a low-level player. If a log shows
+    /// the familiar's affinity mattering, this is the rule to change.
+    /// </para>
+    /// </summary>
+    private static void AddInstinctualRing(RotationPlan p)
+    {
+        p.OGcd(A.Trick)
+            .When(c => !c.Downtime)
+            .Because("Trick first - the instinctual after it banks a stack");
+
+        p.OGcd(NextOnTheRing)
+            .When(c => !c.Downtime && HeldHeart(c) is not null)
+            .Because(c => $"combos off the {HeldHeart(c)} Heart");
+
+        // No Heart: open the ring. Ready() gates each on level and on the shared timer.
+        p.OGcd(A.GaleAxe).When(NoHeart).Because("open the ring");
+        p.OGcd(A.SpinningAxe).When(NoHeart).Because("open the ring");
+        p.OGcd(A.MistralAxe).When(NoHeart).Because("open the ring");
+        p.OGcd(A.AvalancheAxe).When(NoHeart).Because("open the ring");
+    }
+
+    /// <summary>The Heart in hand, lower-cased, or null when the ring has not been entered.</summary>
+    private static string? HeldHeart(RotationContext c) =>
+        c.Buff(A.VolantHeart) ? "volant"
+        : c.Buff(A.RampantHeart) ? "rampant"
+        : c.Buff(A.DurantHeart) ? "durant"
+        : c.Buff(A.EldritchHeart) ? "eldritch"
+        : null;
+
+    private static bool NoHeart(RotationContext c) => !c.Downtime && HeldHeart(c) is null;
+
+    /// <summary>The instinctual the held Heart combos into.</summary>
+    private static ActionRef? NextOnTheRing(RotationContext c) =>
+        c.Buff(A.VolantHeart) ? A.AvalancheAxe
+        : c.Buff(A.RampantHeart) ? A.MistralAxe
+        : c.Buff(A.DurantHeart) ? A.SpinningAxe
+        : c.Buff(A.EldritchHeart) ? A.GaleAxe
+        : null;
 
     /// <summary>
     /// There is no Beastmaster job gauge - not in Dalamud's typed gauges, and not in the
