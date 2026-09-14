@@ -116,15 +116,20 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(A.Meisui)
             .When(c => c.Buff(A.ShadowWalker) && c.Nin.Ninki <= 50);
 
-        // Above the Ninki spender on purpose. A Raiton is 740 potency of global against a
+        // A bar about to overflow outranks even a mudra. The guide is explicit that this is
+        // the bigger loss: overcapped Ninki is "potential oGCD loss, which is a far larger
+        // loss than the gain of getting more Bhavacakras under Trick".
+        p.OGcd(SingleTargetSpender)
+            .When(AboutToOvercapNinki)
+            .Because("Ninki is about to cap");
+
+        // Otherwise the mudras go first. A Raiton is 740 potency of global against a
         // spender's 550 to 700 of weave, and the guide's own burst list reads the same way:
         // the ninjutsu are named individually and the spenders are "as many as we have
         // available" - the thing that fills what is left of the window.
         AddMudraStartRules(p, aoe: false);
 
-        p.OGcd(c => c.Has(A.ZeshoMeppo) ? A.ZeshoMeppo : A.Bhavacakra)
-            .When(c => WantsToSpendNinki(c))
-            .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
+        p.OGcd(SingleTargetSpender).When(WantsToSpendNinki).Because("spend Ninki");
 
         // ---- Globals -------------------------------------------------------
 
@@ -183,11 +188,11 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(A.Meisui)
             .When(c => c.Buff(A.ShadowWalker) && c.Nin.Ninki <= 50);
 
+        p.OGcd(AreaSpender).When(AboutToOvercapNinki).Because("Ninki is about to cap");
+
         AddMudraStartRules(p, aoe: true);
 
-        p.OGcd(c => c.Has(A.DeathfrogMedium) ? A.DeathfrogMedium : A.HellfrogMedium)
-            .When(c => WantsToSpendNinki(c))
-            .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
+        p.OGcd(AreaSpender).When(WantsToSpendNinki).Because("spend Ninki");
 
         AddTenChiJinRules(p, aoe: true);
         AddNinjutsuFireRule(p);
@@ -407,14 +412,10 @@ public sealed class NinjaRotation : JobRotationBase
     /// the window, dump when the bar is nearly full whatever the window is doing, and
     /// otherwise only hold while there is a burst close enough to be worth holding for.
     /// </para>
-    /// <para>
-    /// Bunshin still gets the gauge first - it is above this in both lists and costs the same
-    /// fifty - so this only ever spends what Bunshin is not waiting on.
-    /// </para>
     /// </summary>
     private static bool WantsToSpendNinki(RotationContext c)
     {
-        if (c.Nin.Ninki < 50 || c.Ready(A.Bunshin))
+        if (!CanSpendNinki(c))
             return false;
 
         if (InBurst(c) || c.Nin.Ninki >= NinkiCeiling)
@@ -423,6 +424,26 @@ public sealed class NinjaRotation : JobRotationBase
         var trick = c.Has(A.KunaisBane) ? A.KunaisBane : A.TrickAttack;
         return !c.ReadyIn(trick, NinkiPoolLead);
     }
+
+    /// <summary>
+    /// The half of the rule that outranks a mudra: the bar is nearly full and the next
+    /// global would waste part of the gain.
+    /// </summary>
+    private static bool AboutToOvercapNinki(RotationContext c) =>
+        CanSpendNinki(c) && c.Nin.Ninki >= NinkiCeiling;
+
+    /// <summary>
+    /// Bunshin gets the gauge first. It costs the same fifty and sits above both spender
+    /// rules, so this only ever spends what Bunshin is not waiting on.
+    /// </summary>
+    private static bool CanSpendNinki(RotationContext c) =>
+        c.Nin.Ninki >= 50 && !c.Ready(A.Bunshin);
+
+    private static ActionRef SingleTargetSpender(RotationContext c) =>
+        c.Has(A.ZeshoMeppo) ? A.ZeshoMeppo : A.Bhavacakra;
+
+    private static ActionRef AreaSpender(RotationContext c) =>
+        c.Has(A.DeathfrogMedium) ? A.DeathfrogMedium : A.HellfrogMedium;
 
     /// <summary>A readable name for a charged ninjutsu, for the log and the button's note.</summary>
     private static string NinjutsuName(uint form) =>

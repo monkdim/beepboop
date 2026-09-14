@@ -44,6 +44,13 @@ public sealed class NinjaMainButtonMudraTests
     private static FakeActionState Charged(FakeActionState a, ActionRef ninjutsu) =>
         a.Resolving(A.Ninjutsu.Id, ninjutsu.Id);
 
+    /// <summary>
+    /// Mudra charges spent, so the list runs past the sequence rules. A Ninki test that
+    /// skipped this would be answered by a mudra and pass for the wrong reason.
+    /// </summary>
+    private static FakeActionState NoMudras(FakeActionState a) =>
+        a.OnCooldown(A.Ten1.Id, 15f).OnCooldown(A.Chi1.Id, 15f);
+
     // ---- The sequence on the single-target button -------------------------
 
     [Fact]
@@ -246,7 +253,7 @@ public sealed class NinjaMainButtonMudraTests
     [Fact]
     public void NinkiIsPooledWhileTheBurstIsClose()
     {
-        var actions = Quiet().OnCooldown(A.KunaisBane.Id, 8f);
+        var actions = NoMudras(Quiet().OnCooldown(A.KunaisBane.Id, 8f));
 
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget, WithNinki(Nin(), 60), actions);
@@ -260,7 +267,8 @@ public sealed class NinjaMainButtonMudraTests
     {
         var snapshot = WithNinki(Nin().Debuff(A.KunaisBaneBuff.Id, 15f), 60);
 
-        var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, Quiet());
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, snapshot, NoMudras(Quiet()));
 
         Assert.Equal(A.ZeshoMeppo.Id, suggestion.Action.Id);
     }
@@ -268,9 +276,14 @@ public sealed class NinjaMainButtonMudraTests
     /// <summary>
     /// The other half of the guide's advice, and the half that wins when they conflict:
     /// never overcap, "even if we must burn gauge right before Trick Attack".
+    /// <para>
+    /// Deliberately left with mudra charges in hand, unlike the tests above. A bar about to
+    /// overflow outranks even starting a ninjutsu, which is the whole reason the spender
+    /// appears twice in the list - once above the mudras and once below.
+    /// </para>
     /// </summary>
     [Fact]
-    public void ANearlyFullBarIsSpentEvenWithTheBurstClose()
+    public void ANearlyFullBarIsSpentBeforeAMudraIsStarted()
     {
         var actions = Quiet().OnCooldown(A.KunaisBane.Id, 8f);
 
@@ -280,10 +293,22 @@ public sealed class NinjaMainButtonMudraTests
         Assert.Equal(A.ZeshoMeppo.Id, suggestion.Action.Id);
     }
 
+    /// <summary>The mirror: an ordinary dump does not outrank a mudra.</summary>
+    [Fact]
+    public void AnOrdinaryDumpWaitsBehindTheMudra()
+    {
+        var actions = Quiet().OnCooldown(A.KunaisBane.Id, 45f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, WithNinki(Nin(), 60), actions);
+
+        Assert.Equal(A.Ten1.Id, suggestion.Action.Id);
+    }
+
     [Fact]
     public void WithTheBurstFarAwayTheGaugeIsSpentRatherThanHeld()
     {
-        var actions = Quiet().OnCooldown(A.KunaisBane.Id, 45f);
+        var actions = NoMudras(Quiet().OnCooldown(A.KunaisBane.Id, 45f));
 
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget, WithNinki(Nin(), 60), actions);
@@ -295,7 +320,7 @@ public sealed class NinjaMainButtonMudraTests
     [Fact]
     public void BunshinStillTakesTheGaugeBeforeASpender()
     {
-        var actions = Quiet().WithCharges(A.Bunshin.Id, 1, 1);
+        var actions = NoMudras(Quiet().WithCharges(A.Bunshin.Id, 1, 1));
 
         var snapshot = WithNinki(Nin().Debuff(A.KunaisBaneBuff.Id, 15f), 90);
         var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, actions);
