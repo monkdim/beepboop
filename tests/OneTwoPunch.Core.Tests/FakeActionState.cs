@@ -13,6 +13,7 @@ public sealed class FakeActionState : IActionState
     private readonly Dictionary<uint, int> _maxCharges = [];
     private readonly HashSet<uint> _locked = [];
     private readonly HashSet<uint> _unusable = [];
+    private readonly Dictionary<uint, uint> _forms = [];
 
     public FakeActionState OnCooldown(uint actionId, float seconds)
     {
@@ -47,6 +48,19 @@ public sealed class FakeActionState : IActionState
         _unusable.Remove(actionId);
         return this;
     }
+
+    /// <summary>
+    /// Says what the game currently resolves an action to. Ninja's mudra button reads
+    /// Ninjutsu this way, so a test states the charged spell rather than a press count.
+    /// </summary>
+    public FakeActionState Resolving(uint actionId, uint toActionId)
+    {
+        _forms[actionId] = toActionId;
+        return this;
+    }
+
+    public uint CurrentFormOf(uint actionId) =>
+        _forms.TryGetValue(actionId, out var form) ? form : actionId;
 
     public bool IsUnlocked(uint actionId) => !_locked.Contains(actionId);
 

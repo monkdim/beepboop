@@ -7,16 +7,20 @@ namespace OneTwoPunch.Core.Jobs.Ninja;
 /// <summary>
 /// Ninja, Dawntrail.
 /// <para>
-/// <b>Mudras stay on their own keys.</b> A ninjutsu is not one action - it is two or three
-/// mudra presses and then the cast, and collapsing that into a button that changes under
-/// the player between presses is exactly the kind of thing this plugin refuses to do
-/// blind. So the buttons drive everything else, and the moment the game says a charged
-/// ninjutsu is usable the button becomes it - meaning you charge mudras yourself and the
-/// button fires the result at the right time.
+/// <b>Mudras get a third key.</b> A ninjutsu is not one action - it is two or three mudra
+/// presses and then the cast - and those presses do not roll the global, so they cannot
+/// share the two main buttons without silencing them for whole weave windows. The extra
+/// button walks the whole sequence, two-mudra and three-mudra alike, and fires the result.
+/// See <see cref="BuildMudraButton"/> for how it knows where it is without counting.
 /// </para>
 /// <para>
-/// Ninja is the worst fit in the game for a two-key layout. If mudras are the part that
-/// hurts, this job may simply not be the one to bring.
+/// The two main buttons drive everything else, and still fire a charged ninjutsu the moment
+/// the game will accept one - so charging mudras by hand keeps working.
+/// </para>
+/// <para>
+/// Ninja is still the worst fit in the game for a two-key layout, and the mudra key is a
+/// real third key rather than a convenience. If that is the part that hurts, this job may
+/// simply not be the one to bring.
 /// </para>
 /// </summary>
 public sealed class NinjaRotation : JobRotationBase
@@ -47,21 +51,37 @@ public sealed class NinjaRotation : JobRotationBase
     }
 
     /// <summary>
-    /// The third button: it walks a mudra sequence and then fires the ninjutsu.
+    /// The third button: it walks a mudra sequence and then fires the ninjutsu, for both the
+    /// two-mudra and the three-mudra spells.
     /// <para>
-    /// No mudra state is tracked here, because the game already distinguishes it. Ten, Chi
-    /// and Jin each have two action ids - one the game accepts only at the start of a
-    /// sequence and one only once a sequence is running - and Ninjutsu itself is only
-    /// accepted once enough mudras are charged. So asking the game what it will accept, via
-    /// the same Ready() check every other rule uses, resolves the whole sequence with no
-    /// counter of ours to drift out of sync when somebody presses a mudra by hand.
+    /// <b>No step counter.</b> The game is asked where the sequence is, every frame, by
+    /// reading what <c>Ninjutsu</c> currently resolves to. That id <em>names the spell the
+    /// charged mudras would cast</em>: Fuma Shuriken after one mudra, Raiton or Katon after
+    /// the matching two, Suiton after three. So the button never has to remember what it
+    /// pressed, and a player who charges mudras by hand cannot desync it.
     /// </para>
     /// <para>
-    /// This covers the two-mudra ninjutsu, which is nearly all of them in a fight: Raiton,
-    /// Katon, and both Kassatsu upgrades. The three-mudra ones (Suiton, Huton, Doton) can't
-    /// be driven this way, because after two mudras the game would happily fire the
-    /// two-mudra spell instead - telling those apart needs a real step counter, which is not
-    /// worth guessing at without being able to test it. Keep Suiton on its own keys.
+    /// That read is what makes three-mudra work here. Suiton is Ten - Chi - Jin, whose first
+    /// two mudras <em>are</em> Raiton: after them the game will happily fire Raiton, and the
+    /// old button did, because it could not tell "Raiton, finished" from "Suiton, one mudra
+    /// short". Now it can - the charged form says Raiton outright - so the only question left
+    /// is whether to fire it or grow it with Jin.
+    /// </para>
+    /// <para>
+    /// <b>What decides.</b> Once two mudras are in, nothing is guessed: the game has named
+    /// the spell, and the only spell that can still grow is Raiton. Everything else is fired
+    /// as it stands. The single prediction is the <em>first</em> mudra - Ten for the
+    /// single-target line, Chi for the area one - because one mudra in, the game reports Fuma
+    /// Shuriken whichever mudra it was. Suiton and Raiton share that prefix, so the Suiton
+    /// decision costs nothing and is deferred to where it is free.
+    /// </para>
+    /// <para>
+    /// <b>Huton is deliberately absent.</b> It is Jin - Chi - Ten, and Jin+Chi is not a valid
+    /// pair, so the game reports Rabbit Medium halfway through - indistinguishable from a
+    /// botched sequence. Driving it would mean guessing which, and the guess costs a wasted
+    /// global when it is wrong. Suiton still arms Kunai's Bane at any number of targets, so
+    /// nothing is lost but the last 180 potency of a once-a-minute spell. Put Huton on its own
+    /// key if you want it.
     /// </para>
     /// </summary>
     private void BuildMudraButton()
@@ -69,33 +89,157 @@ public sealed class NinjaRotation : JobRotationBase
         var p = AddExtraButton(
             A.Ten1,
             "Mudra",
-            "Walks a mudra sequence and fires the ninjutsu. Raiton on a single target, "
-            + "Katon on a group, and the Kassatsu upgrades automatically. Suiton, Huton and "
-            + "Doton still need their own keys.").Plan;
+            "Walks a mudra sequence and fires the ninjutsu. Raiton on a single target, Katon "
+            + "on a group, Suiton when Kunai's Bane or Meisui needs it, and the Kassatsu "
+            + "upgrades automatically. Huton and Doton still need their own keys.").Plan;
 
-        // Enough mudras are charged: fire it.
-        p.Gcd(A.Ninjutsu).Because("fire the ninjutsu");
+        // ---- Three mudras in: the sequence is finished either way ---------
+        p.Gcd(A.Ninjutsu)
+            .When(c => IsThreeMudra(Charged(c)))
+            .Because("fire the ninjutsu");
 
-        // The game only accepts the first-mudra ids when no sequence is running, so this
-        // rule is self-gating and always means "start a new sequence".
-        p.OGcd(A.Chi1)
-            .When(c => c.Enemies >= 3)
-            .Because("Katon");
+        // ---- Two mudras in: the game has named the spell ------------------
+        // Raiton is the one spell that can still grow. Jin turns it into Suiton, which is
+        // what arms Kunai's Bane and what Meisui needs. Above the plain Raiton rule so it
+        // gets first refusal, and below nothing - if Jin is not available, whether for level
+        // or for mudra charges, the rule under it fires Raiton rather than stranding the
+        // button on a charged sequence with nothing to press.
+        p.OGcd(A.Jin2)
+            .When(c => Charged(c) == A.Raiton.Id && NeedsShadowWalker(c))
+            .Because("grow it into Suiton");
 
-        p.OGcd(A.Ten1)
-            .Because(c => c.Buff(A.KassatsuBuff) ? "Hyosho Ranryu" : "Raiton");
+        // Everything else that can be charged: fire it as it stands.
+        p.Gcd(A.Ninjutsu)
+            .When(c => IsTwoMudra(Charged(c)))
+            .Because("fire the ninjutsu");
 
-        // Second mudra. Only accepted mid-sequence, so again the game does the gating.
+        // ---- One mudra in: the second -------------------------------------
+        // The game only accepts these ids mid-sequence, so they are self-gating as well as
+        // guarded here.
         p.OGcd(A.Ten2)
-            .When(c => c.Enemies >= 3)
-            .Because("Katon");
+            .When(c => Charged(c) == A.FumaShuriken.Id && Area(c))
+            .Because(c => c.Buff(A.KassatsuBuff) ? "Goka Mekkyaku" : "Katon");
 
         p.OGcd(A.Jin2)
-            .When(c => c.Buff(A.KassatsuBuff))
+            .When(c => Charged(c) == A.FumaShuriken.Id && c.Buff(A.KassatsuBuff))
             .Because("Hyosho Ranryu");
 
-        p.OGcd(A.Chi2).Because("Raiton");
+        p.OGcd(A.Chi2)
+            .When(c => Charged(c) == A.FumaShuriken.Id)
+            .Because(c => NeedsShadowWalker(c) ? "Suiton" : "Raiton");
+
+        // ---- Nothing charged: start ---------------------------------------
+        // The first-mudra ids are only accepted when no sequence is running, so these mean
+        // "start a new one" whether or not the guard above them says so.
+        p.OGcd(A.Chi1)
+            .When(Area)
+            .Because(c => c.Buff(A.KassatsuBuff) ? "Goka Mekkyaku" : "Katon");
+
+        p.OGcd(A.Ten1)
+            .Because(c => c.Buff(A.KassatsuBuff) ? "Hyosho Ranryu"
+                : NeedsShadowWalker(c) ? "Suiton"
+                : "Raiton");
     }
+
+    /// <summary>
+    /// The recorder's line for Ninja. Both gauges drive rules - Ninki gates every spender and
+    /// Kazematoi decides Armor Crush against Aeolian Edge - and neither reached a log before,
+    /// which is the failure that cost several pulls each on Monk and Viper before those jobs
+    /// got one.
+    /// <para>
+    /// Shadow Walker is here because it is what the mudra button's Suiton decision turns on,
+    /// and the Mudra status because it says a sequence is running. What is <em>not</em> here
+    /// is which spell is charged: that comes from asking the game what Ninjutsu resolves to,
+    /// and this method is handed a snapshot rather than the action state. The button's own
+    /// reason line carries it instead - "Suiton", "Raiton", "grow it into Suiton" - so a log
+    /// still shows the sequence being walked, one press at a time.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Ninja;
+
+        var mudra = Holding(snapshot, A.Mudra) ? " | MUDRA" : string.Empty;
+        var kassatsu = Holding(snapshot, A.KassatsuBuff) ? " | kassatsu" : string.Empty;
+        var shadow = Holding(snapshot, A.ShadowWalker) ? " | shadow-walker" : string.Empty;
+        var raiju = Holding(snapshot, A.RaijuReady) ? " | raiju" : string.Empty;
+        var phantom = Holding(snapshot, A.PhantomKamaitachiReady) ? " | phantom" : string.Empty;
+        var bunshin = Holding(snapshot, A.BunshinBuff) ? " | bunshin" : string.Empty;
+        var tenri = Holding(snapshot, A.TenriJindoReady) ? " | tenri" : string.Empty;
+        var meisui = Holding(snapshot, A.MeisuiBuff) ? " | meisui" : string.Empty;
+
+        return $"ninki {g.Ninki} | kazematoi {g.Kazematoi}"
+            + $"{mudra}{kassatsu}{shadow}{raiju}{phantom}{bunshin}{tenri}{meisui}";
+    }
+
+    private static bool Holding(CombatSnapshot snapshot, StatusRef status)
+    {
+        for (var i = 0; i < snapshot.SelfStatuses.Count; i++)
+        {
+            if (snapshot.SelfStatuses[i].Id == status.Id)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The spell the charged mudras would cast, straight from the game.</summary>
+    private static uint Charged(RotationContext c) => c.CurrentFormOf(A.Ninjutsu);
+
+    /// <summary>A finished three-mudra sequence. Nothing can be added to these.</summary>
+    private static bool IsThreeMudra(uint form) =>
+        form == A.Suiton.Id || form == A.Huton.Id;
+
+    /// <summary>
+    /// Two mudras in, and done. Raiton is deliberately absent: it is the one spell that can
+    /// still grow, so it is decided by the rule above this one and only falls through to here
+    /// when Jin cannot be pressed.
+    /// <para>
+    /// Hyoton and Doton are here because a player can charge them by hand, and Rabbit Medium
+    /// because a botched sequence has to be cleared rather than leaving the button with no
+    /// answer and two mudras spent.
+    /// </para>
+    /// </summary>
+    private static bool IsTwoMudra(uint form) =>
+        form == A.Raiton.Id || form == A.Katon.Id
+        || form == A.HyoshoRanryu.Id || form == A.GokaMekkyaku.Id
+        || form == A.Hyoton.Id || form == A.Doton.Id
+        || form == A.RabbitMedium.Id;
+
+    /// <summary>
+    /// Whether this sequence is heading for the area ninjutsu - Katon, or Goka Mekkyaku under
+    /// Kassatsu.
+    /// <para>
+    /// The band is wider once a sequence is running, and that is the whole point of it being a
+    /// method rather than a comparison. One mudra in, the game reports Fuma Shuriken whichever
+    /// mudra it was, so a target that changed its <em>first</em> mudra mid-sequence would
+    /// press Ten on top of Chi and botch into Rabbit Medium. Loosening to two means that needs
+    /// the pack to fall from three enemies to one between two presses half a second apart,
+    /// rather than from three to two.
+    /// </para>
+    /// </summary>
+    private static bool Area(RotationContext c) =>
+        Charged(c) == A.Ninjutsu.Id ? c.Enemies >= 3 : c.Enemies >= 2;
+
+    /// <summary>
+    /// Whether a Suiton is owed. Kunai's Bane and Meisui both need Shadow Walker and both
+    /// consume it, and Suiton is the only thing that grants it - which is why every published
+    /// opener starts with one pre-pull and spends a second on Meisui a few globals later.
+    /// <para>
+    /// The lead is four globals or so: enough to walk three mudras and cast, without holding
+    /// Raiton hostage for the whole minute Kunai's Bane spends on cooldown.
+    /// </para>
+    /// </summary>
+    private static bool NeedsShadowWalker(RotationContext c)
+    {
+        if (c.Buff(A.ShadowWalker))
+            return false;
+
+        var trick = c.Has(A.KunaisBane) ? A.KunaisBane : A.TrickAttack;
+        return c.ReadyIn(trick, ShadowWalkerLead) || c.ReadyIn(A.Meisui, ShadowWalkerLead);
+    }
+
+    private const float ShadowWalkerLead = 10f;
 
     private void BuildSingleTarget()
     {
