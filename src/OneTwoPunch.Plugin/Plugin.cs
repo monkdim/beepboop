@@ -169,6 +169,13 @@ public sealed class Plugin : IDalamudPlugin
         // starting up, and this one installs a hook into the action system - so it waits
         // until there is a character standing in the world. See OnUpdate.
         _replacer = new ActionReplacer(Interop, Log, Classify, Resolve);
+
+        // Lets a rule ask what an action currently resolves to. Ninja's mudra button reads
+        // Ninjutsu this way to see which spell the charged mudras would cast. Routed through
+        // the replacer so it uses the hook's original function: asking our own detour about
+        // our own host action is how the recursion guard earns its keep.
+        _actionState.FormResolver = _replacer.CurrentFormOf;
+
         _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
         _painter = new HotbarIconPainter(Log, Classify, Resolve);
         _partyTargeting = new PartyTargetRedirect(

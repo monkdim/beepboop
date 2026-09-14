@@ -119,6 +119,36 @@ the dance and no extra key is needed. An extra key is a real cost to the people 
 is for; the `Purpose` string is shown in the setup panel and should say plainly why it
 exists.
 
+#### Ask the game where the sequence is
+
+Do not keep a step counter. A counter drifts the moment the player presses something
+themselves, and the game already knows — usually in one of two ways:
+
+* **Ids that are only accepted at one point.** Ten, Chi and Jin each have two action ids: one
+  the game accepts only at the start of a sequence, one only once a sequence is running. So
+  `Ready()` — which asks the game — gates the rules for free, and the priority list is all the
+  state machine you need.
+* **`c.CurrentFormOf(action)`,** which returns the id the game currently hands back for an
+  action. For most actions that is just the learned upgrade, but for a mechanic that replaces
+  an action it is a live read. Asking it about Ninja's `Ninjutsu` names the spell the charged
+  mudras *would* cast: Fuma Shuriken after one, Raiton or Katon after the matching two, Suiton
+  after three.
+
+That second read is what lets one button walk both two- and three-mudra ninjutsu. Suiton is
+Ten-Chi-Jin, whose first two mudras *are* Raiton — so after them the game will happily fire
+Raiton, and a button that only knew "a ninjutsu is charged" could not tell "Raiton, finished"
+from "Suiton, one mudra short". Reading the form tells them apart, and the sequence collapses
+to one question per press: is the charged spell the one we want, or does it still need
+another mudra?
+
+Prefer a shape where the guess happens as late as possible, or not at all. Ninja's button
+picks only the *first* mudra on prediction — Ten for the single-target line, Chi for the area
+one — because at one mudra in the game reports Fuma Shuriken whichever mudra it was. Every
+later step reads the real charged spell. Where a prediction is unavoidable and can change
+under you mid-sequence, widen the band rather than flip: the area branch needs three enemies
+to *start* but only two to *finish*, so losing one of three between two presses half a second
+apart does not botch the sequence.
+
 ### Openers
 
 ```csharp

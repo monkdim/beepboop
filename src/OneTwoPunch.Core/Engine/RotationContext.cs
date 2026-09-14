@@ -251,6 +251,18 @@ public sealed class RotationContext
         return hasCharge && _actions.CanUse(action.Id, byNextGcd);
     }
 
+    /// <summary>
+    /// The form the game currently gives this action. Equal to <c>action.Id</c> when nothing
+    /// has replaced it.
+    /// <para>
+    /// For most actions this is just the learned upgrade. For Ninja's <c>Ninjutsu</c> it is a
+    /// live read of the mudra sequence: the id names the spell the charged mudras would cast,
+    /// which is what lets one button walk both two- and three-mudra ninjutsu without keeping
+    /// a step counter of its own.
+    /// </para>
+    /// </summary>
+    public uint CurrentFormOf(ActionRef action) => _actions.CurrentFormOf(action.Id);
+
     /// <summary>True if the action comes up within <paramref name="seconds"/>.</summary>
     public bool ReadyIn(ActionRef action, float seconds) =>
         Has(action) && Cd(action) <= seconds;

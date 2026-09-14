@@ -17,6 +17,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
     private byte _level = 1;
     private ulong _targetId = CombatSnapshot.NoTarget;
 
+    private readonly Dictionary<uint, uint> _forms = [];
+
     private readonly record struct Entry(
         bool Unlocked,
         float Cooldown,
@@ -25,12 +27,21 @@ public sealed unsafe class ActionStateAdapter : IActionState
         bool Usable,
         bool UsableIgnoringRecast);
 
+    /// <summary>
+    /// How to ask the game what an action currently resolves to. Set by the plugin to
+    /// <c>ActionReplacer.CurrentFormOf</c>, which goes through the hook's <em>original</em>
+    /// function rather than our detour - asking our own answer would be circular, and on the
+    /// host action it would recurse.
+    /// </summary>
+    public Func<uint, uint>? FormResolver { get; set; }
+
     /// <summary>Drops the cache. Called once per resolve.</summary>
     public void BeginFrame(byte level, ulong targetId)
     {
         _level = level;
         _targetId = targetId;
         _cache.Clear();
+        _forms.Clear();
     }
 
     public bool IsUnlocked(uint actionId) => Lookup(actionId).Unlocked;
@@ -43,6 +54,26 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
     public bool CanUse(uint actionId, bool ignoreRecast = false) =>
         ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable;
+
+    /// <summary>
+    /// Cached per frame like everything else here. Ninja's mudra button asks this several
+    /// times while walking its priority list, and the answer cannot change inside one frame.
+    /// </summary>
+    public uint CurrentFormOf(uint actionId)
+    {
+        if (FormResolver is null || actionId == 0)
+            return actionId;
+
+        if (_forms.TryGetValue(actionId, out var cached))
+            return cached;
+
+        var form = FormResolver(actionId);
+        if (form == 0)
+            form = actionId;
+
+        _forms[actionId] = form;
+        return form;
+    }
 
     private Entry Lookup(uint actionId)
     {

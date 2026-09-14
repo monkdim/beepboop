@@ -27,13 +27,24 @@ public sealed class ExtraButtonTests
         Assert.NotEmpty(job.ExtraButtons[0].Purpose);
     }
 
+    /// <summary>
+    /// The button reads where the sequence is by asking what Ninjutsu currently resolves to.
+    /// The game names the spell the charged mudras would cast, so a test states that spell
+    /// rather than a press count - which is the same thing the button sees in a fight.
+    /// </summary>
+    private static FakeActionState Charged(ActionRef ninjutsu) =>
+        new FakeActionState().Resolving(A.Ninjutsu.Id, ninjutsu.Id);
+
+    private static SnapshotBuilder Nin() => new SnapshotBuilder().Job(30).Gcd(0.1f);
+
     [Fact]
     public void TheMudraButtonFiresTheNinjutsuOnceItIsCharged()
     {
         var session = Session();
-        var snapshot = new SnapshotBuilder().Gcd(0.1f).Build();
 
-        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, new FakeActionState());
+        // Suiton is finished - three mudras in, nothing left to add.
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, Nin().Build(), Charged(A.Suiton));
 
         Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
     }
@@ -42,13 +53,8 @@ public sealed class ExtraButtonTests
     public void TheMudraButtonStartsASequenceWhenNoNinjutsuIsCharged()
     {
         var session = Session();
-
-        // The game refuses Ninjutsu until enough mudras are charged, which is exactly the
-        // signal the button reads.
-        var actions = new FakeActionState().Unusable(A.Ninjutsu.Id);
-        var snapshot = new SnapshotBuilder().Gcd(0.1f).Build();
-
-        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, actions);
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, Nin().Build(), new FakeActionState());
 
         Assert.Equal(A.Ten1.Id, suggestion.Action.Id);
     }
@@ -58,14 +64,9 @@ public sealed class ExtraButtonTests
     {
         var session = Session();
 
-        // Mid-sequence: the game no longer accepts the opening mudra ids.
-        var actions = new FakeActionState()
-            .Unusable(A.Ninjutsu.Id)
-            .Unusable(A.Ten1.Id)
-            .Unusable(A.Chi1.Id);
-
-        var snapshot = new SnapshotBuilder().Gcd(0.1f).Build();
-        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, actions);
+        // One mudra in: the game reports Fuma Shuriken, whichever mudra it was.
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, Nin().Build(), Charged(A.FumaShuriken));
 
         Assert.Equal(A.Chi2.Id, suggestion.Action.Id);
     }
@@ -74,15 +75,186 @@ public sealed class ExtraButtonTests
     public void TheMudraButtonTakesTheKassatsuBranch()
     {
         var session = Session();
-        var actions = new FakeActionState()
-            .Unusable(A.Ninjutsu.Id)
-            .Unusable(A.Ten1.Id)
-            .Unusable(A.Chi1.Id);
+        var snapshot = Nin().Buff(A.KassatsuBuff, 10f).Build();
 
-        var snapshot = new SnapshotBuilder().Gcd(0.1f).Buff(A.KassatsuBuff, 10f).Build();
-        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, actions);
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, snapshot, Charged(A.FumaShuriken));
+
+        // Ten then Jin is Hyosho Ranryu under Kassatsu.
+        Assert.Equal(A.Jin2.Id, suggestion.Action.Id);
+    }
+
+    // ---- Three mudras ----------------------------------------------------
+
+    /// <summary>
+    /// The case the button could not express before. Suiton's first two mudras are Raiton's,
+    /// so after them the game will happily fire Raiton - and it used to. Reading the charged
+    /// form tells "Raiton, finished" from "Suiton, one mudra short", so Jin goes on instead.
+    /// </summary>
+    [Fact]
+    public void RaitonGrowsIntoSuitonWhenShadowWalkerIsOwed()
+    {
+        var session = Session();
+
+        // Kunai's Bane is ready and there is no Shadow Walker to spend on it.
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, Nin().Build(), Charged(A.Raiton));
 
         Assert.Equal(A.Jin2.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void RaitonIsFiredWhenShadowWalkerIsAlreadyUp()
+    {
+        var session = Session();
+        var snapshot = Nin().Buff(A.ShadowWalker, 15f).Build();
+
+        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, Charged(A.Raiton));
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void RaitonIsFiredWhenNothingIsWaitingOnShadowWalker()
+    {
+        var session = Session();
+
+        // Both consumers a long way off: no reason to spend a mudra charge on Suiton.
+        var actions = Charged(A.Raiton)
+            .OnCooldown(A.KunaisBane.Id, 45f)
+            .OnCooldown(A.Meisui.Id, 90f);
+
+        var suggestion = session.Resolve(RotationMode.Extra1, Nin().Build(), actions);
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Every gate needs an escape. Jin is level 45, and the mudras run on charges - so when
+    /// the third press cannot be made, the button must fire the Raiton it already has rather
+    /// than stranding a charged sequence with nothing to press.
+    /// </summary>
+    [Fact]
+    public void WithNoJinAvailableTheChargedRaitonIsFiredRatherThanStranded()
+    {
+        var session = Session();
+        var actions = Charged(A.Raiton).Unusable(A.Jin2.Id);
+
+        var suggestion = session.Resolve(RotationMode.Extra1, Nin().Build(), actions);
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void BelowJinTheButtonNeverTriesToBuildSuiton()
+    {
+        var session = Session();
+        var snapshot = Nin().Level(40).Build();
+
+        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, Charged(A.Raiton));
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
+    }
+
+    // ---- The area line ---------------------------------------------------
+
+    [Fact]
+    public void OnAGroupTheSequenceStartsOnChiForKaton()
+    {
+        var session = Session();
+        var snapshot = Nin().Enemies(3).Build();
+
+        var suggestion = session.Resolve(RotationMode.Extra1, snapshot, new FakeActionState());
+
+        Assert.Equal(A.Chi1.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void OnAGroupTheSecondMudraIsTen()
+    {
+        var session = Session();
+        var snapshot = Nin().Enemies(3).Build();
+
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, snapshot, Charged(A.FumaShuriken));
+
+        Assert.Equal(A.Ten2.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Chi then Ten is Goka Mekkyaku under Kassatsu, not Hyosho Ranryu - the area upgrade
+    /// wins on a group. Pinned because the Kassatsu rule sits between the two area rules and
+    /// the order is the whole specification.
+    /// </summary>
+    [Fact]
+    public void OnAGroupKassatsuTakesTheGokaBranchRatherThanHyosho()
+    {
+        var session = Session();
+        var snapshot = Nin().Enemies(3).Buff(A.KassatsuBuff, 10f).Build();
+
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, snapshot, Charged(A.FumaShuriken));
+
+        Assert.Equal(A.Ten2.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// One mudra in, the game says Fuma Shuriken whichever mudra it was - so a target that
+    /// changed its first mudra mid-sequence would press Ten on top of Chi and botch into
+    /// Rabbit Medium. The area band is wider once a sequence is running, so losing one enemy
+    /// of three between two presses finishes the Katon it started.
+    /// </summary>
+    [Fact]
+    public void ASequenceThatStartedOnAGroupFinishesOnTwoEnemies()
+    {
+        var session = Session();
+        var snapshot = Nin().Enemies(2).Build();
+
+        // Would not have started an area sequence at two, but will finish one.
+        Assert.Equal(
+            A.Ten1.Id,
+            session.Resolve(RotationMode.Extra1, snapshot, new FakeActionState()).Action.Id);
+
+        Assert.Equal(
+            A.Ten2.Id,
+            session.Resolve(RotationMode.Extra1, snapshot, Charged(A.FumaShuriken)).Action.Id);
+    }
+
+    // ---- Sequences that cannot grow --------------------------------------
+
+    /// <summary>
+    /// Hyosho Ranryu, Katon and Goka Mekkyaku are finished at two mudras - only Raiton can
+    /// still grow. A rule that tried to extend them would botch the sequence.
+    /// </summary>
+    [Theory]
+    [InlineData(16492u)] // Hyosho Ranryu
+    [InlineData(2266u)]  // Katon
+    [InlineData(16491u)] // Goka Mekkyaku
+    [InlineData(2268u)]  // Hyoton
+    [InlineData(2270u)]  // Doton
+    public void ATwoMudraSpellThatCannotGrowIsFiredAsItStands(uint chargedId)
+    {
+        var session = Session();
+        var actions = new FakeActionState().Resolving(A.Ninjutsu.Id, chargedId);
+
+        var suggestion = session.Resolve(RotationMode.Extra1, Nin().Build(), actions);
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// A botched sequence has to be cleared. Leaving Rabbit Medium charged with no rule for
+    /// it would strand the button - and the player - with two mudras spent and no way out.
+    /// </summary>
+    [Fact]
+    public void ABotchedSequenceIsCleared()
+    {
+        var session = Session();
+
+        var suggestion = session.Resolve(
+            RotationMode.Extra1, Nin().Build(), Charged(A.RabbitMedium));
+
+        Assert.Equal(A.Ninjutsu.Id, suggestion.Action.Id);
     }
 
     /// <summary>

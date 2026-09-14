@@ -29,4 +29,19 @@ public interface IActionState
     /// time.
     /// </param>
     bool CanUse(uint actionId, bool ignoreRecast = false);
+
+    /// <summary>
+    /// The id the game currently hands back for this action - its upgrade, or the form a
+    /// mechanic has put on it right now. Mirrors <c>GetAdjustedActionId</c>.
+    /// <para>
+    /// This is a read of live state, not a table of upgrades. Ninja's <c>Ninjutsu</c> is the
+    /// reason it exists: asking what that id resolves to names the spell the charged mudras
+    /// would cast, which is the only way to tell a half-finished three-mudra sequence from a
+    /// finished two-mudra one. See <c>NinjaRotation.BuildMudraButton</c>.
+    /// </para>
+    /// <para>
+    /// Implementations return <paramref name="actionId"/> unchanged when they cannot ask.
+    /// </para>
+    /// </summary>
+    uint CurrentFormOf(uint actionId) => actionId;
 }
