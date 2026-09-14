@@ -141,6 +141,48 @@ public sealed class NinjaRotation : JobRotationBase
                 : "Raiton");
     }
 
+    /// <summary>
+    /// The recorder's line for Ninja. Both gauges drive rules - Ninki gates every spender and
+    /// Kazematoi decides Armor Crush against Aeolian Edge - and neither reached a log before,
+    /// which is the failure that cost several pulls each on Monk and Viper before those jobs
+    /// got one.
+    /// <para>
+    /// Shadow Walker is here because it is what the mudra button's Suiton decision turns on,
+    /// and the Mudra status because it says a sequence is running. What is <em>not</em> here
+    /// is which spell is charged: that comes from asking the game what Ninjutsu resolves to,
+    /// and this method is handed a snapshot rather than the action state. The button's own
+    /// reason line carries it instead - "Suiton", "Raiton", "grow it into Suiton" - so a log
+    /// still shows the sequence being walked, one press at a time.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Ninja;
+
+        var mudra = Holding(snapshot, A.Mudra) ? " | MUDRA" : string.Empty;
+        var kassatsu = Holding(snapshot, A.KassatsuBuff) ? " | kassatsu" : string.Empty;
+        var shadow = Holding(snapshot, A.ShadowWalker) ? " | shadow-walker" : string.Empty;
+        var raiju = Holding(snapshot, A.RaijuReady) ? " | raiju" : string.Empty;
+        var phantom = Holding(snapshot, A.PhantomKamaitachiReady) ? " | phantom" : string.Empty;
+        var bunshin = Holding(snapshot, A.BunshinBuff) ? " | bunshin" : string.Empty;
+        var tenri = Holding(snapshot, A.TenriJindoReady) ? " | tenri" : string.Empty;
+        var meisui = Holding(snapshot, A.MeisuiBuff) ? " | meisui" : string.Empty;
+
+        return $"ninki {g.Ninki} | kazematoi {g.Kazematoi}"
+            + $"{mudra}{kassatsu}{shadow}{raiju}{phantom}{bunshin}{tenri}{meisui}";
+    }
+
+    private static bool Holding(CombatSnapshot snapshot, StatusRef status)
+    {
+        for (var i = 0; i < snapshot.SelfStatuses.Count; i++)
+        {
+            if (snapshot.SelfStatuses[i].Id == status.Id)
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>The spell the charged mudras would cast, straight from the game.</summary>
     private static uint Charged(RotationContext c) => c.CurrentFormOf(A.Ninjutsu);
 

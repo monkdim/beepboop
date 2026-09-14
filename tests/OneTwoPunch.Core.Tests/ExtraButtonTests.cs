@@ -274,6 +274,46 @@ public sealed class ExtraButtonTests
         Assert.Equal(A.Ten1.Id, suggestion.Action.Id);
     }
 
+    // ---- The recorder's line ---------------------------------------------
+
+    /// <summary>
+    /// Ninja had no gauge line at all, so nothing about Ninki, Kazematoi or Shadow Walker
+    /// reached a log - and this change cannot be checked against a real pull without one.
+    /// Monk and Viper each cost several pulls to exactly this gap.
+    /// </summary>
+    [Fact]
+    public void TheGaugeLineCarriesBothGaugesAndTheMudraState()
+    {
+        var job = JobRotationBase.Create<NinjaRotation>();
+
+        var line = job.DescribeGauge(Nin()
+            .Gauge(s =>
+            {
+                s.Gauges.Ninja.Ninki = 70;
+                s.Gauges.Ninja.Kazematoi = 3;
+            })
+            .Buff(A.Mudra, 5f)
+            .Buff(A.ShadowWalker, 15f)
+            .Build())!;
+
+        Assert.Contains("ninki 70", line);
+        Assert.Contains("kazematoi 3", line);
+        Assert.Contains("MUDRA", line);
+        Assert.Contains("shadow-walker", line);
+    }
+
+    [Fact]
+    public void TheGaugeLineIsQuietWhenNothingIsUp()
+    {
+        var job = JobRotationBase.Create<NinjaRotation>();
+
+        var line = job.DescribeGauge(Nin().Build())!;
+
+        Assert.Contains("ninki 0", line);
+        Assert.DoesNotContain("MUDRA", line);
+        Assert.DoesNotContain("kassatsu", line);
+    }
+
     [Fact]
     public void JobsWithoutExtraButtonsFallBackHarmlessly()
     {
