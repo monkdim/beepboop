@@ -7,20 +7,25 @@ namespace OneTwoPunch.Core.Jobs.Ninja;
 /// <summary>
 /// Ninja, Dawntrail.
 /// <para>
-/// <b>The two buttons drive the mudras.</b> A ninjutsu is not one action - it is two or
-/// three mudra presses and then the cast - but those presses do not roll the global, which
-/// makes them weaves like any other. So they sit in the off-global section of both main
-/// priority lists: the button asks for Ten, then Chi, and the global it was already
-/// pointing at becomes the ninjutsu. Nothing extra to bind.
+/// <b>The two buttons drive the mudras, as globals.</b> A ninjutsu is not one action - it
+/// is two or three mudra presses and then the cast - and every one of those presses is a
+/// global. The game's Action sheet is unambiguous: Ten carries cooldown group 4 for its own
+/// twenty second, two charge timer <em>and group 58 alongside it</em>, and 58 is the global.
+/// The follow-up mudras are group 58 outright at half a second each, and the cast is 58 at a
+/// second and a half. So a whole ninjutsu is three fast globals that add up to roughly one
+/// ordinary one.
 /// </para>
 /// <para>
-/// The mudra key still exists as a third button, walking exactly the same rules. It is
-/// optional for most people - but it is the answer for one setting in particular. Weaving
-/// turned off entirely means the main buttons never offer an off-global, which for this job
-/// would mean no ninjutsu at all: a large part of the damage, gone. A raised minimum cannot
-/// help there, because turning weaving on is not the engine's decision to make. So somebody
-/// who has turned it off keeps the ninjutsu by binding this key, where the sequence resolves
-/// flat and never waits for a window.
+/// They were modelled as weaves for four versions, on the strength of a tooltip, and the
+/// result was a button that never once offered a mudra: the game refuses a group 58 action
+/// while the global is rolling, which is every moment of a fight. A recorded pull says it in
+/// one line - usable out of combat with the global idle, refused from the first press
+/// onward. The sheet was right there the whole time.
+/// </para>
+/// <para>
+/// The mudra key still exists as a third button, walking exactly the same rules flat. It is
+/// redundant now that the main buttons drive the sequence, and kept only so that nobody who
+/// has bound it loses it.
 /// </para>
 /// <para>
 /// See <see cref="AddMudraContinueRules"/> for how the sequence knows where it is without
@@ -49,14 +54,12 @@ public sealed class NinjaRotation : JobRotationBase
     public override ActionRef? BurstAction => A.KunaisBane;
 
     /// <summary>
-    /// Ninja needs the room. A two-mudra ninjutsu is two presses in one window on top of
-    /// whatever cooldown was already due, and a mudra's animation lock is around 0.5s
-    /// against the 0.65s the engine budgets for an ordinary off-global - so they are
-    /// cheaper than the thing the budget was sized for.
+    /// Ninja double-weaves in every published opener - Kunai's Bane beside Dream Within a
+    /// Dream, Meisui beside Tenri Jindo - so the job raises the floor the way Viper does.
     /// <para>
-    /// This raises the floor, not the player's setting: someone who has turned weaving down
-    /// still gets one press per window, which is slower but never wrong. A sequence left
-    /// half-charged survives six seconds, so it simply finishes in the next window.
+    /// Nothing to do with the mudras, which are globals. This raises the floor, not the
+    /// player's setting: someone who has turned weaving down keeps the whole ninjutsu line
+    /// either way, and only loses the second cooldown in a burst window.
     /// </para>
     /// </summary>
     public override WeaveStyle MinimumWeaveStyle => WeaveStyle.Double;
@@ -87,10 +90,6 @@ public sealed class NinjaRotation : JobRotationBase
         // when Second Wind is unavailable.
         p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
-        // A half-charged sequence expires in six seconds. Everything below this is on a
-        // sixty second clock or longer, so finishing what is started comes first.
-        AddMudraContinueRules(p);
-
         // Kunai's Bane is the raid debuff everything else lines up behind.
         p.OGcd(c => c.Has(A.KunaisBane) ? A.KunaisBane : A.TrickAttack)
             .When(c => !c.Downtime)
@@ -116,31 +115,29 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(A.Meisui)
             .When(c => c.Buff(A.ShadowWalker) && c.Nin.Ninki <= 50);
 
-        // A bar about to overflow outranks even a mudra. The guide is explicit that this is
-        // the bigger loss: overcapped Ninki is "potential oGCD loss, which is a far larger
-        // loss than the gain of getting more Bhavacakras under Trick".
         p.OGcd(SingleTargetSpender)
-            .When(AboutToOvercapNinki)
-            .Because("Ninki is about to cap");
-
-        // Otherwise the mudras go first. A Raiton is 740 potency of global against a
-        // spender's 550 to 700 of weave, and the guide's own burst list reads the same way:
-        // the ninjutsu are named individually and the spenders are "as many as we have
-        // available" - the thing that fills what is left of the window.
-        AddMudraStartRules(p, aoe: false);
-
-        p.OGcd(SingleTargetSpender).When(WantsToSpendNinki).Because("spend Ninki");
+            .When(WantsToSpendNinki)
+            .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
 
         // ---- Globals -------------------------------------------------------
 
         AddTenChiJinRules(p, aoe: false);
         AddNinjutsuFireRule(p);
 
+        // A half-charged sequence expires in six seconds, and each step is a fast global -
+        // half a second for the second mudra, a second and a half for the cast - so finishing
+        // one costs almost nothing and abandoning it wastes a charge.
+        AddMudraContinueRules(p);
+
         p.Gcd(A.PhantomKamaitachi).When(c => c.Buff(A.PhantomKamaitachiReady));
 
         // Raiju Ready stacks expire, so they come before the combo.
         p.Gcd(A.ForkedRaiju).When(c => c.Buff(A.RaijuReady) && !c.InRange);
         p.Gcd(A.FleetingRaiju).When(c => c.Buff(A.RaijuReady));
+
+        // Above the combo: a Raiton is 740 potency against Aeolian Edge's 440, and the mudra
+        // charges cap at two.
+        AddMudraStartRules(p, aoe: false);
 
         // Armor Crush banks Kazematoi, which Aeolian Edge then spends. Keeping it topped up
         // is worth more than the slightly bigger finisher.
@@ -168,8 +165,6 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(A.SecondWind).When(c => c.Hurt).Because("you are hurt");
         p.OGcd(A.Bloodbath).When(c => c.Hurt).Because("you are hurt and Second Wind is down");
 
-        AddMudraContinueRules(p);
-
         p.OGcd(c => c.Has(A.KunaisBane) ? A.KunaisBane : A.TrickAttack)
             .When(c => !c.Downtime)
             .Because("burst window");
@@ -188,16 +183,17 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(A.Meisui)
             .When(c => c.Buff(A.ShadowWalker) && c.Nin.Ninki <= 50);
 
-        p.OGcd(AreaSpender).When(AboutToOvercapNinki).Because("Ninki is about to cap");
-
-        AddMudraStartRules(p, aoe: true);
-
-        p.OGcd(AreaSpender).When(WantsToSpendNinki).Because("spend Ninki");
+        p.OGcd(AreaSpender)
+            .When(WantsToSpendNinki)
+            .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
 
         AddTenChiJinRules(p, aoe: true);
         AddNinjutsuFireRule(p);
+        AddMudraContinueRules(p);
 
         p.Gcd(A.PhantomKamaitachi).When(c => c.Buff(A.PhantomKamaitachiReady));
+
+        AddMudraStartRules(p, aoe: true);
 
         p.Gcd(A.HakkeMujinsatsu).When(c => c.ComboIs(A.DeathBlossom));
         p.Gcd(A.DeathBlossom);
@@ -213,9 +209,8 @@ public sealed class NinjaRotation : JobRotationBase
         var p = AddExtraButton(
             A.Ten1,
             "Mudra",
-            "Optional for most people - the two main buttons already walk the mudras. Bind "
-            + "it if you have weaving turned off, or if you would rather drive the sequence "
-            + "yourself: it never waits for a weave window.").Plan;
+            "Redundant - the two main buttons walk the mudras themselves. Kept so that "
+            + "nobody who bound it loses it.").Plan;
 
         AddNinjutsuFireRule(p);
         AddMudraContinueRules(p);
@@ -247,13 +242,9 @@ public sealed class NinjaRotation : JobRotationBase
     }
 
     /// <summary>
-    /// Presses the next mudra of a sequence that is already running.
-    /// <para>
-    /// These sit high in both main lists because a half-charged sequence expires in six
-    /// seconds while everything else on the button is on a sixty second clock. The game only
-    /// accepts the mid-sequence mudra ids once a sequence is running, so they are
-    /// self-gating as well as guarded here.
-    /// </para>
+    /// Presses the next mudra of a sequence that is already running. Globals, at half a
+    /// second of recast each - the game only accepts these ids once a sequence is running, so
+    /// they are self-gating as well as guarded here.
     /// </summary>
     private static void AddMudraContinueRules(RotationPlan p)
     {
@@ -261,26 +252,33 @@ public sealed class NinjaRotation : JobRotationBase
         // what arms Kunai's Bane and what Meisui needs. WantsToGrow tests Jin's readiness
         // itself, so when it cannot be pressed - level 45, or mudra charges spent - the fire
         // rule takes the Raiton instead of stranding a charged sequence.
-        p.OGcd(A.Jin2).When(WantsToGrow).Because("grow it into Suiton");
+        p.Gcd(A.Jin2).When(WantsToGrow).Because("grow it into Suiton");
 
-        p.OGcd(A.Ten2)
+        p.Gcd(A.Ten2)
             .When(c => Charged(c) == A.FumaShuriken.Id && Area(c))
             .Because(c => c.Buff(A.KassatsuBuff) ? "Goka Mekkyaku" : "Katon");
 
-        p.OGcd(A.Jin2)
+        p.Gcd(A.Jin2)
             .When(c => Charged(c) == A.FumaShuriken.Id && c.Buff(A.KassatsuBuff))
             .Because("Hyosho Ranryu");
 
-        p.OGcd(A.Chi2)
+        p.Gcd(A.Chi2)
             .When(c => Charged(c) == A.FumaShuriken.Id)
             .Because(c => NeedsShadowWalker(c) ? "Suiton" : "Raiton");
     }
 
     /// <summary>
-    /// Opens a new sequence. Only the opening mudra costs a charge - the mid-sequence ids
-    /// recast in half a second - so <c>Ready</c> on these is the whole question of whether a
-    /// ninjutsu is affordable. Two charges at twenty seconds is the three natural ninjutsu a
-    /// minute the guide expects, so spending as they come is the right rate.
+    /// Opens a new sequence. Only the opening mudra costs a charge - it alone carries the
+    /// twenty second, two charge timer on cooldown group 4 - so <c>Ready</c> on these is the
+    /// whole question of whether a ninjutsu is affordable. Two charges at twenty seconds is
+    /// the three natural ninjutsu a minute the guide expects, so spending as they come is the
+    /// right rate.
+    /// <para>
+    /// A caveat worth knowing: the game reports this action's recast against group 58, the
+    /// global, rather than against group 4, so the charge count in a log reads 0/2 even with
+    /// both in hand. Readiness falls through to the cooldown check and is correct; only the
+    /// number in the readiness line is wrong.
+    /// </para>
     /// </summary>
     /// <param name="aoe">
     /// <c>true</c> for the area button, <c>false</c> for single target, <c>null</c> to read
@@ -291,14 +289,14 @@ public sealed class NinjaRotation : JobRotationBase
     {
         if (aoe is not false)
         {
-            p.OGcd(A.Chi1)
+            p.Gcd(A.Chi1)
                 .When(c => aoe == true || Area(c))
                 .Because(c => c.Buff(A.KassatsuBuff) ? "Goka Mekkyaku" : "Katon");
         }
 
         if (aoe is not true)
         {
-            p.OGcd(A.Ten1)
+            p.Gcd(A.Ten1)
                 .Because(c => c.Buff(A.KassatsuBuff) ? "Hyosho Ranryu"
                     : NeedsShadowWalker(c) ? "Suiton"
                     : "Raiton");
@@ -360,11 +358,8 @@ public sealed class NinjaRotation : JobRotationBase
     /// <summary>
     /// Whether the charged Raiton should become Suiton instead of being cast.
     /// <para>
-    /// Tested by the fire rule as well as the Jin rule, and that is the point: on the main
-    /// buttons the two live in different halves of the list - Jin is a weave, the ninjutsu
-    /// is a global - so a closed weave window would otherwise fire the Raiton and lose the
-    /// Suiton the burst was waiting on. Asking the same question in both places means the
-    /// global waits for the weave rather than racing it.
+    /// Tested by the fire rule as well as the Jin rule, so that whichever the list reaches
+    /// first gives the same answer.
     /// </para>
     /// </summary>
     private static bool WantsToGrow(RotationContext c) =>
@@ -424,13 +419,6 @@ public sealed class NinjaRotation : JobRotationBase
         var trick = c.Has(A.KunaisBane) ? A.KunaisBane : A.TrickAttack;
         return !c.ReadyIn(trick, NinkiPoolLead);
     }
-
-    /// <summary>
-    /// The half of the rule that outranks a mudra: the bar is nearly full and the next
-    /// global would waste part of the gain.
-    /// </summary>
-    private static bool AboutToOvercapNinki(RotationContext c) =>
-        CanSpendNinki(c) && c.Nin.Ninki >= NinkiCeiling;
 
     /// <summary>
     /// Bunshin gets the gauge first. It costs the same fifty and sits above both spender

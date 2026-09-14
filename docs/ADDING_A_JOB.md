@@ -134,13 +134,23 @@ themselves, and the game already knows — usually in one of two ways:
   mudras *would* cast: Fuma Shuriken after one, Raiton or Katon after the matching two, Suiton
   after three.
 
-A mechanic whose presses do not roll the global is not automatically an extra key. Mudras
-do not roll it, which makes them *weaves* — so they belong in the off-global section of the
-two main lists, and the global the button was already pointing at becomes the ninjutsu.
-Ninja keeps its third key only as a fallback for players who have turned weaving off
-entirely, where the main buttons cannot offer an off-global at all. Raise
-`MinimumWeaveStyle` when a job genuinely needs the room; it lifts a setting that already
-allows weaving and never turns weaving on.
+#### Let the Action sheet decide global or off-global, not the tooltip
+
+`AdditionalCooldownGroup` is the field that settles it. **Cooldown group 58 is the global**,
+and an action carrying 58 there is on the global even when it also has a cooldown of its
+own — Viper's Vicewinder (15s recast, additional group 58) and Ninja's Ten (20s recast and
+two charges on group 4, additional group 58) are both globals.
+
+Ninja's mudras were modelled as weaves for four versions on the strength of a tooltip, and
+the result was a button that never once offered one: the game refuses a group 58 action
+while the global is rolling, which is every moment of a fight. The readiness line showed it
+usable out of combat and refused from the first press onward. The sheet had the answer the
+whole time.
+
+So: check the sheet before choosing `Gcd` or `OGcd` for a rule, and prefer a job's own
+priority list over an extra key. Raise `MinimumWeaveStyle` only for a job that genuinely
+double-weaves its *cooldowns*; it lifts a setting that already allows weaving and never
+turns weaving on.
 
 That second read is what lets one button walk both two- and three-mudra ninjutsu. Suiton is
 Ten-Chi-Jin, whose first two mudras *are* Raiton — so after them the game will happily fire

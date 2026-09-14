@@ -53,19 +53,36 @@ public sealed class NinjaMainButtonMudraTests
 
     // ---- The sequence on the single-target button -------------------------
 
+    /// <summary>
+    /// Ten is a global, so it is what the button offers to press next - not a weave alongside
+    /// one. This is the assertion that four versions of the plugin could not satisfy.
+    /// </summary>
     [Fact]
     public void TheSingleTargetButtonOpensTheSequenceOnTen()
     {
-        var suggestion = Session().Resolve(RotationMode.SingleTarget, Nin().Build(), Quiet());
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, Global().Build(), Quiet());
 
         Assert.Equal(A.Ten1.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// And it is offered while the global is still rolling, because that is when the engine
+    /// picks the next one. The game refuses a group 58 action mid-global, which is exactly
+    /// what made the old off-global rules unmatchable in every moment of a real fight.
+    /// </summary>
+    [Fact]
+    public void TenIsChosenWhileTheGlobalIsStillRolling()
+    {
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, Nin().Build(), Quiet());
+
+        Assert.Equal(A.Ten1.Id, suggestion.NextGcd?.Id);
     }
 
     [Fact]
     public void TheSecondMudraIsChi()
     {
         var suggestion = Session().Resolve(
-            RotationMode.SingleTarget, Nin().Build(), Charged(Quiet(), A.FumaShuriken));
+            RotationMode.SingleTarget, Global().Build(), Charged(Quiet(), A.FumaShuriken));
 
         Assert.Equal(A.Chi2.Id, suggestion.Action.Id);
     }
@@ -151,7 +168,7 @@ public sealed class NinjaMainButtonMudraTests
     public void TheAreaButtonOpensTheSequenceOnChi()
     {
         var suggestion = Session().Resolve(
-            RotationMode.Aoe, Nin().Enemies(4).Build(), Quiet());
+            RotationMode.Aoe, Global().Enemies(4).Build(), Quiet());
 
         Assert.Equal(A.Chi1.Id, suggestion.Action.Id);
     }
@@ -160,7 +177,7 @@ public sealed class NinjaMainButtonMudraTests
     public void TheAreaSecondMudraIsTen()
     {
         var suggestion = Session().Resolve(
-            RotationMode.Aoe, Nin().Enemies(4).Build(), Charged(Quiet(), A.FumaShuriken));
+            RotationMode.Aoe, Global().Enemies(4).Build(), Charged(Quiet(), A.FumaShuriken));
 
         Assert.Equal(A.Ten2.Id, suggestion.Action.Id);
     }
@@ -276,14 +293,9 @@ public sealed class NinjaMainButtonMudraTests
     /// <summary>
     /// The other half of the guide's advice, and the half that wins when they conflict:
     /// never overcap, "even if we must burn gauge right before Trick Attack".
-    /// <para>
-    /// Deliberately left with mudra charges in hand, unlike the tests above. A bar about to
-    /// overflow outranks even starting a ninjutsu, which is the whole reason the spender
-    /// appears twice in the list - once above the mudras and once below.
-    /// </para>
     /// </summary>
     [Fact]
-    public void ANearlyFullBarIsSpentBeforeAMudraIsStarted()
+    public void ANearlyFullBarIsSpentEvenWithTheBurstClose()
     {
         var actions = Quiet().OnCooldown(A.KunaisBane.Id, 8f);
 
@@ -293,27 +305,21 @@ public sealed class NinjaMainButtonMudraTests
         Assert.Equal(A.ZeshoMeppo.Id, suggestion.Action.Id);
     }
 
-    /// <summary>The mirror: an ordinary dump does not outrank a mudra.</summary>
+    /// <summary>
+    /// A mudra and a Ninki spender no longer compete at all: one is a global, the other a
+    /// weave, and a window has room for both. Pinned because they did compete for one
+    /// version, on a model of the mudras that turned out to be wrong.
+    /// </summary>
     [Fact]
-    public void AnOrdinaryDumpWaitsBehindTheMudra()
+    public void AMudraAndASpenderDoNotCompete()
     {
         var actions = Quiet().OnCooldown(A.KunaisBane.Id, 45f);
+        var snapshot = WithNinki(Nin(), 60);
 
-        var suggestion = Session().Resolve(
-            RotationMode.SingleTarget, WithNinki(Nin(), 60), actions);
-
-        Assert.Equal(A.Ten1.Id, suggestion.Action.Id);
-    }
-
-    [Fact]
-    public void WithTheBurstFarAwayTheGaugeIsSpentRatherThanHeld()
-    {
-        var actions = NoMudras(Quiet().OnCooldown(A.KunaisBane.Id, 45f));
-
-        var suggestion = Session().Resolve(
-            RotationMode.SingleTarget, WithNinki(Nin(), 60), actions);
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, actions);
 
         Assert.Equal(A.ZeshoMeppo.Id, suggestion.Action.Id);
+        Assert.Equal(A.Ten1.Id, suggestion.NextGcd?.Id);
     }
 
     /// <summary>Bunshin gets the gauge first - it sits above the spender and costs the same.</summary>
@@ -331,8 +337,8 @@ public sealed class NinjaMainButtonMudraTests
     // ---- The weave budget -------------------------------------------------
 
     /// <summary>
-    /// A two-mudra ninjutsu is two presses in one window on top of whatever cooldown was
-    /// already due, so the job raises the floor the way Viper does.
+    /// Ninja double-weaves its cooldowns in every published opener, so the job raises the
+    /// floor the way Viper does. Nothing to do with the mudras, which are globals.
     /// </summary>
     [Fact]
     public void TheJobAsksForRoomToWeave()
