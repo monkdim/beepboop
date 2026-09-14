@@ -44,4 +44,16 @@ public interface IActionState
     /// </para>
     /// </summary>
     uint CurrentFormOf(uint actionId) => actionId;
+
+    /// <summary>
+    /// The game's own reason for refusing an action, or 0 when it would accept it. Mirrors
+    /// <c>GetActionStatus</c>'s return value.
+    /// <para>
+    /// For the recorder only. "Refused" is a single bit in <see cref="CanUse"/> and that bit
+    /// cost three rounds of guessing at a silent rule, because the reasons are many and they
+    /// do not look alike: wrong target, resource missing, a prerequisite buff absent, another
+    /// cooldown holding the slot.
+    /// </para>
+    /// </summary>
+    int RefusalCode(uint actionId) => 0;
 }

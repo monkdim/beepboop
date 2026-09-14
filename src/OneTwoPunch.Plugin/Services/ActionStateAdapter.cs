@@ -25,7 +25,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
         int Charges,
         int MaxCharges,
         bool Usable,
-        bool UsableIgnoringRecast);
+        bool UsableIgnoringRecast,
+        int Refusal);
 
     /// <summary>
     /// How to ask the game what an action currently resolves to. Set by the plugin to
@@ -54,6 +55,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
     public bool CanUse(uint actionId, bool ignoreRecast = false) =>
         ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable;
+
+    public int RefusalCode(uint actionId) => Lookup(actionId).Refusal;
 
     /// <summary>
     /// Cached per frame like everything else here. Ninja's mudra button asks this several
@@ -89,7 +92,7 @@ public sealed unsafe class ActionStateAdapter : IActionState
     {
         var manager = ActionManager.Instance();
         if (manager is null || actionId == 0)
-            return new Entry(false, float.MaxValue, 0, 1, false, false);
+            return new Entry(false, float.MaxValue, 0, 1, false, false, -1);
 
         var maxCharges = (int)ActionManager.GetMaxCharges(actionId, _level);
         if (maxCharges < 1)
@@ -147,6 +150,26 @@ public sealed unsafe class ActionStateAdapter : IActionState
         // made every rule in every job unmatchable and left the button on its base attack.
         var status = manager->GetActionStatus(ActionType.Action, actionId, _targetId);
 
+        // Asked again as the action would actually be used, when the target was the problem.
+        //
+        // Ninja's mudras are the case that proved this one too, and a recorded pull draws the
+        // line exactly: out of combat with nothing targeted, Ten reads usable with both
+        // charges; from the first global onward, with the dummy targeted, it reads refused -
+        // and stays refused for the rest of the fight. Ten is cast on yourself. Handing the
+        // game a hostile target and asking whether it would accept a self-targeted action is
+        // the wrong question, and the game answers it correctly: no, not at that.
+        //
+        // Only ever consulted when the targeted ask already failed, and it cannot invent a
+        // usable action out of nothing: an action that genuinely needs a hostile target
+        // answers "no target" to this one, so it stays refused. What it recovers is the
+        // action that never wanted the target in the first place.
+        if (status != 0 && _targetId != CombatSnapshot.NoTarget)
+        {
+            var untargeted = manager->GetActionStatus(ActionType.Action, actionId, CombatSnapshot.NoTarget);
+            if (untargeted == 0)
+                status = 0;
+        }
+
         // The same question with the recast and cast checks switched off. Choosing the next
         // global means asking "would this be legal apart from the things I am waiting out".
         //
@@ -160,10 +183,27 @@ public sealed unsafe class ActionStateAdapter : IActionState
             ActionType.Action, actionId, _targetId, checkRecastActive: false, checkCastingActive: false);
         var usable = status == 0;
 
-        // 572 is "you have not learned this action"; treat anything that is purely a
-        // targeting problem as still unlocked so range rules can see it.
-        var unlocked = status != 572;
+        // Learned is decided by level, not by the game's refusal code.
+        //
+        // This used to read "unlocked = status != 572", on the understanding that 572 means
+        // "you have not learned this action". It does - but it is also what the game answers
+        // for an action whose prerequisites are simply not met right now, and the same log
+        // shows all of them: Kunai's Bane reads 572 for an entire pull at level 100 because
+        // Shadow Walker is absent, Ten Chi Jin reads it for exactly as long as Kassatsu is
+        // up, and Chi II reads it whenever no mudra sequence is running.
+        //
+        // Has() is built on this, so every one of those read as "the player does not have
+        // this action" - which quietly took the wrong branch wherever a rule asks what the
+        // player has. Ninja's own pooling is the visible one: with Has(Kunai's Bane) false it
+        // measured the burst against Trick Attack instead, found nothing, and dumped Ninki at
+        // the floor for the whole fight.
+        //
+        // The action tables carry a level for every action and a test pins them, so Has()
+        // already asks the right question with "Level >= action.Level". Whether the game
+        // would accept it this instant is a different question and CanUse answers it.
+        const bool unlocked = true;
 
-        return new Entry(unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0);
+        return new Entry(
+            unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0, status);
     }
 }
