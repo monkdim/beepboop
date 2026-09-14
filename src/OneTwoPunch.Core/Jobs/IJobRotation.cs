@@ -85,6 +85,21 @@ public interface IJobRotation
     /// </summary>
     string? DescribeGauge(CombatSnapshot snapshot);
 
+    /// <summary>
+    /// Why the actions a job's rules turn on are or are not offerable, for the recorder.
+    /// <para>
+    /// <see cref="DescribeGauge"/> says what the player has; this says what the engine
+    /// believes it may suggest. The two answer different questions, and the gap between them
+    /// is where a rule that never fires hides: a log can show a full gauge, an open weave
+    /// window and the right buffs, and still not say that the action was reported locked, or
+    /// on cooldown, or refused by the game.
+    /// </para>
+    /// <para>
+    /// Implement it for anything whose absence from a log would otherwise be a mystery.
+    /// </para>
+    /// </summary>
+    string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions);
+
     Opener? Opener { get; }
 
     RotationPlan SingleTarget { get; }

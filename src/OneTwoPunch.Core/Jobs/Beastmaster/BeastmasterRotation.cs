@@ -232,6 +232,15 @@ public sealed class BeastmasterRotation : JobRotationBase
         return $"heart {heart}{wants}{compass}{nature}{vantage}{wavering}";
     }
 
+    /// <summary>
+    /// Why the ring is or is not offerable. The instinctuals share a cooldown group that
+    /// nothing else in the game uses, so if they go quiet a log needs to say which of
+    /// "not learned", "refused" and "still recharging" it was.
+    /// </summary>
+    public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
+        $"{Probe(actions, A.Trick)} {Probe(actions, A.GaleAxe)} {Probe(actions, A.SpinningAxe)} "
+        + $"{Probe(actions, A.MistralAxe)} {Probe(actions, A.AvalancheAxe)}";
+
     private static bool Holding(CombatSnapshot snapshot, StatusRef status)
     {
         for (var i = 0; i < snapshot.SelfStatuses.Count; i++)
