@@ -258,8 +258,9 @@ public sealed class ExtraButtonTests
     }
 
     /// <summary>
-    /// The whole point of the flat resolution path: mudras are pressed back to back and do
-    /// not roll the global cooldown, so a closed weave window must not silence the button.
+    /// Flat resolution: the extra key answers whatever comes next in the sequence without
+    /// waiting on a weave window. The mudras turned out to be globals, which is why the main
+    /// buttons now drive them and this key is redundant - but it still answers.
     /// </summary>
     [Fact]
     public void TheMudraButtonIgnoresTheWeaveWindow()
