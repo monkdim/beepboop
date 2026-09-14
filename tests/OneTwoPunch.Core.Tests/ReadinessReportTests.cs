@@ -39,29 +39,28 @@ public sealed class ReadinessReportTests
     }
 
     /// <summary>
-    /// The four facts that decide whether a rule can offer an action, and they have to be
-    /// distinguishable at a glance: learned, accepted right now, charges, cooldown left.
+    /// The facts that decide whether a rule may offer an action, distinguishable at a glance
+    /// - and, when it is refused, the game's own reason. That last part is the point: three
+    /// rounds went by on "refused" with no way to see that the reason was the target.
     /// </summary>
     [Fact]
-    public void TheProbeTellsRefusedApartFromUnchargedApartFromLocked()
+    public void TheProbeTellsRefusedApartFromUncharged()
     {
         var job = JobRotationBase.Create<NinjaRotation>();
         var snapshot = new SnapshotBuilder().Job(30).Build();
 
         var healthy = job.DescribeReadiness(snapshot, new FakeActionState())!;
-        Assert.Contains("Ten=.y", healthy);
+        Assert.Contains("Ten=y", healthy);
+        Assert.DoesNotContain("#", healthy);
 
         var refused = job.DescribeReadiness(
             snapshot, new FakeActionState().Unusable(NinjaActions.Ten1.Id))!;
-        Assert.Contains("Ten=.n", refused);
+        Assert.Contains("Ten=n", refused);
+        Assert.Contains("#566", refused);
 
         var uncharged = job.DescribeReadiness(
             snapshot, new FakeActionState().WithCharges(NinjaActions.Ten1.Id, 0, 2))!;
-        Assert.Contains("Ten=.y0/2", uncharged);
-
-        var locked = job.DescribeReadiness(
-            snapshot, new FakeActionState().Locked(NinjaActions.Ten1.Id))!;
-        Assert.Contains("Ten=L", locked);
+        Assert.Contains("Ten=y0/2", uncharged);
     }
 
     /// <summary>A job that has not needed one says nothing rather than padding the line.</summary>

@@ -74,4 +74,7 @@ public sealed class FakeActionState : IActionState
         _maxCharges.TryGetValue(actionId, out var max) ? max : 1;
 
     public bool CanUse(uint actionId, bool ignoreRecast = false) => !_unusable.Contains(actionId);
+
+    /// <summary>A stand-in reason, so the probe's shape is exercised without inventing codes.</summary>
+    public int RefusalCode(uint actionId) => _unusable.Contains(actionId) ? 566 : 0;
 }
