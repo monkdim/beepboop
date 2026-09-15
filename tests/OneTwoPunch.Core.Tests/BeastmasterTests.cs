@@ -23,6 +23,13 @@ public sealed class BeastmasterTests
     private static SnapshotBuilder Bst(byte level = 50) =>
         new SnapshotBuilder().Job(43).Level(level).Gcd(0.1f).Enemies(1);
 
+    /// <summary>
+    /// Rally leads the off-global list - it is what fills the bar the ring spends - so a test
+    /// about the ring has to park it or be answered three rules early.
+    /// </summary>
+    private static FakeActionState RingOnly() =>
+        new FakeActionState().OnCooldown(A.Rally.Id, 90f).OnCooldown(A.PartingBlow.Id, 8f);
+
     // ---- The combo --------------------------------------------------------
 
     [Fact]
@@ -180,6 +187,101 @@ public sealed class BeastmasterTests
         Assert.Contains("WAVERING", line);
     }
 
+    // ---- The familiar ------------------------------------------------------
+
+    /// <summary>
+    /// An instinctual is 400 potency and climbs to 1,000 as the bar fills, swapping for a
+    /// 1,200 potency Lv50 form at a full 250. TP climbs 13 to 15 a combo hit, so the bar does
+    /// not fill inside a fight on its own - Rally is what fills it, and nothing suggested it.
+    /// </summary>
+    [Fact]
+    public void RallyIsSpentToFillTheBar()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Bst().Gcd(1.6f).NoCombo().Build(), new FakeActionState());
+
+        Assert.Equal(A.Rally.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Parting Blow is 1,000 potency to a group and 1,500 under Lingering Vantage - the
+    /// largest number in the kit, from level 6. Gated on the buff because the familiar
+    /// retreats on use, and Lingering Vantage only exists while one is standing beside you.
+    /// </summary>
+    [Fact]
+    public void PartingBlowWaitsForLingeringVantage()
+    {
+        var actions = new FakeActionState().OnCooldown(A.Rally.Id, 90f);
+
+        var without = Session().Resolve(
+            RotationMode.SingleTarget, Bst().Gcd(1.6f).NoCombo().Build(), actions);
+        Assert.NotEqual(A.PartingBlow.Id, without.Action.Id);
+
+        var with = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Buff(A.LingeringVantage.Id, 40f).Build(),
+            actions);
+        Assert.Equal(A.PartingBlow.Id, with.Action.Id);
+    }
+
+    /// <summary>
+    /// Tempered Release is the cheap way to that buff: thirty seconds, and it needs only
+    /// combat and a familiar already summoned.
+    /// </summary>
+    [Fact]
+    public void TemperedReleaseIsTakenWhileTheFamiliarIsOut()
+    {
+        var actions = new FakeActionState().OnCooldown(A.Rally.Id, 90f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Buff(A.OneWithNature.Id, 60f).Build(),
+            actions);
+
+        Assert.Equal(A.TemperedRelease.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void WithNoFamiliarOutTemperedReleaseIsNotOffered()
+    {
+        var actions = new FakeActionState().OnCooldown(A.Rally.Id, 90f);
+
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Bst().Gcd(1.6f).NoCombo().Build(), actions);
+
+        Assert.NotEqual(A.TemperedRelease.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// The bar, the familiar and the Kinship are the three things a log needs to show before
+    /// Borrow and the Battlehorns can be driven. None is readable as a gauge or a stack, so
+    /// the readiness line carries what Avalanche Axe and Beast Mode resolve to instead.
+    /// </summary>
+    [Fact]
+    public void TheReadinessLineCarriesTheFamiliarCycle()
+    {
+        var job = JobRotationBase.Create<BeastmasterRotation>();
+
+        var line = job.DescribeReadiness(Bst().Build(), new FakeActionState())!;
+
+        foreach (var name in new[] { "Trick", "Parting Blow", "Tempered Release", "Borrow",
+                                     "Rally", "Rallying Cheer", "First Battlehorn" })
+            Assert.Contains(name, line);
+
+        Assert.Contains("avalanche->", line);
+        Assert.Contains("beast-mode->", line);
+    }
+
+    [Fact]
+    public void TheGaugeLineNamesTheKinship()
+    {
+        var job = JobRotationBase.Create<BeastmasterRotation>();
+
+        var line = job.DescribeGauge(Bst().Buff(A.WaveKinship.Id, 80f).Build())!;
+
+        Assert.Contains("kin wave", line);
+    }
+
     // ---- The omissions, pinned -------------------------------------------
 
     // ---- The instinctual ring ---------------------------------------------
@@ -195,7 +297,7 @@ public sealed class BeastmasterTests
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget,
             Bst().Gcd(1.6f).NoCombo().Build(),
-            new FakeActionState());
+            RingOnly());
 
         Assert.Equal(A.Trick.Id, suggestion.Action.Id);
     }
@@ -229,7 +331,7 @@ public sealed class BeastmasterTests
     [Fact]
     public void WithNoHeartTheRingIsOpenedWithSomethingLearned()
     {
-        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+        var actions = RingOnly().OnCooldown(A.Trick.Id, 20f);
         var instinctuals = new[] { A.GaleAxe.Id, A.AvalancheAxe.Id, A.MistralAxe.Id, A.SpinningAxe.Id };
 
         var suggestion = Session().Resolve(
@@ -242,7 +344,7 @@ public sealed class BeastmasterTests
     public void BelowGaleTheRingOpensOnSomethingTheJobActuallyHas()
     {
         // Level 10: Avalanche (4) and Mistral (8) only.
-        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+        var actions = RingOnly().OnCooldown(A.Trick.Id, 20f);
 
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget,
@@ -258,7 +360,7 @@ public sealed class BeastmasterTests
     [Fact]
     public void TheRingIsHeldDuringDowntime()
     {
-        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+        var actions = RingOnly().OnCooldown(A.Trick.Id, 20f);
         var instinctuals = new[] { A.GaleAxe.Id, A.AvalancheAxe.Id, A.MistralAxe.Id, A.SpinningAxe.Id };
 
         var suggestion = Session().Resolve(
@@ -276,7 +378,7 @@ public sealed class BeastmasterTests
     [Fact]
     public void TheAreaButtonWalksTheRingToo()
     {
-        var actions = new FakeActionState()
+        var actions = RingOnly()
             .OnCooldown(A.Trick.Id, 20f)
             .OnCooldown(A.ShieldCharge.Id, 40f);
 
@@ -324,32 +426,30 @@ public sealed class BeastmasterTests
     }
 
     /// <summary>
-    /// Rally is declared as the burst marker because it is genuinely the cooldown damage
-    /// aligns to - three stacks of Mastered Instinct is 40 + 210 = exactly 250 TP, a full
-    /// bar, which is what upgrades an instinctual to its 1,200 potency form. It is a marker
-    /// only: filling the bar is pointless while the ring that spends it is not driven, so
-    /// nothing suggests it. The engine still needs it to know when a potion is worth
-    /// prompting for, which is what AllJobsSmokeTests checks.
+    /// Rally stays the burst marker, and is now also suggested: three stacks of Mastered
+    /// Instinct is 40 + 210 = exactly 250 TP, a full bar, which is what swaps an instinctual
+    /// for its 1,200 potency Lv50 form. With no raid buff in the kit it is the periodic
+    /// cooldown damage aligns to.
     /// </summary>
     [Fact]
-    public void RallyIsTheBurstMarkerButIsNotSuggestedYet()
+    public void RallyIsStillTheBurstMarker()
     {
         var job = JobRotationBase.Create<BeastmasterRotation>();
 
         Assert.Same(A.Rally, job.BurstAction);
         Assert.Null(job.BurstStatus);
+    }
 
-        var session = Session();
-        foreach (var gcd in new[] { 0.1f, 1.6f })
-        {
-            foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
-            {
-                var suggestion = session.Resolve(
-                    mode, Bst().Gcd(gcd).NoCombo().Build(), new FakeActionState());
+    /// <summary>Held while the boss is untargetable, like every other damage rule here.</summary>
+    [Fact]
+    public void RallyIsHeldDuringDowntime()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Bst().Gcd(1.6f).NoCombo().Downtime().Build(),
+            new FakeActionState());
 
-                Assert.NotEqual(A.Rally.Id, suggestion.Action.Id);
-            }
-        }
+        Assert.NotEqual(A.Rally.Id, suggestion.Action.Id);
     }
 
     /// <summary>
