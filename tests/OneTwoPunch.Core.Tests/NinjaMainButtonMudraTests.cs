@@ -210,27 +210,27 @@ public sealed class NinjaMainButtonMudraTests
     }
 
     /// <summary>
-    /// Inside Ten Chi Jin the mudras stop being weaves and become globals - one press, one
-    /// ninjutsu. The game refuses the ordinary globals for those six seconds, so if these
-    /// rules were missing the button would go quiet for three of them. Each press has its
-    /// own id accepted at exactly one point, so the game does the gating; the test spells
-    /// that out by making the later ids unusable.
+    /// Inside Ten Chi Jin one press is one ninjutsu, and the game refuses the ordinary
+    /// globals for those six seconds - so if these rules were missing the button would go
+    /// quiet for three of them.
+    /// <para>
+    /// The game accepts every unspent slot at every step, so priority order is the whole
+    /// decision and <c>Ready</c> gates nothing. Listed deepest-first it offered Suiton at
+    /// every step and a recorded pull spent the entire cooldown on four of them; this pins
+    /// first-press-first with nothing made unusable, which is the state a real fight is in.
+    /// </para>
     /// </summary>
     [Fact]
     public void TenChiJinWalksFumaThenRaitonThenSuiton()
     {
         var snapshot = Global().Buff(A.TenChiJinBuff, 6f).Build();
 
-        var first = Session().Resolve(
-            RotationMode.SingleTarget,
-            snapshot,
-            Quiet().Unusable(A.TCJRaiton.Id).Unusable(A.TCJSuiton.Id));
+        // Nothing made unusable: all three slots legal, as the game reports them.
+        var first = Session().Resolve(RotationMode.SingleTarget, snapshot, Quiet());
         Assert.Equal(A.FumaTen.Id, first.Action.Id);
 
         var second = Session().Resolve(
-            RotationMode.SingleTarget,
-            snapshot,
-            Quiet().Unusable(A.FumaTen.Id).Unusable(A.TCJSuiton.Id));
+            RotationMode.SingleTarget, snapshot, Quiet().Unusable(A.FumaTen.Id));
         Assert.Equal(A.TCJRaiton.Id, second.Action.Id);
 
         var third = Session().Resolve(
@@ -245,16 +245,11 @@ public sealed class NinjaMainButtonMudraTests
     {
         var snapshot = Global().Enemies(4).Buff(A.TenChiJinBuff, 6f).Build();
 
-        var first = Session().Resolve(
-            RotationMode.Aoe,
-            snapshot,
-            Quiet().Unusable(A.TCJKaton.Id).Unusable(A.TCJDoton.Id));
+        var first = Session().Resolve(RotationMode.Aoe, snapshot, Quiet());
         Assert.Equal(A.FumaChi.Id, first.Action.Id);
 
         var second = Session().Resolve(
-            RotationMode.Aoe,
-            snapshot,
-            Quiet().Unusable(A.FumaChi.Id).Unusable(A.TCJDoton.Id));
+            RotationMode.Aoe, snapshot, Quiet().Unusable(A.FumaChi.Id));
         Assert.Equal(A.TCJKaton.Id, second.Action.Id);
     }
 

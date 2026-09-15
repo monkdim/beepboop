@@ -18,6 +18,22 @@ public sealed class Suggestion(
     /// </summary>
     public ActionRef? NextGcd { get; } = nextGcd;
 
+    /// <summary>
+    /// The id the game would really cast for <see cref="Action"/>, once its own adjustment
+    /// has been applied. Zero when nothing has resolved it.
+    /// <para>
+    /// The plugin answers the hook with the action's adjusted form, so a suggestion of
+    /// Ninjutsu comes out of the game as Suiton, and a recorded pull compared the two ids and
+    /// called it a disagreement. Fifteen of them in one clean log, every one a press that did
+    /// exactly what the button asked for - which is noise that would hide a real mismatch.
+    /// </para>
+    /// <para>
+    /// Captured when the suggestion is made, not when the cast lands: by then the mudra
+    /// sequence has moved on and the same question gives a different answer.
+    /// </para>
+    /// </summary>
+    public uint AnsweredAs { get; set; }
+
     /// <summary>Short human explanation, e.g. "overcap protection" or "instant, you are moving".</summary>
     public string? Note { get; } = note;
 

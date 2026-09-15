@@ -661,6 +661,7 @@ public sealed class Plugin : IDalamudPlugin
             actionId,
             suggested,
             suggestion?.Action.Id ?? 0,
+            suggestion?.AnsweredAs ?? 0,
             suggestion?.Note,
             DescribeState());
     }
@@ -892,6 +893,12 @@ public sealed class Plugin : IDalamudPlugin
             return null;
 
         var suggestion = _session.Resolve(mode, _frameSnapshot, _actionState);
+
+        // Recorded now, while it is still true. The hook answers with this form, so it is
+        // what the game will report having cast.
+        if (suggestion.Action.Id != 0)
+            suggestion.AnsweredAs = _replacer.CurrentFormOf(suggestion.Action.Id);
+
         _resolved[mode] = (_frame, suggestion);
         _lastSuggestion[mode] = suggestion;
         return suggestion;
