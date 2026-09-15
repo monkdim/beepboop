@@ -57,6 +57,7 @@ public sealed class SessionRecorder
         uint castId,
         string? suggested,
         uint suggestedId,
+        uint answeredAs,
         string? note,
         string? state = null)
     {
@@ -69,7 +70,11 @@ public sealed class SessionRecorder
         // the game's sheet, the suggestion's from our own table - and the game writes
         // "Heavens' Thrust" where the table says "Heavens Thrust". Comparing the strings
         // reported three disagreements in a clean Dragoon pull that were the same action.
-        var agreed = suggested is not null && castId == suggestedId;
+        // Either the id the list named or the form the game turns it into. Ninjutsu is cast
+        // as Suiton, Split Shot as Heated Split Shot; both are the press the button asked
+        // for, and counting them as disagreements buried the one that was not.
+        var agreed = suggested is not null
+            && (castId == suggestedId || (answeredAs != 0 && castId == answeredAs));
 
         if (agreed)
             _followed++;

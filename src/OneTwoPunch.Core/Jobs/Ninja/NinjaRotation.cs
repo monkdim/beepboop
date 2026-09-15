@@ -309,26 +309,31 @@ public sealed class NinjaRotation : JobRotationBase
     /// globals for the duration, so these have to be the first thing the list offers or the
     /// button goes quiet for three globals.
     /// <para>
-    /// Each press has its own action id and the game accepts each at exactly one point in
-    /// the sequence, so - as with the ordinary mudras - the priority order is the whole
-    /// state machine and <c>Ready</c> does the gating. Single target walks Fuma Shuriken
-    /// into Raiton into Suiton, which is the order every published opener chart shows. The
-    /// area line is Fuma Shuriken into Katon into Doton.
+    /// Unlike the ordinary mudras, the game does <em>not</em> accept each of these at exactly
+    /// one point: inside Ten Chi Jin every unspent slot is legal, so <c>Ready</c> gates
+    /// nothing and the priority order is the entire decision. Listed deepest-first, as the
+    /// combo rules elsewhere are, it offered Suiton at every step and a recorded pull spent
+    /// the whole two minute cooldown on four of them. First press first, so each rule falls
+    /// out as its slot is spent.
+    /// </para>
+    /// <para>
+    /// Single target walks Fuma Shuriken into Raiton into Suiton, which is the order every
+    /// published opener chart shows. The area line is Fuma Shuriken into Katon into Doton.
     /// </para>
     /// </summary>
     private static void AddTenChiJinRules(RotationPlan p, bool aoe)
     {
         if (aoe)
         {
-            p.Gcd(A.TCJDoton).When(InTenChiJin).Because("Ten Chi Jin: Doton");
-            p.Gcd(A.TCJKaton).When(InTenChiJin).Because("Ten Chi Jin: Katon");
             p.Gcd(A.FumaChi).When(InTenChiJin).Because("Ten Chi Jin: Fuma Shuriken");
+            p.Gcd(A.TCJKaton).When(InTenChiJin).Because("Ten Chi Jin: Katon");
+            p.Gcd(A.TCJDoton).When(InTenChiJin).Because("Ten Chi Jin: Doton");
         }
         else
         {
-            p.Gcd(A.TCJSuiton).When(InTenChiJin).Because("Ten Chi Jin: Suiton");
-            p.Gcd(A.TCJRaiton).When(InTenChiJin).Because("Ten Chi Jin: Raiton");
             p.Gcd(A.FumaTen).When(InTenChiJin).Because("Ten Chi Jin: Fuma Shuriken");
+            p.Gcd(A.TCJRaiton).When(InTenChiJin).Because("Ten Chi Jin: Raiton");
+            p.Gcd(A.TCJSuiton).When(InTenChiJin).Because("Ten Chi Jin: Suiton");
         }
     }
 
