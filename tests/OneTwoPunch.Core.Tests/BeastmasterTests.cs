@@ -313,7 +313,7 @@ public sealed class BeastmasterTests
     [InlineData(4598u, 44889u)] // Eldritch -> Gale Axe
     public void TheHeldHeartNamesTheNextInstinctual(uint heart, uint expected)
     {
-        var actions = new FakeActionState().OnCooldown(A.Trick.Id, 20f);
+        var actions = RingOnly().OnCooldown(A.Trick.Id, 20f);
 
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget,
