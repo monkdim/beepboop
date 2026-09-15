@@ -29,8 +29,7 @@ namespace OneTwoPunch.Core.Jobs.Ninja;
 /// </para>
 /// <para>
 /// See <see cref="AddMudraContinueRules"/> for how the sequence knows where it is without
-/// keeping a step counter, and <see cref="AddTenChiJinRules"/> for the six seconds where
-/// the mudras become globals instead.
+/// keeping a step counter.
 /// </para>
 /// </summary>
 public sealed class NinjaRotation : JobRotationBase
@@ -121,7 +120,6 @@ public sealed class NinjaRotation : JobRotationBase
 
         // ---- Globals -------------------------------------------------------
 
-        AddTenChiJinRules(p, aoe: false);
         AddNinjutsuFireRule(p);
 
         // A half-charged sequence expires in six seconds, and each step is a fast global -
@@ -187,7 +185,6 @@ public sealed class NinjaRotation : JobRotationBase
             .When(WantsToSpendNinki)
             .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
 
-        AddTenChiJinRules(p, aoe: true);
         AddNinjutsuFireRule(p);
         AddMudraContinueRules(p);
 
@@ -304,40 +301,25 @@ public sealed class NinjaRotation : JobRotationBase
     }
 
     /// <summary>
-    /// The six seconds inside Ten Chi Jin, where the mudras stop being weaves and become
-    /// globals: one press, one ninjutsu, no charge spent. The game refuses the ordinary
-    /// globals for the duration, so these have to be the first thing the list offers or the
-    /// button goes quiet for three globals.
+    /// Ten Chi Jin's three presses are <b>not</b> driven, and cannot be with what the game
+    /// exposes.
     /// <para>
-    /// Unlike the ordinary mudras, the game does <em>not</em> accept each of these at exactly
-    /// one point: inside Ten Chi Jin every unspent slot is legal, so <c>Ready</c> gates
-    /// nothing and the priority order is the entire decision. Listed deepest-first, as the
-    /// combo rules elsewhere are, it offered Suiton at every step and a recorded pull spent
-    /// the whole two minute cooldown on four of them. First press first, so each rule falls
-    /// out as its slot is spent.
+    /// Inside the window every unspent slot is legal, so <c>Ready</c> gates nothing and the
+    /// priority order is the whole decision - which means the list can only ever name one of
+    /// them. Ordered deepest-first it spent the entire two minute cooldown on four Suitons;
+    /// reversed, on six Fuma Shurikens. The second log is the one that settles it: Ninki sat
+    /// at 15 across all six, and a real Fuma Shuriken grants Ninki, so those were one press
+    /// and five refusals wearing its name.
     /// </para>
     /// <para>
-    /// Single target walks Fuma Shuriken into Raiton into Suiton, which is the order every
-    /// published opener chart shows. The area line is Fuma Shuriken into Katon into Doton.
+    /// There is no state to tell the steps apart. The Ten Chi Jin status carries no stack
+    /// count, the three ids have no ActionIndirection entry, and nothing in the readiness
+    /// line moves across the window. So the cooldown is still suggested - it is worth
+    /// pressing - and the three ninjutsu are left on the player's own Ten, Chi and Jin keys
+    /// until a log shows something that can drive them. <see cref="DescribeReadiness"/> now
+    /// carries what those three slots resolve to, which is the read that would settle it.
     /// </para>
     /// </summary>
-    private static void AddTenChiJinRules(RotationPlan p, bool aoe)
-    {
-        if (aoe)
-        {
-            p.Gcd(A.FumaChi).When(InTenChiJin).Because("Ten Chi Jin: Fuma Shuriken");
-            p.Gcd(A.TCJKaton).When(InTenChiJin).Because("Ten Chi Jin: Katon");
-            p.Gcd(A.TCJDoton).When(InTenChiJin).Because("Ten Chi Jin: Doton");
-        }
-        else
-        {
-            p.Gcd(A.FumaTen).When(InTenChiJin).Because("Ten Chi Jin: Fuma Shuriken");
-            p.Gcd(A.TCJRaiton).When(InTenChiJin).Because("Ten Chi Jin: Raiton");
-            p.Gcd(A.TCJSuiton).When(InTenChiJin).Because("Ten Chi Jin: Suiton");
-        }
-    }
-
-    private static bool InTenChiJin(RotationContext c) => c.Buff(A.TenChiJinBuff);
 
     /// <summary>The spell the charged mudras would cast, straight from the game.</summary>
     private static uint Charged(RotationContext c) => c.CurrentFormOf(A.Ninjutsu);
@@ -512,7 +494,12 @@ public sealed class NinjaRotation : JobRotationBase
     public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
         $"{Probe(actions, A.Ten1)} {Probe(actions, A.Chi1)} {Probe(actions, A.Chi2)} "
         + $"{Probe(actions, A.Jin2)} {Probe(actions, A.Ninjutsu)} "
-        + $"{Probe(actions, A.TenChiJin)} {Probe(actions, A.KunaisBane)}";
+        + $"{Probe(actions, A.TenChiJin)} {Probe(actions, A.KunaisBane)}"
+        // What the three mudra keys resolve to. Inside Ten Chi Jin the question is whether
+        // the game moves these along as each slot is spent - if it does, that is the state
+        // the three presses could be driven from, and nothing else on offer is.
+        + $" | slots {actions.CurrentFormOf(A.Ten1.Id)}/{actions.CurrentFormOf(A.Chi1.Id)}"
+        + $"/{actions.CurrentFormOf(A.Jin1.Id)}";
 
     private static bool Holding(CombatSnapshot snapshot, StatusRef status)
     {

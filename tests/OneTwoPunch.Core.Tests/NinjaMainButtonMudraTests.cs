@@ -184,21 +184,6 @@ public sealed class NinjaMainButtonMudraTests
 
     // ---- Ten Chi Jin ------------------------------------------------------
 
-    /// <summary>
-    /// A two minute cooldown that no rule suggested at all until now, though it is in every
-    /// published opener chart and every even burst window.
-    /// </summary>
-    [Fact]
-    public void TenChiJinIsSpentInsideTheBurstWindow()
-    {
-        var actions = Quiet().WithCharges(A.TenChiJin.Id, 1, 1);
-
-        var snapshot = Nin().Debuff(A.KunaisBaneBuff.Id, 15f).Build();
-        var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, actions);
-
-        Assert.Equal(A.TenChiJin.Id, suggestion.Action.Id);
-    }
-
     [Fact]
     public void TenChiJinIsHeldOutsideTheBurstWindow()
     {
@@ -210,47 +195,39 @@ public sealed class NinjaMainButtonMudraTests
     }
 
     /// <summary>
-    /// Inside Ten Chi Jin one press is one ninjutsu, and the game refuses the ordinary
-    /// globals for those six seconds - so if these rules were missing the button would go
-    /// quiet for three of them.
-    /// <para>
-    /// The game accepts every unspent slot at every step, so priority order is the whole
-    /// decision and <c>Ready</c> gates nothing. Listed deepest-first it offered Suiton at
-    /// every step and a recorded pull spent the entire cooldown on four of them; this pins
-    /// first-press-first with nothing made unusable, which is the state a real fight is in.
-    /// </para>
+    /// Ten Chi Jin's three presses are deliberately not driven. Inside the window every
+    /// unspent slot is legal, so priority order is the whole decision and the list can only
+    /// name one of them - two recorded pulls spent the entire cooldown on four Suitons and
+    /// then on six Fuma Shurikens. Nothing the game exposes tells the steps apart, so the
+    /// cooldown is suggested and the three ninjutsu are left on the player's own keys.
     /// </summary>
     [Fact]
-    public void TenChiJinWalksFumaThenRaitonThenSuiton()
+    public void TheTenChiJinPressesAreNotDriven()
     {
         var snapshot = Global().Buff(A.TenChiJinBuff, 6f).Build();
+        var inside = new[]
+        {
+            A.FumaTen.Id, A.FumaChi.Id, A.FumaJin.Id,
+            A.TCJRaiton.Id, A.TCJSuiton.Id, A.TCJKaton.Id, A.TCJDoton.Id,
+        };
 
-        // Nothing made unusable: all three slots legal, as the game reports them.
-        var first = Session().Resolve(RotationMode.SingleTarget, snapshot, Quiet());
-        Assert.Equal(A.FumaTen.Id, first.Action.Id);
-
-        var second = Session().Resolve(
-            RotationMode.SingleTarget, snapshot, Quiet().Unusable(A.FumaTen.Id));
-        Assert.Equal(A.TCJRaiton.Id, second.Action.Id);
-
-        var third = Session().Resolve(
-            RotationMode.SingleTarget,
-            snapshot,
-            Quiet().Unusable(A.FumaTen.Id).Unusable(A.TCJRaiton.Id));
-        Assert.Equal(A.TCJSuiton.Id, third.Action.Id);
+        foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
+        {
+            var suggestion = Session().Resolve(mode, snapshot, Quiet());
+            Assert.DoesNotContain(suggestion.Action.Id, inside);
+        }
     }
 
+    /// <summary>The cooldown itself is still worth pressing, and still is.</summary>
     [Fact]
-    public void TenChiJinWalksTheAreaLineOnAGroup()
+    public void TenChiJinItselfIsStillSpentInTheBurst()
     {
-        var snapshot = Global().Enemies(4).Buff(A.TenChiJinBuff, 6f).Build();
+        var actions = Quiet().WithCharges(A.TenChiJin.Id, 1, 1);
+        var snapshot = Nin().Debuff(A.KunaisBaneBuff.Id, 15f).Build();
 
-        var first = Session().Resolve(RotationMode.Aoe, snapshot, Quiet());
-        Assert.Equal(A.FumaChi.Id, first.Action.Id);
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, actions);
 
-        var second = Session().Resolve(
-            RotationMode.Aoe, snapshot, Quiet().Unusable(A.FumaChi.Id));
-        Assert.Equal(A.TCJKaton.Id, second.Action.Id);
+        Assert.Equal(A.TenChiJin.Id, suggestion.Action.Id);
     }
 
     // ---- Ninki pooling ----------------------------------------------------

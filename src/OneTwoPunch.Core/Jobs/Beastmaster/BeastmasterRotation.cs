@@ -83,10 +83,10 @@ public sealed class BeastmasterRotation : JobRotationBase
     /// bar is what upgrades an instinctual into its 1,200 potency form. The job has no raid
     /// buff, so this is the periodic cooldown damage actually aligns to.
     /// <para>
-    /// Still a marker only - nothing suggests it. The ring that banks the stacks is driven
-    /// now, but what to do with a full bar is the Lv50 finishers, which arrive through the
-    /// game's own ActionIndirection table and are not in the action list yet. The engine uses
-    /// this to know when a potion is worth prompting for, which does not depend on a rule.
+    /// Suggested now, and it is what makes the ring worth walking: a full bar swaps each
+    /// instinctual for its Lv50 form at 1,200 potency, through the game's own
+    /// ActionIndirection table, so the upgrade needs no rule of its own - only a bar that
+    /// reaches 250.
     /// </para>
     /// </summary>
     public override ActionRef? BurstAction => A.Rally;
@@ -106,6 +106,7 @@ public sealed class BeastmasterRotation : JobRotationBase
     {
         var p = SingleTarget;
 
+        AddFamiliarCycle(p);
         AddInstinctualRing(p);
 
         // Finishers first - first match wins, so the deepest live combo step has to be
@@ -129,6 +130,8 @@ public sealed class BeastmasterRotation : JobRotationBase
             .When(c => !c.Downtime && c.Enemies >= AoeMinimumEnemies)
             .Because("300 potency to the group, and it holds three charges");
 
+        AddFamiliarCycle(p);
+
         // The instinctuals are the damage at any number of targets - the job has no area
         // weaponskill line at all - so the ring is walked here too.
         AddInstinctualRing(p);
@@ -138,6 +141,49 @@ public sealed class BeastmasterRotation : JobRotationBase
         p.Gcd(A.Shieldsplitter).When(c => c.ComboIs(A.AxebladeBite));
         p.Gcd(A.AxebladeBite).When(c => c.ComboIs(A.SmashAxe));
         p.Gcd(A.SmashAxe);
+    }
+
+    /// <summary>
+    /// The familiar, which is half the job and was driven not at all.
+    /// <para>
+    /// <b>Rally</b> is the reason the ring ever hits hard. An instinctual is 400 potency and
+    /// "increases up to 1,000 as TP nears maximum", spending the whole bar either way - and
+    /// at a full 250 the game swaps it for its Lv50 form at 1,200 potency to a group. TP
+    /// climbs 13 to 15 a combo hit, so the bar does not fill on its own inside a fight;
+    /// Rally is what fills it, converting banked Mastered Instinct at 40 plus 70 a stack.
+    /// Nothing suggested it before, so nothing ever reached 250 and the upgrades were
+    /// unreachable.
+    /// </para>
+    /// <para>
+    /// <b>Parting Blow</b> is the largest number in the kit and available from level 6:
+    /// 1,000 potency to a group, 1,500 under Lingering Vantage. It is gated on that buff
+    /// here, and not because 1,500 beats 1,000 - because the familiar retreats on use, and
+    /// Lingering Vantage only exists after Borrow or Tempered Release, which need a familiar
+    /// standing beside you. Requiring it is what keeps this a once-a-cycle finisher rather
+    /// than a ten second cooldown that throws the familiar away.
+    /// </para>
+    /// <para>
+    /// <b>Tempered Release</b> is here because it is the cheap half of that: thirty seconds,
+    /// needs only combat and One with Nature, and grants the Lingering Vantage that Parting
+    /// Blow is waiting for. Borrow does the same and more - a Kinship, and a Beast Mode that
+    /// morphs with it - but what to do with the Kinship afterwards is eight branches deep and
+    /// no log has shown one yet. It is reported rather than driven, as are the three
+    /// Battlehorns that summon the familiar in the first place.
+    /// </para>
+    /// </summary>
+    private static void AddFamiliarCycle(RotationPlan p)
+    {
+        p.OGcd(A.Rally)
+            .When(c => c.InCombat && !c.Downtime)
+            .Because("banked instinct into a full bar");
+
+        p.OGcd(A.PartingBlow)
+            .When(c => c.InCombat && !c.Downtime && c.Buff(A.LingeringVantage))
+            .Because("1,500 potency, and the familiar retreats");
+
+        p.OGcd(A.TemperedRelease)
+            .When(c => c.InCombat && !c.Downtime && c.Buff(A.OneWithNature))
+            .Because("Lingering Vantage for Parting Blow");
     }
 
     /// <summary>
@@ -225,11 +271,21 @@ public sealed class BeastmasterRotation : JobRotationBase
         var compass = Holding(snapshot, A.Sunstrider) ? " | sunstrider" : string.Empty;
         compass += Holding(snapshot, A.Moonstalker) ? " | moonstalker" : string.Empty;
 
+        var kin = Holding(snapshot, A.BeastKinship) ? " | kin beast"
+            : Holding(snapshot, A.VileKinship) ? " | kin vile"
+            : Holding(snapshot, A.CloudKinship) ? " | kin cloud"
+            : Holding(snapshot, A.SeedKinship) ? " | kin seed"
+            : Holding(snapshot, A.WaveKinship) ? " | kin wave"
+            : Holding(snapshot, A.ScaleKinship) ? " | kin scale"
+            : Holding(snapshot, A.SoulKinship) ? " | kin soul"
+            : Holding(snapshot, A.AshKinship) ? " | kin ash"
+            : string.Empty;
+
         var nature = Holding(snapshot, A.OneWithNature) ? " | one-with-nature" : string.Empty;
         var vantage = Holding(snapshot, A.LingeringVantage) ? " | vantage" : string.Empty;
         var wavering = Holding(snapshot, A.WaveringHeart) ? " | WAVERING" : string.Empty;
 
-        return $"heart {heart}{wants}{compass}{nature}{vantage}{wavering}";
+        return $"heart {heart}{wants}{compass}{nature}{kin}{vantage}{wavering}";
     }
 
     /// <summary>
@@ -239,7 +295,17 @@ public sealed class BeastmasterRotation : JobRotationBase
     /// </summary>
     public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
         $"{Probe(actions, A.Trick)} {Probe(actions, A.GaleAxe)} {Probe(actions, A.SpinningAxe)} "
-        + $"{Probe(actions, A.MistralAxe)} {Probe(actions, A.AvalancheAxe)}";
+        + $"{Probe(actions, A.MistralAxe)} {Probe(actions, A.AvalancheAxe)} "
+        + $"{Probe(actions, A.PartingBlow)} {Probe(actions, A.TemperedRelease)} "
+        + $"{Probe(actions, A.Borrow)} {Probe(actions, A.Rally)} "
+        + $"{Probe(actions, A.RallyingCheer)} {Probe(actions, A.BeastMode)} "
+        + $"{Probe(actions, A.FirstBattlehorn)}"
+        // What Avalanche Axe resolves to is the only reading of the TP bar there is. The
+        // gauge itself is not in Dalamud's typed gauges nor in ClientStructs, and neither
+        // Mastered nor Natural Instinct exists as a status - but the game swaps this for
+        // Brutal Rage at 250, so the id answers "is the bar full" when nothing else can.
+        + $" | avalanche->{actions.CurrentFormOf(A.AvalancheAxe.Id)}"
+        + $" beast-mode->{actions.CurrentFormOf(A.BeastMode.Id)}";
 
     private static bool Holding(CombatSnapshot snapshot, StatusRef status)
     {
