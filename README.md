@@ -103,13 +103,16 @@ untouched — the plugin only ever answers for those two slots.
 | Command | What it does |
 |---|---|
 | `/otp` (or `/onetwopunch`) | settings |
+| `/otp arm` | let it run, this session only — it starts inert |
+| `/otp disarm` | stop it and remove the hook |
+| `/otp record` | start or stop recording a pull to your Downloads |
 | `/otp verify` | check every action id against the game's own data |
 | `/otp hud` | toggle the next-action display |
 | `/otp on` / `off` | master switch |
 
 ## Supported jobs
 
-All thirteen DPS jobs and all four tanks, single target and AoE:
+All thirteen DPS jobs, all four tanks, and Beastmaster — single target and AoE:
 
 | | |
 |---|---|
@@ -117,6 +120,7 @@ All thirteen DPS jobs and all four tanks, single target and AoE:
 | **Melee** | Monk, Dragoon, Ninja, Samurai, Reaper, Viper |
 | **Physical ranged** | Bard, Machinist, Dancer |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer |
+| **Limited** | Beastmaster |
 
 The AoE button always shows the AoE rotation, including against a single enemy, so it can
 be checked on a striking dummy before it is trusted in a party. The old behaviour - fall
@@ -135,25 +139,39 @@ still declared, so the verifier checks them.
 Action and status tables are generated from the game's own data, and every id is verified
 again at startup.
 
-### Jobs that need a third key
+### Two keys really is all of them
 
-Two buttons cover every job but one. **Ninja** needs one more: a ninjutsu is two or
-three mudra presses and then the cast, and folding that into a single icon that changes
-under your hand between presses would be worse than an extra key. The Mudra button walks
-the sequence and fires the result — Raiton on a single target, Katon on a group, and both
-Kassatsu upgrades, chosen automatically. Suiton, Huton and Doton still need their own keys.
+**Ninja** used to need a third. A ninjutsu is two or three mudra presses and then the
+cast, which looked like a sequence the main buttons could not express — so it got its own
+key. That was wrong, and the game's own data said so: Ten carries cooldown group 58
+alongside its own two-charge timer, and group 58 *is* the global cooldown. The mudras are
+globals, not weaves. They live on the two main buttons now, and a whole ninjutsu is three
+fast presses that add up to about one ordinary global — Raiton on a single target, Katon on
+a group, Suiton when Kunai's Bane or Meisui needs it, and the Kassatsu upgrades chosen
+automatically.
 
-Dancer's dances look like the same problem but aren't: its gauge names the next step
+The Mudra key still exists and still works. It is redundant, and kept only so nobody who
+bound it loses it.
+
+Dancer's dances look like the same problem and aren't: its gauge names the next step
 outright, so the main buttons walk the dance themselves.
 
 ### How honest the rotations are
 
 The engine's guarantees hold on every job — no clipped GCDs, no unusable suggestions, no
 wrong ids. The **priority lists** are a different kind of claim: they were written against
-the game's data and cross-checked against BossMod and RotationSolver Reborn, but they have
+the game's data and cross-checked against BossMod and RotationSolver Reborn, but most have
 not been parsed on a dummy. Expect them to be good, not optimal, and tell us where they're
 wrong. The HUD shows the reason for every choice specifically so a job main can audit it in
 one training-dummy pull.
+
+`/otp record` writes that pull to your Downloads: every press, what was suggested beside it, the
+reason, the job's gauge, and — for the jobs that have needed it — a readiness line saying
+what the engine believed it was *allowed* to suggest, with the game's own refusal code when
+it was not. That last part exists because a rule that never fires leaves no other trace: a
+log can show a full gauge, an open weave window and the right buffs, and still not say that
+the action was reported locked, uncharged, or refused. Four rounds of a Ninja bug went by
+before it did.
 
 **Openers** are transcribed from [The Balance](https://www.thebalanceffxiv.com/)'s opener
 charts — Dragoon, Monk, Reaper, Samurai, Viper, Bard, Machinist, Black Mage, Pictomancer
@@ -162,11 +180,30 @@ transcription slip fails CI rather than a pull. An opener *overrides* the priori
 while it runs, so it gives up the moment reality stops matching, and never starts
 mid-fight.
 
-Ninja and Dancer have none, on purpose. Ninja's chart leaves the mudra presses implicit,
-and a scripted list would have to invent them — a wrong one is a Rabbit Medium, a wasted
-global. Dancer's chart is half contextual: the dance steps are randomised per dance and
-four of its globals are drawn as "Priority GCD" placeholders. Neither is a fixed sequence,
-so neither gets guessed at; their priority lists open on their own.
+Ninja, Dancer and Beastmaster have none, on purpose. Ninja's chart leaves the mudra
+presses implicit, and a scripted list would have to invent them — a wrong one is a Rabbit
+Medium, a wasted global. Dancer's chart is half contextual: the dance steps are randomised
+per dance and four of its globals are drawn as "Priority GCD" placeholders. Nobody has
+published a Beastmaster opener at all. None of the three is a fixed sequence, so none gets
+guessed at; their priority lists open on their own.
+
+### What is deliberately left to you
+
+Two things are in the kit, understood, and still not driven — because nothing the game
+exposes can drive them correctly, and a wrong guess costs a global:
+
+- **Ninja's Ten Chi Jin.** The cooldown itself is suggested, inside the burst window where
+  it belongs. Its three presses are not: inside that buff every unspent slot is legal, so
+  priority order is the entire decision and the list can only ever name one of them. The
+  status carries no stack count and the three ids have no indirection entry, so there is no
+  state to walk. Press your own Ten, Chi and Jin for those six seconds.
+- **Beastmaster's familiar cycle.** Borrow grants one of eight Kinships and morphs Beast
+  Mode into a different action for each; the Battlehorns summon and the cooldown does not
+  start until the familiar retreats. That is a real rotation and it will get rules, but not
+  before a recorded pull shows one.
+
+Both are reported in the log rather than driven, which is the honest half of the same
+decision.
 
 ## How it's built
 
