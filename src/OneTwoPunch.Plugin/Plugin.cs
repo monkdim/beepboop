@@ -886,7 +886,8 @@ public sealed class Plugin : IDalamudPlugin
             _frameSnapshotAt = _frame;
 
             if (_frameSnapshot is not null)
-                _actionState.BeginFrame(_frameSnapshot.Level, _frameSnapshot.TargetId);
+                _actionState.BeginFrame(
+                    _frameSnapshot.Level, _frameSnapshot.TargetId, _job.SingleTargetButton.Id);
         }
 
         if (_frameSnapshot is null)

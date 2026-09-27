@@ -75,6 +75,19 @@ public sealed class PictomancerRotation : JobRotationBase
         BuildAoe();
     }
 
+    /// <summary>
+    /// Whether this is a moment to be painting rather than attacking.
+    /// <para>
+    /// A motif is three seconds of standing still that deals no damage, so the two things
+    /// that rule it out are movement and the burst window. Starry Muse is twenty seconds of
+    /// increased damage and Hyperphantasia is five paint spells that each hit harder for
+    /// being inside it - neither is spent by a motif, so a motif painted there is a global
+    /// of the buff thrown away. The canvases are drawn in the ninety seconds between.
+    /// </para>
+    /// </summary>
+    private static bool CanPaint(RotationContext c) =>
+        !c.Moving && !c.Buff(A.StarryMuseBuff) && !c.Buff(A.Hyperphantasia);
+
     private void BuildSingleTarget()
     {
         var p = SingleTarget;
@@ -98,9 +111,13 @@ public sealed class PictomancerRotation : JobRotationBase
         p.OGcd(A.MogOfTheAges).When(c => c.Pct.MooglePortraitReady);
         p.OGcd(A.RetributionOfTheMadeen).When(c => c.Pct.MadeenPortraitReady);
 
+        // Fifty is the price, but Starry Muse hands out a free one and it expires with the
+        // burst - so the gauge is not the only way in, and a Subtractive Spectrum left
+        // unspent is a whole subtractive cycle missed inside the damage window.
         p.OGcd(A.SubtractivePalette)
-            .When(c => c.Pct.PaletteGauge >= 50 && !c.Buff(A.SubtractivePaletteBuff))
-            .Because("palette is close to capping");
+            .When(c => !c.Buff(A.SubtractivePaletteBuff)
+                && (c.Buff(A.SubtractiveSpectrum) || c.Pct.PaletteGauge >= 50))
+            .Because(c => c.Buff(A.SubtractiveSpectrum) ? "free, and it expires" : "palette is close to capping");
 
         // ---- GCDs --------------------------------------------------------
         // Free instants and burst follow-ups, all of which expire.
@@ -123,18 +140,18 @@ public sealed class PictomancerRotation : JobRotationBase
             .When(c => c.Pct.Paint > 0 && (c.Moving || c.Pct.Paint >= 5))
             .Because(c => c.Moving ? "instant, you are moving" : "paint is close to capping");
 
-        // Motifs root you, so they are painted while standing still - ideally in downtime -
-        // and never while moving.
+        // Motifs root you for three seconds and deal no damage, so they are painted in the
+        // quiet part of the fight: standing still, and outside the burst. See CanPaint.
         p.Gcd(A.LandscapeMotif)
-            .When(c => !c.Moving && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f))
+            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f))
             .Because("paint before the buff window");
 
         p.Gcd(A.WeaponMotif)
-            .When(c => !c.Moving && !c.Pct.WeaponMotifDrawn)
+            .When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn)
             .Because("paint while you can stand still");
 
         p.Gcd(A.CreatureMotif)
-            .When(c => !c.Moving && !c.Pct.CreatureMotifDrawn)
+            .When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn)
             .Because("paint while you can stand still");
 
         // The three-colour cycle. Aetherhues decides which colour is next, and the
@@ -148,6 +165,46 @@ public sealed class PictomancerRotation : JobRotationBase
         p.Gcd(A.FireInRed);
     }
 
+    /// <summary>
+    /// The three canvases, the two portraits and the two resources - which is to say, the
+    /// whole of what the priority list reads.
+    /// <para>
+    /// A recorded pull went sixty-two casts without a single motif and there was no way to
+    /// tell whether the canvases were full, the gauge was lying or the rule was never
+    /// reached. Printing the canvases makes the first two answerable from the log alone.
+    /// </para>
+    /// </summary>
+    public override string DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Pictomancer;
+
+        var canvas = (g.CreatureMotifDrawn ? "creature" : "-")
+            + "/" + (g.WeaponMotifDrawn ? "weapon" : "-")
+            + "/" + (g.LandscapeMotifDrawn ? "landscape" : "-");
+
+        var portraits = (g.MooglePortraitReady ? " | moogle" : string.Empty)
+            + (g.MadeenPortraitReady ? " | madeen" : string.Empty);
+
+        return $"palette {g.PaletteGauge} | paint {g.Paint} | canvas {canvas}{portraits}";
+    }
+
+    /// <summary>
+    /// Whether the motifs and the muses may be offered at all.
+    /// <para>
+    /// This is the line that would have named the bug in one read. The motifs are four
+    /// second globals against a two and a half second one, and the engine measured their
+    /// remaining recast against the shorter of the two - so they reported over a second of
+    /// cooldown for the whole of every global and no rule could ever offer them. The gauge
+    /// said the canvases were empty and the rules were right; only the clock disagreed.
+    /// </para>
+    /// </summary>
+    public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
+        $"{Probe(actions, A.CreatureMotif)} {Probe(actions, A.WeaponMotif)} "
+        + $"{Probe(actions, A.LandscapeMotif)} {Probe(actions, A.LivingMuse)} "
+        + $"{Probe(actions, A.SteelMuse)} {Probe(actions, A.ScenicMuse)} "
+        + $"{Probe(actions, A.MogOfTheAges)} {Probe(actions, A.HammerStamp)} "
+        + $"{Probe(actions, A.RainbowDrip)}";
+
     private void BuildAoe()
     {
         var p = Aoe;
@@ -159,7 +216,8 @@ public sealed class PictomancerRotation : JobRotationBase
         p.OGcd(A.RetributionOfTheMadeen).When(c => c.Pct.MadeenPortraitReady);
 
         p.OGcd(A.SubtractivePalette)
-            .When(c => c.Pct.PaletteGauge >= 50 && !c.Buff(A.SubtractivePaletteBuff));
+            .When(c => !c.Buff(A.SubtractivePaletteBuff)
+                && (c.Buff(A.SubtractiveSpectrum) || c.Pct.PaletteGauge >= 50));
 
         p.Gcd(A.StarPrism).When(c => c.Buff(A.Starstruck));
         p.Gcd(A.RainbowDrip).When(c => c.Buff(A.RainbowBright));
@@ -172,10 +230,10 @@ public sealed class PictomancerRotation : JobRotationBase
         p.Gcd(A.HolyInWhite).When(c => c.Pct.Paint > 0 && (c.Moving || c.Pct.Paint >= 5));
 
         p.Gcd(A.LandscapeMotif)
-            .When(c => !c.Moving && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f));
+            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f));
 
-        p.Gcd(A.WeaponMotif).When(c => !c.Moving && !c.Pct.WeaponMotifDrawn);
-        p.Gcd(A.CreatureMotif).When(c => !c.Moving && !c.Pct.CreatureMotifDrawn);
+        p.Gcd(A.WeaponMotif).When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn);
+        p.Gcd(A.CreatureMotif).When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn);
 
         p.Gcd(A.ThunderIIInMagenta).When(c => c.Buff(A.AetherhuesII) && c.Buff(A.SubtractivePaletteBuff));
         p.Gcd(A.StoneIIInYellow).When(c => c.Buff(A.Aetherhues) && c.Buff(A.SubtractivePaletteBuff));
