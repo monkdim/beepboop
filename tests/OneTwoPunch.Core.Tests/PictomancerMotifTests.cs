@@ -1,0 +1,225 @@
+using OneTwoPunch.Core.Engine;
+using OneTwoPunch.Core.Jobs;
+using OneTwoPunch.Core.Jobs.Pictomancer;
+using OneTwoPunch.Core.Model;
+using Xunit;
+using A = OneTwoPunch.Core.Jobs.Pictomancer.PictomancerActions;
+
+namespace OneTwoPunch.Core.Tests;
+
+/// <summary>
+/// The motifs are two thirds of Pictomancer: nothing else produces a muse, and without a
+/// muse there is no hammer, no portrait, no Mog and no Star Prism. A recorded pull ran
+/// sixty-two casts and painted nothing after the opener, so the paint cycle was the entire
+/// job for two and a half minutes.
+/// <para>
+/// The cause was in the engine rather than here - see the note in ActionStateAdapter about
+/// globals longer than the global - but nothing in this suite would have caught it either,
+/// because nothing in this suite mentioned a motif. These tests say what the button owes.
+/// </para>
+/// </summary>
+public sealed class PictomancerMotifTests
+{
+    private static RotationSession Session() => new(
+        JobRotationBase.Create<PictomancerRotation>(),
+        new RotationSettings { UseOpener = false, SuggestionHoldSeconds = 0f });
+
+    private static SnapshotBuilder Pct() =>
+        new SnapshotBuilder().Job(42).Level(100).Gcd(0.1f).Enemies(1);
+
+    /// <summary>
+    /// The canvases start empty in a fresh snapshot, which is the state right after the
+    /// muses in the opener have spent them. Painting is the only way back.
+    /// </summary>
+    private static SnapshotBuilder Canvases(
+        SnapshotBuilder b, bool creature = false, bool weapon = false, bool landscape = false) =>
+        b.Gauge(s =>
+        {
+            s.Gauges.Pictomancer.CreatureMotifDrawn = creature;
+            s.Gauges.Pictomancer.WeaponMotifDrawn = weapon;
+            s.Gauges.Pictomancer.LandscapeMotifDrawn = landscape;
+        });
+
+    /// <summary>Scenic Muse parked, so a test about the other two is not answered by it.</summary>
+    private static FakeActionState NoScenic() =>
+        new FakeActionState().OnCooldown(A.ScenicMuse.Id, 90f);
+
+    // ---- Painting ---------------------------------------------------------
+
+    [Fact]
+    public void AnEmptyWeaponCanvasIsPaintedRatherThanAttacked()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Canvases(Pct()).Build(), NoScenic());
+
+        Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void TheCreatureCanvasIsPaintedOnceTheWeaponOneIsFull()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Canvases(Pct(), weapon: true).Build(), NoScenic());
+
+        Assert.Equal(A.CreatureMotif.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// A full canvas cannot be painted over, so with both drawn the button is the paint
+    /// cycle again - which is what the whole of the recorded pull looked like.
+    /// </summary>
+    [Fact]
+    public void FullCanvasesFallThroughToThePaintCycle()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), creature: true, weapon: true).Build(),
+            NoScenic());
+
+        Assert.Equal(A.FireInRed.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void TheAoeButtonPaintsTheSameCanvases()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.Aoe, Canvases(Pct()).Enemies(3).Build(), NoScenic());
+
+        Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
+    }
+
+    // ---- When not to paint ------------------------------------------------
+
+    /// <summary>A motif roots you for three seconds, so it is never the answer while moving.</summary>
+    [Fact]
+    public void MovingPaintsNothing()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget, Canvases(Pct()).Moving().Build(), NoScenic());
+
+        Assert.NotEqual(A.WeaponMotif.Id, suggestion.Action.Id);
+        Assert.NotEqual(A.CreatureMotif.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Starry Muse is twenty seconds of increased damage and a motif deals none, so a motif
+    /// painted inside it is a global of the raid buff spent on nothing.
+    /// </summary>
+    [Fact]
+    public void TheBurstWindowIsNotPaintedThrough()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Buff(A.StarryMuseBuff.Id).Build(),
+            NoScenic());
+
+        Assert.NotEqual(A.WeaponMotif.Id, suggestion.Action.Id);
+        Assert.NotEqual(A.CreatureMotif.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Hyperphantasia is five paint spells that each hit harder. A motif does not spend a
+    /// stack, so painting one there throws the stack's worth of damage away.
+    /// </summary>
+    [Fact]
+    public void HyperphantasiaIsSpentOnPaintNotMotifs()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Buff(A.Hyperphantasia.Id).Build(),
+            NoScenic());
+
+        Assert.Equal(A.FireInRed.Id, suggestion.Action.Id);
+    }
+
+    // ---- Spending ---------------------------------------------------------
+
+    /// <summary>
+    /// A drawn canvas is a muse waiting to happen, and the muse is an off-global - so in a
+    /// weave window it outranks everything the button could paint or cast.
+    /// </summary>
+    [Fact]
+    public void ADrawnWeaponCanvasIsSpentOnStrikingMuse()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), weapon: true).Gcd(1.6f).Build(),
+            NoScenic());
+
+        Assert.Equal(A.StrikingMuse.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void ADrawnCreatureCanvasIsSpentOnLivingMuse()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), creature: true).Gcd(1.6f).Build(),
+            NoScenic());
+
+        Assert.Equal(A.LivingMuse.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// The landscape canvas is the only one painted against a clock: Scenic Muse is the raid
+    /// buff, so the canvas has to be up before the cooldown is, and painting it any earlier
+    /// is a global spent for nothing.
+    /// </summary>
+    [Fact]
+    public void TheLandscapeCanvasIsPaintedOnlyAheadOfTheBuff()
+    {
+        var early = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), creature: true, weapon: true).Build(),
+            new FakeActionState().OnCooldown(A.ScenicMuse.Id, 90f));
+
+        Assert.NotEqual(A.LandscapeMotif.Id, early.Action.Id);
+
+        var soon = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), creature: true, weapon: true).Build(),
+            new FakeActionState().OnCooldown(A.ScenicMuse.Id, 10f));
+
+        Assert.Equal(A.LandscapeMotif.Id, soon.Action.Id);
+    }
+
+    // ---- The free subtractive --------------------------------------------
+
+    /// <summary>
+    /// Fifty gauge is one way into the subtractive palette and Starry Muse's own Subtractive
+    /// Spectrum is the other. The gauge condition alone let the free one expire unused inside
+    /// the burst, which is where it is worth the most.
+    /// </summary>
+    [Fact]
+    public void SubtractiveSpectrumIsSpentWithoutTheGauge()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Buff(A.SubtractiveSpectrum.Id).Gcd(1.6f).Build(),
+            NoScenic());
+
+        Assert.Equal(A.SubtractivePalette.Id, suggestion.Action.Id);
+    }
+
+    // ---- Diagnostics ------------------------------------------------------
+
+    /// <summary>
+    /// Both lines exist because their absence cost a round: the log for the pull that
+    /// started this could not say whether the canvases were full or the rule unreachable.
+    /// </summary>
+    [Fact]
+    public void TheLogSaysWhatTheCanvasesHoldAndWhatMayBeOffered()
+    {
+        var job = JobRotationBase.Create<PictomancerRotation>();
+        var snapshot = Canvases(Pct(), weapon: true).Build();
+
+        var gauge = job.DescribeGauge(snapshot)!;
+        Assert.Contains("canvas -/weapon/-", gauge);
+        Assert.Contains("paint", gauge);
+        Assert.Contains("palette", gauge);
+
+        var readiness = job.DescribeReadiness(snapshot, new FakeActionState())!;
+        foreach (var name in new[] { "Creature Motif", "Weapon Motif", "Landscape Motif", "Living Muse" })
+            Assert.Contains(name, readiness);
+    }
+}

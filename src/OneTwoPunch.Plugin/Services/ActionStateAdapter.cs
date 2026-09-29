@@ -17,6 +17,15 @@ public sealed unsafe class ActionStateAdapter : IActionState
     private byte _level = 1;
     private ulong _targetId = CombatSnapshot.NoTarget;
 
+    /// <summary>
+    /// The recast group the job's own basic weaponskill sits in - which is to say, the global
+    /// cooldown - and how much of it is left. Both read once per frame from the game rather
+    /// than hard-coded, so the comparison below is against whatever index this build uses.
+    /// </summary>
+    private int _globalGroup = -1;
+
+    private float _globalRemaining;
+
     private readonly Dictionary<uint, uint> _forms = [];
 
     private readonly record struct Entry(
@@ -37,12 +46,33 @@ public sealed unsafe class ActionStateAdapter : IActionState
     public Func<uint, uint>? FormResolver { get; set; }
 
     /// <summary>Drops the cache. Called once per resolve.</summary>
-    public void BeginFrame(byte level, ulong targetId)
+    /// <param name="gcdProbe">
+    /// The job's basic weaponskill, used only to learn which recast group is the global.
+    /// </param>
+    public void BeginFrame(byte level, ulong targetId, uint gcdProbe)
     {
         _level = level;
         _targetId = targetId;
         _cache.Clear();
         _forms.Clear();
+
+        _globalGroup = -1;
+        _globalRemaining = 0f;
+
+        var manager = ActionManager.Instance();
+        if (manager is null || gcdProbe == 0)
+            return;
+
+        var group = manager->GetRecastGroup((int)ActionType.Action, gcdProbe);
+        if (group < 0)
+            return;
+
+        var detail = manager->GetRecastGroupDetail(group);
+        if (detail is null)
+            return;
+
+        _globalGroup = group;
+        _globalRemaining = detail->IsActive ? Math.Max(0f, detail->Total - detail->Elapsed) : 0f;
     }
 
     public bool IsUnlocked(uint actionId) => Lookup(actionId).Unlocked;
@@ -140,6 +170,36 @@ public sealed unsafe class ActionStateAdapter : IActionState
         {
             remaining = 0f;
             charges = maxCharges;
+        }
+
+        // An action whose only timer is the global has no cooldown of its own, and the
+        // arithmetic above measures the wrong thing for it.
+        //
+        // GetRecastTime answers with the action's own recast, and a handful of globals are
+        // longer than the standard one: Pictomancer's three motifs are four seconds,
+        // Rainbow Drip is six, Viper's coils and Summoner's ruby casts are three, Monk's
+        // Six-sided Star is five. The engine judges a global by whether it will be ready
+        // when the current one ends, and the allowance it compares against is the global's
+        // own remaining - so a four second recast measured against a two-and-a-half second
+        // global reports "one and a half seconds to go" for the whole of every global and
+        // is never offered. A recorded Pictomancer pull is the proof: sixty-two casts, not
+        // one motif after the opener, and with no motif there is no muse, no hammer, no
+        // portrait and no Star Prism - two thirds of the job, switched off by arithmetic.
+        //
+        // The honest answer is the group's own timer. GetRecastGroupDetail reports the
+        // duration the group was actually set to by whatever was last cast, so a motif is
+        // "ready by the next global" exactly when every other global is, and the priority
+        // list gets to decide rather than the clock.
+        //
+        // Only actions whose *primary* group is the global qualify. An action with a real
+        // cooldown of its own - Viper's Vicewinder, Ninja's mudras - carries that as its
+        // primary group and the global as an additional one, so it is left alone. No action
+        // in the game's table has it the other way around.
+        if (_globalGroup >= 0 && maxCharges <= 1
+            && manager->GetRecastGroup((int)ActionType.Action, actionId) == _globalGroup)
+        {
+            remaining = _globalRemaining;
+            charges = remaining <= 0f ? 1 : 0;
         }
 
         // GetActionStatus reports 0 when the game would accept the action right now. This is

@@ -152,6 +152,24 @@ priority list over an extra key. Raise `MinimumWeaveStyle` only for a job that g
 double-weaves its *cooldowns*; it lifts a setting that already allows weaving and never
 turns weaving on.
 
+#### Some globals are longer than the global
+
+`Recast100ms` on a cooldown group 58 action is usually 25 — two and a half seconds, the
+standard global. A few are not: Pictomancer's three motifs are 40, Rainbow Drip is 60,
+Monk's Six-sided Star is 50, Viper's coils and Summoner's ruby casts are 30. The game just
+runs the global longer for those.
+
+The engine used to measure such an action against the *job's basic weaponskill*, which is
+how it learns the player's spell speed — so a four second motif reported a second and a
+half of cooldown for the whole of every two and a half second global and was never once
+offered. A recorded Pictomancer pull ran sixty-two casts with no motif after the opener,
+and with no motif there is no muse, no hammer, no portrait and no Star Prism.
+
+`ActionStateAdapter` now reads the global's *own* recast group rather than doing arithmetic
+on the probe, so a long global is ready exactly when the group is. Nothing in a job file
+needs to know about this — but if a job goes quiet on one action and the readiness line
+shows it permanently a fraction of a global short, this is the shape of it.
+
 That second read is what lets one button walk both two- and three-mudra ninjutsu. Suiton is
 Ten-Chi-Jin, whose first two mudras *are* Raiton — so after them the game will happily fire
 Raiton, and a button that only knew "a ninjutsu is charged" could not tell "Raiton, finished"

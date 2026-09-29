@@ -104,6 +104,32 @@ public sealed unsafe class GameStateProvider(
         // ready now - not a full global away. Subtracting gave a whole GCD of imaginary
         // weave room at exactly the moment the answer should have been "press the global".
         s.GcdRemaining = elapsed <= 0f ? 0f : Math.Max(0f, total - elapsed);
+
+        // The probe only speaks for its own recast, and the global is not always that long.
+        // Cast one of Pictomancer's motifs and the global runs for four seconds, but the
+        // basic weaponskill still answers two and a half - so from two and a half seconds on
+        // the plugin believed the global was up while the game had another second and a half
+        // to go, and spent it offering weaves that would not fit and a global that could not
+        // be pressed. The group's own timer is the whole truth, including whose recast set it.
+        var group = manager->GetRecastGroup((int)ActionType.Action, probe);
+        if (group >= 0)
+        {
+            var detail = manager->GetRecastGroupDetail(group);
+            if (detail is not null)
+            {
+                if (detail->IsActive)
+                {
+                    if (detail->Total > 0f)
+                        s.GcdTotal = detail->Total;
+
+                    s.GcdRemaining = Math.Max(0f, detail->Total - detail->Elapsed);
+                }
+                else
+                {
+                    s.GcdRemaining = 0f;
+                }
+            }
+        }
         s.AnimationLock = Math.Max(0f, manager->AnimationLock);
     }
 
