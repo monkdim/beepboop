@@ -78,6 +78,66 @@ public abstract class JobRotationBase : IJobRotation
     /// <c>!580</c> would have said everything.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The action the game currently offers in place of this one, as a declared
+    /// <see cref="ActionRef"/> rather than a bare id.
+    /// <para>
+    /// Some actions are never castable as themselves. Pictomancer's Creature Motif is the
+    /// icon on the bar and the game always replaces it - with Pom, Wing, Claw or Maw
+    /// depending on the portraits - and asking the game about the id on the bar gets "cannot
+    /// use yet" no matter what the canvas holds. A recorded pull shows the pair side by side:
+    /// Living Muse refused at three charges with the creature canvas drawn, while Striking
+    /// Muse, named by its replaced id, went off in the same fight. Every action in that log
+    /// reading a flat refusal has an ActionIndirection row; every action that fires has none.
+    /// </para>
+    /// <para>
+    /// So rules for those name the id on the bar and resolve it here, which is the same
+    /// "ask the game, do not track state" the mudras and Beastmaster's ring are built on -
+    /// and it answers with the form the hook would have handed back anyway.
+    /// </para>
+    /// </summary>
+    protected ActionRef Current(RotationContext context, ActionRef action) =>
+        Resolve(action, context.CurrentFormOf(action));
+
+    /// <summary>The same, for the readiness line, which has no context.</summary>
+    protected ActionRef Current(IActionState actions, ActionRef action) =>
+        Resolve(action, actions.CurrentFormOf(action.Id));
+
+    private Dictionary<uint, ActionRef>? _byId;
+
+    private ActionRef Resolve(ActionRef action, uint id)
+    {
+        if (id == 0 || id == action.Id)
+            return action;
+
+        if (_byId is null)
+        {
+            _byId = [];
+            var all = AllActions;
+            for (var i = 0; i < all.Count; i++)
+                _byId.TryAdd(all[i].Id, all[i]);
+        }
+
+        // An undeclared form is left as the id on the bar rather than suggested unchecked -
+        // the verifier has never seen it, and the smoke test requires every suggestion to be
+        // an action the job declares.
+        return _byId.TryGetValue(id, out var form) ? form : action;
+    }
+
+    /// <summary>
+    /// The probe for an action the game replaces, naming both: <c>Creature Motif->Wing
+    /// Motif=y1/1</c>. Probing the id on the bar alone is how two versions went by with the
+    /// motifs reading a refusal that belonged to an id nothing would ever cast.
+    /// </summary>
+    protected string ProbeCurrent(IActionState actions, ActionRef action)
+    {
+        var form = Current(actions, action);
+
+        return form.Id == action.Id
+            ? Probe(actions, action)
+            : $"{action.Name}->{Probe(actions, form)}";
+    }
+
     protected static string Probe(IActionState actions, ActionRef action)
     {
         var usable = actions.CanUse(action.Id);

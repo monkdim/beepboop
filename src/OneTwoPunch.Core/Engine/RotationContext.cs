@@ -12,6 +12,12 @@ public sealed class RotationContext
     private readonly CombatSnapshot _snapshot;
     private readonly IActionState _actions;
 
+    /// <summary>
+    /// The live action state. For diagnostics that want the game's own answer rather than the
+    /// one bit the rules read - an abort reason, a readiness line.
+    /// </summary>
+    internal IActionState Actions => _actions;
+
     internal RotationContext(
         CombatSnapshot snapshot,
         IActionState actions,

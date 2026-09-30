@@ -141,10 +141,11 @@ public sealed class PictomancerMotifTests
     [Fact]
     public void ADrawnWeaponCanvasIsSpentOnStrikingMuse()
     {
+        // Named through Steel Muse, which is the icon; in the fight that is Striking Muse.
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget,
             Canvases(Pct(), weapon: true).Gcd(1.6f).Build(),
-            NoScenic());
+            NoScenic().Resolving(A.SteelMuse.Id, A.StrikingMuse.Id));
 
         Assert.Equal(A.StrikingMuse.Id, suggestion.Action.Id);
     }
@@ -201,6 +202,67 @@ public sealed class PictomancerMotifTests
         Assert.Equal(A.SubtractivePalette.Id, suggestion.Action.Id);
     }
 
+    // ---- The icon is not the action --------------------------------------
+
+    /// <summary>
+    /// Creature Motif is the icon on the bar and the game always replaces it. Asking the game
+    /// about the icon's own id gets "cannot use yet" whatever the canvas holds, so the button
+    /// has to name what the icon currently is.
+    /// <para>
+    /// A recorded pull shows the pair: Living Muse refused at three charges with the creature
+    /// canvas drawn, while Striking Muse - named by its replaced id - went off in the same
+    /// fight. Every action in that log reading a flat refusal has an ActionIndirection row.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheMotifSuggestedIsTheFormTheGameWouldCast()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Build(),
+            NoScenic().Resolving(A.WeaponMotif.Id, A.HammerMotif.Id));
+
+        Assert.Equal(A.HammerMotif.Id, suggestion.Action.Id);
+    }
+
+    [Fact]
+    public void TheMuseSpentIsTheFormTheGameWouldCast()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), creature: true).Gcd(1.6f).Build(),
+            NoScenic().Resolving(A.LivingMuse.Id, A.WingedMuse.Id));
+
+        Assert.Equal(A.WingedMuse.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Both portraits are one button, so one rule covers them - the id it resolves to says
+    /// which half is standing.
+    /// </summary>
+    [Fact]
+    public void TheMadeenPortraitIsSpentThroughTheSameButton()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Gcd(1.6f).Gauge(s => s.Gauges.Pictomancer.MadeenPortraitReady = true).Build(),
+            NoScenic().Resolving(A.MogOfTheAges.Id, A.RetributionOfTheMadeen.Id));
+
+        Assert.Equal(A.RetributionOfTheMadeen.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>An id the job does not declare is left alone rather than suggested unchecked.</summary>
+    [Fact]
+    public void AnUndeclaredFormIsNotSuggested()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Build(),
+            NoScenic().Resolving(A.WeaponMotif.Id, 999999u));
+
+        Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
+    }
+
     // ---- Diagnostics ------------------------------------------------------
 
     /// <summary>
@@ -221,5 +283,12 @@ public sealed class PictomancerMotifTests
         var readiness = job.DescribeReadiness(snapshot, new FakeActionState())!;
         foreach (var name in new[] { "Creature Motif", "Weapon Motif", "Landscape Motif", "Living Muse" })
             Assert.Contains(name, readiness);
+
+        // And when the game has replaced one, the line names both - the icon that was asked
+        // about and the action the answer is actually about.
+        var replaced = job.DescribeReadiness(
+            snapshot, new FakeActionState().Resolving(A.CreatureMotif.Id, A.WingMotif.Id))!;
+
+        Assert.Contains("Creature Motif->Wing Motif=", replaced);
     }
 }

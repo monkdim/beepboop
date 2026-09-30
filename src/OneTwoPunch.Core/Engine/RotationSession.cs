@@ -680,7 +680,11 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 return null;
             }
 
-            Abort($"step {_openerStep + 1} ({step.Name}) was not usable");
+            // With the game's own reason. "Was not usable" is one bit, and the reasons behind
+            // it are unalike enough that the readiness line had to learn the same lesson:
+            // 572 is a prerequisite that is genuinely absent, 566 is standing too far away.
+            Abort($"step {_openerStep + 1} ({step.Name}) was not usable "
+                  + $"(#{context.Actions.RefusalCode(step.Id)})");
             return null;
         }
 
