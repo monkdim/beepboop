@@ -54,8 +54,23 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     public string? LastOpenerReport { get; private set; }
 
-    /// <summary>The report a recorded log should carry: the live one, or the last pull's.</summary>
-    public string? OpenerReportForLog => OpenerReport ?? LastOpenerReport;
+    /// <summary>
+    /// The report a recorded log should carry: what the opener did on the pull, falling back
+    /// to the live one while the pull is still running.
+    /// <para>
+    /// The carried one wins, and the order matters. Leaving combat rearms the opener, and a
+    /// rearmed opener has plenty to say - "step 1 of 20, held there: Starry Muse is still on
+    /// cooldown" - so taking the live one first meant every finished pull was described by
+    /// the state it was left in rather than the one it ran. A Pictomancer log that walked all
+    /// twenty steps of its opener reported standing at step one, and I read the footer and
+    /// told its owner the opener had not run.
+    /// </para>
+    /// <para>
+    /// Nothing is lost by preferring the carried one: it is only ever set when combat ended
+    /// with a report worth keeping, and cleared when a new recording starts.
+    /// </para>
+    /// </summary>
+    public string? OpenerReportForLog => LastOpenerReport ?? OpenerReport;
 
     /// <summary>
     /// Drops the carried report, so a recording can only ever print one from inside itself.
