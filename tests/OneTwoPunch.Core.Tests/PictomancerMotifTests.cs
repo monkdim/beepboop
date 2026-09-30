@@ -90,6 +90,58 @@ public sealed class PictomancerMotifTests
 
     // ---- When not to paint ------------------------------------------------
 
+    /// <summary>
+    /// A drawn canvas does nothing on its own - it is a muse waiting to happen - so painting
+    /// one with no charge to spend it is a rooted three second global that deals no damage and
+    /// buys nothing until the charge is back.
+    /// <para>
+    /// A recorded pull painted six of its eleven motifs that way, each between seventy-seven
+    /// and a hundred and eighteen seconds from the next charge, and one stretch ran fifteen
+    /// seconds in which every global was a motif. Scored against the game's own potencies that
+    /// pull ran fourteen percent behind the one before it, which did none of this because it
+    /// could not paint at all.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ACanvasIsNotPaintedWithNoMuseToSpendIt()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Build(),
+            NoScenic().WithCharges(A.SteelMuse.Id, 0, 2).WithCharges(A.LivingMuse.Id, 0, 3));
+
+        Assert.Equal(A.FireInRed.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>One charge in hand is reason enough - that is what the canvas is for.</summary>
+    [Fact]
+    public void OneChargeIsEnoughToPaintFor()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Build(),
+            NoScenic().WithCharges(A.SteelMuse.Id, 1, 2).WithCharges(A.LivingMuse.Id, 0, 3));
+
+        Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// And the canvas is still banked ahead of the muse rather than only once it is up, or
+    /// every muse would wait three seconds for its motif.
+    /// </summary>
+    [Fact]
+    public void ACanvasIsPaintedAheadOfTheChargeComingBack()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct()).Build(),
+            NoScenic()
+                .WithCharges(A.LivingMuse.Id, 0, 3)
+                .OnCooldown(A.SteelMuse.Id, 6f));
+
+        Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
+    }
+
     /// <summary>A motif roots you for three seconds, so it is never the answer while moving.</summary>
     [Fact]
     public void MovingPaintsNothing()
