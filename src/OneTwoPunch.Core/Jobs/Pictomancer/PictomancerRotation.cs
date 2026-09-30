@@ -95,21 +95,25 @@ public sealed class PictomancerRotation : JobRotationBase
         // ---- Off-globals -------------------------------------------------
         // The raid buff, and the two muses that only exist because a motif was painted
         // earlier - which is the whole reason motifs get painted during downtime.
-        p.OGcd(A.ScenicMuse)
+        // Every one of these is an icon the game always replaces, so they are named by the
+        // icon and resolved to whatever it currently is. See JobRotationBase.Current.
+        p.OGcd(c => Current(c, A.ScenicMuse))
             .When(c => !c.Downtime && c.Pct.LandscapeMotifDrawn)
             .Because("raid buff");
 
-        p.OGcd(A.StrikingMuse)
+        p.OGcd(c => Current(c, A.SteelMuse))
             .When(c => !c.Downtime && c.Pct.WeaponMotifDrawn)
             .Because("spend the weapon motif");
 
-        p.OGcd(A.LivingMuse)
+        p.OGcd(c => Current(c, A.LivingMuse))
             .When(c => !c.Downtime && c.Pct.CreatureMotifDrawn)
             .Because("spend the creature motif");
 
-        // The two portraits, once their halves are complete.
-        p.OGcd(A.MogOfTheAges).When(c => c.Pct.MooglePortraitReady);
-        p.OGcd(A.RetributionOfTheMadeen).When(c => c.Pct.MadeenPortraitReady);
+        // Both portraits are the same button - Mog of the Ages becomes Retribution of the
+        // Madeen once that half is the one standing - so one rule covers them.
+        p.OGcd(c => Current(c, A.MogOfTheAges))
+            .When(c => c.Pct.MooglePortraitReady || c.Pct.MadeenPortraitReady)
+            .Because("spend the portrait");
 
         // Fifty is the price, but Starry Muse hands out a free one and it expires with the
         // burst - so the gauge is not the only way in, and a Subtractive Spectrum left
@@ -142,15 +146,15 @@ public sealed class PictomancerRotation : JobRotationBase
 
         // Motifs root you for three seconds and deal no damage, so they are painted in the
         // quiet part of the fight: standing still, and outside the burst. See CanPaint.
-        p.Gcd(A.LandscapeMotif)
+        p.Gcd(c => Current(c, A.LandscapeMotif))
             .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f))
             .Because("paint before the buff window");
 
-        p.Gcd(A.WeaponMotif)
+        p.Gcd(c => Current(c, A.WeaponMotif))
             .When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn)
             .Because("paint while you can stand still");
 
-        p.Gcd(A.CreatureMotif)
+        p.Gcd(c => Current(c, A.CreatureMotif))
             .When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn)
             .Because("paint while you can stand still");
 
@@ -199,21 +203,24 @@ public sealed class PictomancerRotation : JobRotationBase
     /// </para>
     /// </summary>
     public override string? DescribeReadiness(CombatSnapshot snapshot, IActionState actions) =>
-        $"{Probe(actions, A.CreatureMotif)} {Probe(actions, A.WeaponMotif)} "
-        + $"{Probe(actions, A.LandscapeMotif)} {Probe(actions, A.LivingMuse)} "
-        + $"{Probe(actions, A.SteelMuse)} {Probe(actions, A.ScenicMuse)} "
-        + $"{Probe(actions, A.MogOfTheAges)} {Probe(actions, A.HammerStamp)} "
+        $"{ProbeCurrent(actions, A.CreatureMotif)} {ProbeCurrent(actions, A.WeaponMotif)} "
+        + $"{ProbeCurrent(actions, A.LandscapeMotif)} {ProbeCurrent(actions, A.LivingMuse)} "
+        + $"{ProbeCurrent(actions, A.SteelMuse)} {ProbeCurrent(actions, A.ScenicMuse)} "
+        + $"{ProbeCurrent(actions, A.MogOfTheAges)} {ProbeCurrent(actions, A.HammerStamp)} "
         + $"{Probe(actions, A.RainbowDrip)}";
 
     private void BuildAoe()
     {
         var p = Aoe;
 
-        p.OGcd(A.ScenicMuse).When(c => !c.Downtime && c.Pct.LandscapeMotifDrawn).Because("raid buff");
-        p.OGcd(A.StrikingMuse).When(c => !c.Downtime && c.Pct.WeaponMotifDrawn);
-        p.OGcd(A.LivingMuse).When(c => !c.Downtime && c.Pct.CreatureMotifDrawn);
-        p.OGcd(A.MogOfTheAges).When(c => c.Pct.MooglePortraitReady);
-        p.OGcd(A.RetributionOfTheMadeen).When(c => c.Pct.MadeenPortraitReady);
+        p.OGcd(c => Current(c, A.ScenicMuse))
+            .When(c => !c.Downtime && c.Pct.LandscapeMotifDrawn).Because("raid buff");
+
+        p.OGcd(c => Current(c, A.SteelMuse)).When(c => !c.Downtime && c.Pct.WeaponMotifDrawn);
+        p.OGcd(c => Current(c, A.LivingMuse)).When(c => !c.Downtime && c.Pct.CreatureMotifDrawn);
+
+        p.OGcd(c => Current(c, A.MogOfTheAges))
+            .When(c => c.Pct.MooglePortraitReady || c.Pct.MadeenPortraitReady);
 
         p.OGcd(A.SubtractivePalette)
             .When(c => !c.Buff(A.SubtractivePaletteBuff)
@@ -229,11 +236,11 @@ public sealed class PictomancerRotation : JobRotationBase
         p.Gcd(A.CometInBlack).When(c => c.Buff(A.MonochromeTones) && c.Pct.Paint > 0);
         p.Gcd(A.HolyInWhite).When(c => c.Pct.Paint > 0 && (c.Moving || c.Pct.Paint >= 5));
 
-        p.Gcd(A.LandscapeMotif)
+        p.Gcd(c => Current(c, A.LandscapeMotif))
             .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f));
 
-        p.Gcd(A.WeaponMotif).When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn);
-        p.Gcd(A.CreatureMotif).When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn);
+        p.Gcd(c => Current(c, A.WeaponMotif)).When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn);
+        p.Gcd(c => Current(c, A.CreatureMotif)).When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn);
 
         p.Gcd(A.ThunderIIInMagenta).When(c => c.Buff(A.AetherhuesII) && c.Buff(A.SubtractivePaletteBuff));
         p.Gcd(A.StoneIIInYellow).When(c => c.Buff(A.Aetherhues) && c.Buff(A.SubtractivePaletteBuff));
