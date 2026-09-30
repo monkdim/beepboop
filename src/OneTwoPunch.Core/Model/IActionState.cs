@@ -56,4 +56,17 @@ public interface IActionState
     /// </para>
     /// </summary>
     int RefusalCode(uint actionId) => 0;
+
+    /// <summary>
+    /// The same reason, for the question a global is actually judged by.
+    /// <para>
+    /// A rule for an off-global reads <see cref="CanUse(uint, bool)"/> as of right now; a rule
+    /// for a global reads it ignoring the recast. The readiness line printed only the first
+    /// one, so a global that was refused for a reason having nothing to do with its cooldown
+    /// showed up in the log as an ordinary "still rolling" - which is what a mid-global
+    /// refusal looks like whether or not anything is wrong. Pictomancer's motifs sat at that
+    /// for two versions.
+    /// </para>
+    /// </summary>
+    int RefusalCode(uint actionId, bool ignoreRecast) => RefusalCode(actionId);
 }

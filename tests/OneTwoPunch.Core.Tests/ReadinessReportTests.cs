@@ -63,6 +63,36 @@ public sealed class ReadinessReportTests
         Assert.Contains("Ten=y0/2", uncharged);
     }
 
+    /// <summary>
+    /// The reading that two versions of Pictomancer motifs did not have.
+    /// <para>
+    /// A global is chosen by whether the game would accept it apart from the recast, and the
+    /// line only ever printed whether it would accept it <em>now</em> - which is no for most
+    /// of every global, healthy or not. Forty-one casts of motifs reading "refused, still
+    /// rolling" looked exactly like forty-one casts of a rule that could never fire, and they
+    /// were the second thing.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ARollingRecastReadsDifferentlyFromARuleThatCanNeverFire()
+    {
+        var job = JobRotationBase.Create<NinjaRotation>();
+        var snapshot = new SnapshotBuilder().Job(30).Build();
+
+        // Refused now, fine by the next global. Nothing is wrong and the line says so.
+        var rolling = job.DescribeReadiness(
+            snapshot, new FakeActionState().StillRolling(NinjaActions.Ten1.Id))!;
+        Assert.Contains("Ten=n", rolling);
+        Assert.Contains("#582", rolling);
+        Assert.DoesNotContain("!", rolling);
+
+        // Refused either way. This is the one worth waking up for.
+        var never = job.DescribeReadiness(
+            snapshot, new FakeActionState().Unusable(NinjaActions.Ten1.Id))!;
+        Assert.Contains("#566", never);
+        Assert.Contains("!566", never);
+    }
+
     /// <summary>A job that has not needed one says nothing rather than padding the line.</summary>
     [Fact]
     public void AJobWithoutOneIsSilent()

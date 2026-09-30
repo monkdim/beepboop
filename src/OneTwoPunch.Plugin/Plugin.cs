@@ -887,7 +887,10 @@ public sealed class Plugin : IDalamudPlugin
 
             if (_frameSnapshot is not null)
                 _actionState.BeginFrame(
-                    _frameSnapshot.Level, _frameSnapshot.TargetId, _job.SingleTargetButton.Id);
+                    _frameSnapshot.Level,
+                    _frameSnapshot.TargetId,
+                    _job.SingleTargetButton.Id,
+                    Objects.LocalPlayer?.GameObjectId ?? CombatSnapshot.NoTarget);
         }
 
         if (_frameSnapshot is null)
