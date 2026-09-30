@@ -88,6 +88,32 @@ public sealed class PictomancerRotation : JobRotationBase
     private static bool CanPaint(RotationContext c) =>
         !c.Moving && !c.Buff(A.StarryMuseBuff) && !c.Buff(A.Hyperphantasia);
 
+    /// <summary>How far ahead of a muse its canvas is worth painting.</summary>
+    private const float PaintLead = 10f;
+
+    /// <summary>The landscape canvas gets longer, because Scenic Muse is the raid buff.</summary>
+    private const float ScenicPaintLead = 15f;
+
+    /// <summary>
+    /// Whether the muse that spends this canvas can actually take it.
+    /// <para>
+    /// A drawn canvas does nothing on its own - it is a muse waiting to happen - so a motif
+    /// painted with no charge to spend it is a rooted three second global that deals no damage
+    /// and buys nothing until the charge comes back. A recorded pull painted six of its eleven
+    /// motifs that way, each with between seventy-seven and a hundred and eighteen seconds to
+    /// the next charge, and one stretch ran fifteen seconds in which every global was a motif:
+    /// paint, spend, paint, spend, paint, with no damage in between. Scored against the game's
+    /// own potencies that pull ran fourteen percent behind the one before it, which did none
+    /// of this because it could not paint at all.
+    /// </para>
+    /// <para>
+    /// The canvases still get banked ahead of the muse - that is what the lead is for, and the
+    /// landscape one has always had it. This only stops the button painting into a wall.
+    /// </para>
+    /// </summary>
+    private static bool MuseCanTakeIt(RotationContext c, ActionRef muse, float lead = PaintLead) =>
+        c.Charges(muse) > 0 || c.ReadyIn(muse, lead);
+
     private void BuildSingleTarget()
     {
         var p = SingleTarget;
@@ -147,15 +173,16 @@ public sealed class PictomancerRotation : JobRotationBase
         // Motifs root you for three seconds and deal no damage, so they are painted in the
         // quiet part of the fight: standing still, and outside the burst. See CanPaint.
         p.Gcd(c => Current(c, A.LandscapeMotif))
-            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f))
+            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn
+                && MuseCanTakeIt(c, A.ScenicMuse, ScenicPaintLead))
             .Because("paint before the buff window");
 
         p.Gcd(c => Current(c, A.WeaponMotif))
-            .When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn)
+            .When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn && MuseCanTakeIt(c, A.SteelMuse))
             .Because("paint while you can stand still");
 
         p.Gcd(c => Current(c, A.CreatureMotif))
-            .When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn)
+            .When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn && MuseCanTakeIt(c, A.LivingMuse))
             .Because("paint while you can stand still");
 
         // The three-colour cycle. Aetherhues decides which colour is next, and the
@@ -237,10 +264,14 @@ public sealed class PictomancerRotation : JobRotationBase
         p.Gcd(A.HolyInWhite).When(c => c.Pct.Paint > 0 && (c.Moving || c.Pct.Paint >= 5));
 
         p.Gcd(c => Current(c, A.LandscapeMotif))
-            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn && c.ReadyIn(A.ScenicMuse, 15f));
+            .When(c => CanPaint(c) && !c.Pct.LandscapeMotifDrawn
+                && MuseCanTakeIt(c, A.ScenicMuse, ScenicPaintLead));
 
-        p.Gcd(c => Current(c, A.WeaponMotif)).When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn);
-        p.Gcd(c => Current(c, A.CreatureMotif)).When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn);
+        p.Gcd(c => Current(c, A.WeaponMotif))
+            .When(c => CanPaint(c) && !c.Pct.WeaponMotifDrawn && MuseCanTakeIt(c, A.SteelMuse));
+
+        p.Gcd(c => Current(c, A.CreatureMotif))
+            .When(c => CanPaint(c) && !c.Pct.CreatureMotifDrawn && MuseCanTakeIt(c, A.LivingMuse));
 
         p.Gcd(A.ThunderIIInMagenta).When(c => c.Buff(A.AetherhuesII) && c.Buff(A.SubtractivePaletteBuff));
         p.Gcd(A.StoneIIInYellow).When(c => c.Buff(A.Aetherhues) && c.Buff(A.SubtractivePaletteBuff));
