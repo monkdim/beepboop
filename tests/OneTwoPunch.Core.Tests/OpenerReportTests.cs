@@ -102,4 +102,36 @@ public sealed class OpenerReportTests
 
         Assert.Null(session.OpenerReportForLog);
     }
+
+    /// <summary>
+    /// What the pull did, not the state it was left in.
+    /// <para>
+    /// Leaving combat rearms the opener, and a rearmed opener has plenty to say - it stands at
+    /// step one and declines, with a reason, on every frame after. Recording stops after the
+    /// fight ends, so those frames are inside the recording: taking the live report first
+    /// meant the footer described the rearm rather than the pull. A Pictomancer log that
+    /// walked all twenty steps of its opener reported standing at step one, held on a
+    /// cooldown, and I read that footer and told its owner the opener had not run.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheFooterDescribesThePullRatherThanTheRearmAfterIt()
+    {
+        var session = Session();
+        var actions = new FakeActionState();
+
+        // A pull that got somewhere, then the fight ending.
+        session.Resolve(RotationMode.SingleTarget, Pull(duration: 60f), actions);
+        var during = session.OpenerReport;
+        Assert.NotNull(during);
+
+        session.Resolve(RotationMode.SingleTarget, Pull(inCombat: false), actions);
+
+        // Frames keep arriving after combat ends, and the rearmed opener starts declining
+        // again on them. The footer must still be about the pull.
+        for (var i = 0; i < 5; i++)
+            session.Resolve(RotationMode.SingleTarget, Pull(inCombat: false), actions);
+
+        Assert.Equal(during, session.OpenerReportForLog);
+    }
 }
