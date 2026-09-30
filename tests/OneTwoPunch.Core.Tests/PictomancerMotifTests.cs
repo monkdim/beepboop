@@ -141,10 +141,11 @@ public sealed class PictomancerMotifTests
     [Fact]
     public void ADrawnWeaponCanvasIsSpentOnStrikingMuse()
     {
+        // Named through Steel Muse, which is the icon; in the fight that is Striking Muse.
         var suggestion = Session().Resolve(
             RotationMode.SingleTarget,
             Canvases(Pct(), weapon: true).Gcd(1.6f).Build(),
-            NoScenic());
+            NoScenic().Resolving(A.SteelMuse.Id, A.StrikingMuse.Id));
 
         Assert.Equal(A.StrikingMuse.Id, suggestion.Action.Id);
     }
