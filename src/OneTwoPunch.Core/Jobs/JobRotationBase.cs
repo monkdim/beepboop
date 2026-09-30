@@ -68,6 +68,15 @@ public abstract class JobRotationBase : IJobRotation
     /// reasons behind it are many and unalike, which is how a self-targeted action being
     /// asked about against a hostile target went three rounds undiagnosed.
     /// </para>
+    /// <para>
+    /// A trailing <c>!580</c> is the one that decides a global. The <c>#</c> code answers "is
+    /// it acceptable this instant", which is no for most of every global whether or not
+    /// anything is wrong, so it cannot tell an ordinary rolling cooldown from a rule that can
+    /// never fire. The <c>!</c> code answers the question a global is actually judged by -
+    /// acceptable apart from the recast - and only appears when that one is refused. A whole
+    /// log of Pictomancer motifs reading <c>#582</c> said nothing; one of them reading
+    /// <c>!580</c> would have said everything.
+    /// </para>
     /// </summary>
     protected static string Probe(IActionState actions, ActionRef action)
     {
@@ -77,7 +86,10 @@ public abstract class JobRotationBase : IJobRotation
         var left = cd > 0.05f ? $":{cd:0.0}" : string.Empty;
         var why = usable ? string.Empty : $"#{actions.RefusalCode(action.Id)}";
 
-        return $"{action.Name}={(usable ? "y" : "n")}{charges}{left}{why}";
+        var next = actions.CanUse(action.Id, ignoreRecast: true);
+        var blocked = next ? string.Empty : $"!{actions.RefusalCode(action.Id, ignoreRecast: true)}";
+
+        return $"{action.Name}={(usable ? "y" : "n")}{charges}{left}{why}{blocked}";
     }
 
     public RotationPlan SingleTarget { get; }

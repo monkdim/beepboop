@@ -13,6 +13,7 @@ public sealed class FakeActionState : IActionState
     private readonly Dictionary<uint, int> _maxCharges = [];
     private readonly HashSet<uint> _locked = [];
     private readonly HashSet<uint> _unusable = [];
+    private readonly HashSet<uint> _rolling = [];
     private readonly Dictionary<uint, uint> _forms = [];
 
     public FakeActionState OnCooldown(uint actionId, float seconds)
@@ -73,8 +74,37 @@ public sealed class FakeActionState : IActionState
     public int MaxCharges(uint actionId) =>
         _maxCharges.TryGetValue(actionId, out var max) ? max : 1;
 
-    public bool CanUse(uint actionId, bool ignoreRecast = false) => !_unusable.Contains(actionId);
+    /// <summary>
+    /// Refused this instant but acceptable by the next global - which is what a global that is
+    /// simply still rolling looks like, and is the reading the probe has to tell apart from a
+    /// rule that can never fire at all.
+    /// </summary>
+    public FakeActionState StillRolling(uint actionId)
+    {
+        _rolling.Add(actionId);
+        return this;
+    }
+
+    public bool CanUse(uint actionId, bool ignoreRecast = false)
+    {
+        if (_unusable.Contains(actionId))
+            return false;
+
+        return ignoreRecast || !_rolling.Contains(actionId);
+    }
 
     /// <summary>A stand-in reason, so the probe's shape is exercised without inventing codes.</summary>
-    public int RefusalCode(uint actionId) => _unusable.Contains(actionId) ? 566 : 0;
+    public int RefusalCode(uint actionId) =>
+        _unusable.Contains(actionId) ? 566
+        : _rolling.Contains(actionId) ? 582
+        : 0;
+
+    /// <summary>
+    /// The reason for the question a global is judged by. A merely rolling recast has none,
+    /// because setting the recast aside is exactly what this question does.
+    /// </summary>
+    public int RefusalCode(uint actionId, bool ignoreRecast) =>
+        ignoreRecast
+            ? (_unusable.Contains(actionId) ? 566 : 0)
+            : RefusalCode(actionId);
 }

@@ -17,6 +17,9 @@ public sealed unsafe class ActionStateAdapter : IActionState
     private byte _level = 1;
     private ulong _targetId = CombatSnapshot.NoTarget;
 
+    /// <summary>The player's own object id - the right target for an action cast on yourself.</summary>
+    private ulong _selfId = CombatSnapshot.NoTarget;
+
     /// <summary>
     /// The recast group the job's own basic weaponskill sits in - which is to say, the global
     /// cooldown - and how much of it is left. Both read once per frame from the game rather
@@ -35,7 +38,8 @@ public sealed unsafe class ActionStateAdapter : IActionState
         int MaxCharges,
         bool Usable,
         bool UsableIgnoringRecast,
-        int Refusal);
+        int Refusal,
+        int RefusalIgnoringRecast);
 
     /// <summary>
     /// How to ask the game what an action currently resolves to. Set by the plugin to
@@ -49,10 +53,14 @@ public sealed unsafe class ActionStateAdapter : IActionState
     /// <param name="gcdProbe">
     /// The job's basic weaponskill, used only to learn which recast group is the global.
     /// </param>
-    public void BeginFrame(byte level, ulong targetId, uint gcdProbe)
+    /// <param name="selfId">
+    /// The player's own object id, so an action cast on yourself can be asked about properly.
+    /// </param>
+    public void BeginFrame(byte level, ulong targetId, uint gcdProbe, ulong selfId)
     {
         _level = level;
         _targetId = targetId;
+        _selfId = selfId;
         _cache.Clear();
         _forms.Clear();
 
@@ -88,6 +96,9 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
     public int RefusalCode(uint actionId) => Lookup(actionId).Refusal;
 
+    public int RefusalCode(uint actionId, bool ignoreRecast) =>
+        ignoreRecast ? Lookup(actionId).RefusalIgnoringRecast : Lookup(actionId).Refusal;
+
     /// <summary>
     /// Cached per frame like everything else here. Ninja's mudra button asks this several
     /// times while walking its priority list, and the answer cannot change inside one frame.
@@ -122,7 +133,7 @@ public sealed unsafe class ActionStateAdapter : IActionState
     {
         var manager = ActionManager.Instance();
         if (manager is null || actionId == 0)
-            return new Entry(false, float.MaxValue, 0, 1, false, false, -1);
+            return new Entry(false, float.MaxValue, 0, 1, false, false, -1, -1);
 
         var maxCharges = (int)ActionManager.GetMaxCharges(actionId, _level);
         if (maxCharges < 1)
@@ -212,23 +223,25 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
         // Asked again as the action would actually be used, when the target was the problem.
         //
-        // Ninja's mudras are the case that proved this one too, and a recorded pull draws the
-        // line exactly: out of combat with nothing targeted, Ten reads usable with both
-        // charges; from the first global onward, with the dummy targeted, it reads refused -
-        // and stays refused for the rest of the fight. Ten is cast on yourself. Handing the
-        // game a hostile target and asking whether it would accept a self-targeted action is
-        // the wrong question, and the game answers it correctly: no, not at that.
+        // Ninja's mudras proved that asking the wrong question is possible: Ten is cast on
+        // yourself, and handing the game a hostile target and asking whether it would accept
+        // a self-targeted action gets the honest answer - no, not at that.
         //
-        // Only ever consulted when the targeted ask already failed, and it cannot invent a
-        // usable action out of nothing: an action that genuinely needs a hostile target
-        // answers "no target" to this one, so it stays refused. What it recovers is the
-        // action that never wanted the target in the first place.
-        if (status != 0 && _targetId != CombatSnapshot.NoTarget)
-        {
-            var untargeted = manager->GetActionStatus(ActionType.Action, actionId, CombatSnapshot.NoTarget);
-            if (untargeted == 0)
-                status = 0;
-        }
+        // The retry used to pass "no target", which is a third wrong question rather than the
+        // right one. An action that targets you wants *you*, and E0000000 is the absence of a
+        // target rather than a stand-in for yourself, so the game refused that ask too and
+        // the retry never rescued anything. A recorded Pictomancer pull draws it exactly:
+        // across forty-one casts the only two actions that ever read usable are Mog of the
+        // Ages and Rainbow Drip - the only two in the probe that target an enemy. The three
+        // motifs and the three muses, every one of them CanTargetSelf with CanTargetHostile
+        // false, read refused in every frame of the fight, including the frames where the
+        // canvas was empty, the global was up, and nothing else could have refused them.
+        //
+        // So the retry asks about the player. It cannot invent a usable action out of
+        // nothing - one that genuinely needs a hostile target answers "invalid target" to
+        // this ask and stays refused - and it is only ever consulted after the first ask has
+        // already failed, so it can turn a no into a yes and never the other way round.
+        status = RetryOnSelf(manager, actionId, status);
 
         // The same question with the recast and cast checks switched off. Choosing the next
         // global means asking "would this be legal apart from the things I am waiting out".
@@ -239,8 +252,24 @@ public sealed unsafe class ActionStateAdapter : IActionState
         // the length of each cast - the button dropping back to Fire I while Fire IV was in
         // the air - because the look-ahead was asking whether the next spell could be cast
         // *now* rather than when the current one lands.
+        //
+        // It gets the same retry on the player, and it matters more here than above, because
+        // this is the question every global is judged by. Rules for an off-global read the
+        // instant answer; a rule for a global reads this one, so a self-targeted global that
+        // only the retry can rescue was refused for the whole of every fight no matter what
+        // the instant ask said.
         var statusIgnoringRecast = manager->GetActionStatus(
             ActionType.Action, actionId, _targetId, checkRecastActive: false, checkCastingActive: false);
+
+        if (statusIgnoringRecast != 0 && _selfId != CombatSnapshot.NoTarget && _selfId != _targetId)
+        {
+            var onSelf = manager->GetActionStatus(
+                ActionType.Action, actionId, _selfId, checkRecastActive: false, checkCastingActive: false);
+
+            if (onSelf == 0)
+                statusIgnoringRecast = 0;
+        }
+
         var usable = status == 0;
 
         // Learned is decided by level, not by the game's refusal code.
@@ -264,6 +293,20 @@ public sealed unsafe class ActionStateAdapter : IActionState
         const bool unlocked = true;
 
         return new Entry(
-            unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0, (int)status);
+            unlocked, remaining, charges, maxCharges, usable, statusIgnoringRecast == 0,
+            (int)status, (int)statusIgnoringRecast);
+    }
+
+    /// <summary>
+    /// The refusal asked again about the player, for an action that is cast on yourself.
+    /// Returns zero - accepted - only when the game says so; anything else keeps the original
+    /// refusal, so this can rescue an answer but never spoil one.
+    /// </summary>
+    private uint RetryOnSelf(ActionManager* manager, uint actionId, uint refused)
+    {
+        if (refused == 0 || _selfId == CombatSnapshot.NoTarget || _selfId == _targetId)
+            return refused;
+
+        return manager->GetActionStatus(ActionType.Action, actionId, _selfId) == 0 ? 0u : refused;
     }
 }
