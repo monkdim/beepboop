@@ -14,6 +14,7 @@ public sealed class FakeActionState : IActionState
     private readonly HashSet<uint> _locked = [];
     private readonly HashSet<uint> _unusable = [];
     private readonly HashSet<uint> _rolling = [];
+    private readonly Dictionary<uint, int> _reasons = [];
     private readonly Dictionary<uint, uint> _forms = [];
 
     public FakeActionState OnCooldown(uint actionId, float seconds)
@@ -93,9 +94,21 @@ public sealed class FakeActionState : IActionState
         return ignoreRecast || !_rolling.Contains(actionId);
     }
 
+    /// <summary>
+    /// Refused for a stated reason. 572 is the game's "cannot use yet" - a prerequisite that
+    /// is simply absent - which several rules now tell apart from a timer that is running.
+    /// </summary>
+    public FakeActionState Refused(uint actionId, int reason)
+    {
+        _unusable.Add(actionId);
+        _reasons[actionId] = reason;
+        return this;
+    }
+
     /// <summary>A stand-in reason, so the probe's shape is exercised without inventing codes.</summary>
     public int RefusalCode(uint actionId) =>
-        _unusable.Contains(actionId) ? 566
+        _reasons.TryGetValue(actionId, out var why) ? why
+        : _unusable.Contains(actionId) ? 566
         : _rolling.Contains(actionId) ? 582
         : 0;
 
@@ -105,6 +118,6 @@ public sealed class FakeActionState : IActionState
     /// </summary>
     public int RefusalCode(uint actionId, bool ignoreRecast) =>
         ignoreRecast
-            ? (_unusable.Contains(actionId) ? 566 : 0)
+            ? (_unusable.Contains(actionId) ? RefusalCode(actionId) : 0)
             : RefusalCode(actionId);
 }

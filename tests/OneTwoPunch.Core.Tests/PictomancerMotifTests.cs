@@ -315,6 +315,37 @@ public sealed class PictomancerMotifTests
         Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
     }
 
+    // ---- The opener ------------------------------------------------------
+
+    /// <summary>
+    /// A step the game refuses for a missing prerequisite is stepped over, not thrown away.
+    /// <para>
+    /// A recorded pull lost its whole opener on "step 2 (Pom Muse) was not usable (#572)"
+    /// because the creature canvas had not been painted before the pull. Every step behind it
+    /// was fine, and the priority list had to improvise a burst the chart already had written
+    /// down. 572 is "cannot use yet" - setup that was never done - which is not the player
+    /// going off script.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheOpenerStepsOverAMuseWhoseCanvasWasNeverPainted()
+    {
+        var session = new RotationSession(
+            JobRotationBase.Create<PictomancerRotation>(),
+            new RotationSettings { SuggestionHoldSeconds = 0f });
+
+        var actions = new FakeActionState().Refused(A.PomMuse.Id, 572);
+
+        // Step one, pressed, which starts the fight.
+        session.Resolve(RotationMode.SingleTarget, Pct().Build(), actions);
+        session.NotifyActionUsed(A.RainbowDrip.Id);
+
+        var next = session.Resolve(RotationMode.SingleTarget, Pct().Gcd(1.6f).Build(), actions);
+
+        Assert.Null(session.OpenerOutcome);
+        Assert.NotEqual(A.PomMuse.Id, next.Action.Id);
+    }
+
     // ---- Diagnostics ------------------------------------------------------
 
     /// <summary>

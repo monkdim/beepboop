@@ -141,6 +141,13 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     private const float StepSettleSeconds = 0.75f;
 
+    /// <summary>
+    /// The game's "cannot use yet" - a prerequisite that is absent rather than a timer that is
+    /// running. 566 is range, 580 is a cast in flight, 582 is the recast; this one is the
+    /// buff, the gauge or the canvas that was never set up.
+    /// </summary>
+    private const int PrerequisiteMissing = 572;
+
     /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
     public string? OpenerReport
     {
@@ -614,9 +621,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             var settled = context.Snapshot.Now - _openerStepSince >= StepSettleSeconds;
 
             // A weave whose own cooldown is still turning is not the world diverging.
+            //
+            // Nor is one the game refuses for something that is not a cooldown at all. 572 is
+            // "cannot use yet" - a prerequisite that simply is not there - and for an opener
+            // that means a step whose setup was never done, not a player who has gone off
+            // script. A recorded Pictomancer pull threw its whole opener away on "step 2 (Pom
+            // Muse) was not usable (#572)" because the creature canvas had not been painted
+            // before the pull; every step behind it was fine, and the priority list had to
+            // improvise a burst that the chart already had written down.
             if (candidate.Kind == ActionKind.OGcd
                 && !context.Ready(candidate)
-                && context.Cd(candidate) > context.GcdTotal)
+                && (context.Cd(candidate) > context.GcdTotal
+                    || context.Actions.RefusalCode(candidate.Id) == PrerequisiteMissing))
             {
                 _openerStep++;
                 continue;
