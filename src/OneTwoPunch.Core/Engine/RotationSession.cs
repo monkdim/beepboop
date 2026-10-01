@@ -438,7 +438,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         return job.BurstAction is not null && suggestion.Action.Id == job.BurstAction.Id;
     }
 
-    private static (Rule rule, ActionRef action)? FirstMatch(
+    private (Rule rule, ActionRef action)? FirstMatch(
         RotationPlan plan,
         ActionKind kind,
         RotationContext context)
@@ -451,11 +451,68 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
                 continue;
 
             var action = rule.Evaluate(context);
-            if (action is not null)
-                return (rule, action);
+            if (action is null)
+                continue;
+
+            if (TheOpenerStillOwes(action))
+                continue;
+
+            return (rule, action);
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Whether a scripted step further down the opener is still waiting for this action.
+    /// <para>
+    /// The opener declines for a frame here and there - a step the game refuses for an instant,
+    /// a cast in flight - and the priority list answers into the gap, which is deliberate and
+    /// usually right. What it must not do is spend something the script has not reached yet,
+    /// because the script then arrives to find it on cooldown and gives up.
+    /// </para>
+    /// <para>
+    /// A recorded Pictomancer pull is the whole case. Starry Muse goes off as step five and
+    /// grants Starstruck; the list has a rule that fires Star Prism the moment Starstruck
+    /// appears, and it took the very next global. Star Prism is step fourteen. Nine steps
+    /// later the opener asked for it, got "not yet ready", and threw the rest away.
+    /// </para>
+    /// <para>
+    /// The same thinking as the pre-pull guard above, one step further on: a cooldown the
+    /// script owns is not the list's to spend.
+    /// </para>
+    /// </summary>
+    private bool TheOpenerStillOwes(ActionRef action)
+    {
+        if (!OpenerActive || job.Opener is null)
+            return false;
+
+        // Only an action the chart asks for once, and only from the step after the one the
+        // opener is standing on.
+        //
+        // Both halves matter. The step it stands on is the action it is about to ask for
+        // anyway, and before the pull the list naming that same global is how the fight
+        // starts. And an action the chart repeats is filler, not a cooldown: a Monk opener
+        // has Dragon Kick at its first global and several times after, so guarding every
+        // later appearance turned the opening global into Bootshine.
+        //
+        // What is left is what the guard is for - the one-off cooldown the script owns, which
+        // is exactly the shape of the Star Prism that cost a Pictomancer opener nine steps.
+        var steps = job.Opener.Steps;
+        var seen = 0;
+        var owedLater = false;
+
+        for (var i = 0; i < steps.Count; i++)
+        {
+            if (steps[i].Id != action.Id)
+                continue;
+
+            seen++;
+            if (i > _openerStep)
+                owedLater = true;
+        }
+
+        return seen == 1 && owedLater;
     }
 
     private ActionRef? ResolvePositionalRescue(RotationContext context, PositionalHint positional)
