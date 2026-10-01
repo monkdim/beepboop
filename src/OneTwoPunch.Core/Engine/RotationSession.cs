@@ -487,8 +487,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (!OpenerActive || job.Opener is null)
             return false;
 
+        // From the step *after* the one it is standing on. The step it is standing on is the
+        // action it is about to ask for anyway, and before the pull the list offering that
+        // same global is how the fight starts - a Monk opener opens on Dragon Kick whether
+        // the script or the list names it.
         var steps = job.Opener.Steps;
-        for (var i = _openerStep; i < steps.Count; i++)
+        for (var i = _openerStep + 1; i < steps.Count; i++)
         {
             if (steps[i].Id == action.Id)
                 return true;
