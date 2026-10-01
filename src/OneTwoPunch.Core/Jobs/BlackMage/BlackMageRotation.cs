@@ -285,23 +285,19 @@ public sealed class BlackMageRotation : JobRotationBase
         // Three Astral Soul is exactly three Fire IVs, which is where the chart draws it. The
         // escape is for the bar running dry first: a marker that cannot be spent is one that
         // gets overwritten, which is the thing this rule was written for.
-        // Held until Astral Soul is full, because in Astral Fire a Paradox is a Fire IV.
+        // Worth knowing, and deliberately not acted on: in Astral Fire a Paradox costs sixteen
+        // hundred mana - the action's text grants the free cast to Umbral Ice only - which is
+        // a Fire IV with no Umbral Heart, except a Fire IV grants an Astral Soul and this does
+        // not. So on a bar that ends the phase at five stacks, this cast is the Flare Star.
         //
-        // It costs sixteen hundred mana there - the same as a Fire IV with no Umbral Heart -
-        // and unlike a Fire IV it grants no Astral Soul. So a Paradox cast at three stacks is
-        // one stack the phase does not reach, and a phase that ends on five is a Flare Star
-        // thrown away. A recorded pull ends eleven of its fire phases at Astral Soul five,
-        // one Fire IV short, with a Paradox cast in every one of them.
-        //
-        // The escape is that Paradox needs that sixteen hundred too, so holding it to an empty
-        // bar loses it outright: the last rung is where the bar can still pay for this and the
-        // Fire IV behind it, and that is where it goes if Astral Soul has not filled by then.
+        // Holding it to six was tried and reverted. The chart puts it here, the test below
+        // pins it here, and the arithmetic above assumes the bar is the binding constraint -
+        // Manafont refills mid-phase, and whether that covers the difference is a question for
+        // a recorded pull rather than for me. Flare Star already outranks this rule either way.
         p.Gcd(A.Paradox)
             .When(c => c.Blm.InAstralFire
                        && c.Blm.ParadoxActive
-                       && (c.Blm.AstralSoulStacks >= 6
-                           || !c.Ready(A.Fire4)
-                           || c.Mp < ParadoxMp + Fire4Mp(c)))
+                       && (c.Blm.AstralSoulStacks >= 3 || !c.Ready(A.Fire4)))
             .Because("spend Paradox before it is overwritten");
 
         // The same rung on the other side, and it was missing for the same reason.
@@ -751,11 +747,6 @@ public sealed class BlackMageRotation : JobRotationBase
     /// <summary>What Despair asks for before it will cast, and takes the whole bar for.</summary>
     private const uint DespairMp = 800;
 
-    /// <summary>
-    /// What a Paradox costs in Astral Fire. Free in Umbral Ice - the action's own text says
-    /// so - which is why the ice rule has no mana check and this one does.
-    /// </summary>
-    private const uint ParadoxMp = 1600;
 
     /// <summary>
     /// What the next Fire IV costs. 1600 in Astral Fire, halved by an Umbral Heart - the heart
