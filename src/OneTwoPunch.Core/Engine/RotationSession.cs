@@ -487,18 +487,32 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         if (!OpenerActive || job.Opener is null)
             return false;
 
-        // From the step *after* the one it is standing on. The step it is standing on is the
-        // action it is about to ask for anyway, and before the pull the list offering that
-        // same global is how the fight starts - a Monk opener opens on Dragon Kick whether
-        // the script or the list names it.
+        // Only an action the chart asks for once, and only from the step after the one the
+        // opener is standing on.
+        //
+        // Both halves matter. The step it stands on is the action it is about to ask for
+        // anyway, and before the pull the list naming that same global is how the fight
+        // starts. And an action the chart repeats is filler, not a cooldown: a Monk opener
+        // has Dragon Kick at its first global and several times after, so guarding every
+        // later appearance turned the opening global into Bootshine.
+        //
+        // What is left is what the guard is for - the one-off cooldown the script owns, which
+        // is exactly the shape of the Star Prism that cost a Pictomancer opener nine steps.
         var steps = job.Opener.Steps;
-        for (var i = _openerStep + 1; i < steps.Count; i++)
+        var seen = 0;
+        var owedLater = false;
+
+        for (var i = 0; i < steps.Count; i++)
         {
-            if (steps[i].Id == action.Id)
-                return true;
+            if (steps[i].Id != action.Id)
+                continue;
+
+            seen++;
+            if (i > _openerStep)
+                owedLater = true;
         }
 
-        return false;
+        return seen == 1 && owedLater;
     }
 
     private ActionRef? ResolvePositionalRescue(RotationContext context, PositionalHint positional)
