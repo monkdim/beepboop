@@ -407,6 +407,44 @@ public sealed class PictomancerMotifTests
         Assert.NotEqual(A.PomMuse.Id, next.Action.Id);
     }
 
+    /// <summary>
+    /// The list may answer into a frame the opener declines, but not with something the
+    /// script has not reached yet.
+    /// <para>
+    /// A recorded pull: Starry Muse goes off as step five and grants Starstruck, the list
+    /// fires Star Prism on the very next global because that is what its Starstruck rule says,
+    /// and nine steps later the opener asks for Star Prism - step fourteen - gets "not yet
+    /// ready" and throws the rest of the chart away.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheListDoesNotSpendAnActionTheOpenerHasNotReached()
+    {
+        var session = new RotationSession(
+            JobRotationBase.Create<PictomancerRotation>(),
+            new RotationSettings { SuggestionHoldSeconds = 0f });
+
+        static SnapshotBuilder Fresh(SnapshotBuilder b) => b.Gauge(s => s.CombatDuration = 0.5f);
+
+        // Walk to the step after Starry Muse, with Starstruck up - which is exactly the state
+        // that pull was in.
+        var actions = new FakeActionState();
+        foreach (var step in new[]
+                 {
+                     A.RainbowDrip.Id, A.PomMuse.Id, A.StrikingMuse.Id,
+                     A.WingMotif.Id, A.StarryMuse.Id,
+                 })
+        {
+            session.Resolve(RotationMode.SingleTarget, Fresh(Pct()).Build(), actions);
+            session.NotifyActionUsed(step);
+        }
+
+        var snapshot = Fresh(Pct()).Buff(A.Starstruck.Id).Build();
+        var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
+
+        Assert.NotEqual(A.StarPrism.Id, suggestion.Action.Id);
+    }
+
     // ---- Diagnostics ------------------------------------------------------
 
     /// <summary>
