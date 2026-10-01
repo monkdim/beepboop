@@ -285,6 +285,15 @@ public sealed class BlackMageRotation : JobRotationBase
         // Three Astral Soul is exactly three Fire IVs, which is where the chart draws it. The
         // escape is for the bar running dry first: a marker that cannot be spent is one that
         // gets overwritten, which is the thing this rule was written for.
+        // Worth knowing, and deliberately not acted on: in Astral Fire a Paradox costs sixteen
+        // hundred mana - the action's text grants the free cast to Umbral Ice only - which is
+        // a Fire IV with no Umbral Heart, except a Fire IV grants an Astral Soul and this does
+        // not. So on a bar that ends the phase at five stacks, this cast is the Flare Star.
+        //
+        // Holding it to six was tried and reverted. The chart puts it here, the test below
+        // pins it here, and the arithmetic above assumes the bar is the binding constraint -
+        // Manafont refills mid-phase, and whether that covers the difference is a question for
+        // a recorded pull rather than for me. Flare Star already outranks this rule either way.
         p.Gcd(A.Paradox)
             .When(c => c.Blm.InAstralFire
                        && c.Blm.ParadoxActive
@@ -737,6 +746,7 @@ public sealed class BlackMageRotation : JobRotationBase
 
     /// <summary>What Despair asks for before it will cast, and takes the whole bar for.</summary>
     private const uint DespairMp = 800;
+
 
     /// <summary>
     /// What the next Fire IV costs. 1600 in Astral Fire, halved by an Umbral Heart - the heart
