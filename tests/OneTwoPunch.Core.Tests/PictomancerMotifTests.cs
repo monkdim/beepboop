@@ -315,6 +315,63 @@ public sealed class PictomancerMotifTests
         Assert.Equal(A.WeaponMotif.Id, suggestion.Action.Id);
     }
 
+    // ---- The hammer and the buff window -----------------------------------
+
+    /// <summary>
+    /// The last Steel Muse charge is kept for Starry Muse, because Striking Muse is what puts
+    /// Hammer Time up and the hammer line is three guaranteed critical direct hits.
+    /// <para>
+    /// A recorded pull spends it at 81.9s, forty-five seconds before a Starry Muse at 127.3s,
+    /// and that window has no hammer in it at all. Steel Muse is sixty seconds with two
+    /// charges against a two minute Starry Muse, so one can always be banked.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheLastHammerChargeIsKeptForTheBuffWindow()
+    {
+        var held = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), weapon: true).Gcd(1.6f).Build(),
+            new FakeActionState()
+                .WithCharges(A.SteelMuse.Id, 1, 2)
+                .OnCooldown(A.ScenicMuse.Id, 12f));
+
+        Assert.NotEqual(A.SteelMuse.Id, held.Action.Id);
+        Assert.NotEqual(A.StrikingMuse.Id, held.Action.Id);
+    }
+
+    /// <summary>Inside the window it is spent, which is the whole point of holding it.</summary>
+    [Fact]
+    public void TheHeldChargeGoesOutInsideTheWindow()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), weapon: true).Gcd(1.6f).Buff(A.StarryMuseBuff.Id).Build(),
+            new FakeActionState()
+                .WithCharges(A.SteelMuse.Id, 1, 2)
+                .OnCooldown(A.ScenicMuse.Id, 110f)
+                .Resolving(A.SteelMuse.Id, A.StrikingMuse.Id));
+
+        Assert.Equal(A.StrikingMuse.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// Two charges means one is about to be wasted, and an unbuffed hammer beats a lost one.
+    /// </summary>
+    [Fact]
+    public void AFullSetOfChargesIsNotHeld()
+    {
+        var suggestion = Session().Resolve(
+            RotationMode.SingleTarget,
+            Canvases(Pct(), weapon: true).Gcd(1.6f).Build(),
+            new FakeActionState()
+                .WithCharges(A.SteelMuse.Id, 2, 2)
+                .OnCooldown(A.ScenicMuse.Id, 12f)
+                .Resolving(A.SteelMuse.Id, A.StrikingMuse.Id));
+
+        Assert.Equal(A.StrikingMuse.Id, suggestion.Action.Id);
+    }
+
     // ---- The opener ------------------------------------------------------
 
     /// <summary>

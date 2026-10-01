@@ -114,6 +114,30 @@ public sealed class PictomancerRotation : JobRotationBase
     private static bool MuseCanTakeIt(RotationContext c, ActionRef muse, float lead = PaintLead) =>
         c.Charges(muse) > 0 || c.ReadyIn(muse, lead);
 
+    /// <summary>How close Starry Muse has to be before the last Steel Muse charge is held.</summary>
+    private const float BurstLead = 25f;
+
+    /// <summary>
+    /// Whether the last Steel Muse charge is worth keeping for the raid buff.
+    /// <para>
+    /// Striking Muse is what puts Hammer Time up, and the hammer line is the hardest hitting
+    /// run of globals the job has - every one of the three a guaranteed critical direct hit.
+    /// Starry Muse is two minutes; Steel Muse is sixty seconds and holds two charges. So one
+    /// charge can always be banked for the window, and spending the last one forty-five
+    /// seconds early means the window gets no hammer at all. A recorded pull does exactly
+    /// that: Striking Muse at 81.9s, Starry Muse at 127.3s, and a buff window with no hammer
+    /// in it.
+    /// </para>
+    /// <para>
+    /// Only ever the last charge, and only inside the lead - two charges means one is about
+    /// to be wasted, and that is worse than an unbuffed hammer.
+    /// </para>
+    /// </summary>
+    private static bool HoldingTheHammerForTheBuff(RotationContext c) =>
+        c.Charges(A.SteelMuse) <= 1
+        && !c.Buff(A.StarryMuseBuff)
+        && c.ReadyIn(A.ScenicMuse, BurstLead);
+
     private void BuildSingleTarget()
     {
         var p = SingleTarget;
@@ -128,8 +152,8 @@ public sealed class PictomancerRotation : JobRotationBase
             .Because("raid buff");
 
         p.OGcd(c => Current(c, A.SteelMuse))
-            .When(c => !c.Downtime && c.Pct.WeaponMotifDrawn)
-            .Because("spend the weapon motif");
+            .When(c => !c.Downtime && c.Pct.WeaponMotifDrawn && !HoldingTheHammerForTheBuff(c))
+            .Because(c => c.Buff(A.StarryMuseBuff) ? "hammer inside the buff" : "spend the weapon motif");
 
         p.OGcd(c => Current(c, A.LivingMuse))
             .When(c => !c.Downtime && c.Pct.CreatureMotifDrawn)
@@ -243,7 +267,8 @@ public sealed class PictomancerRotation : JobRotationBase
         p.OGcd(c => Current(c, A.ScenicMuse))
             .When(c => !c.Downtime && c.Pct.LandscapeMotifDrawn).Because("raid buff");
 
-        p.OGcd(c => Current(c, A.SteelMuse)).When(c => !c.Downtime && c.Pct.WeaponMotifDrawn);
+        p.OGcd(c => Current(c, A.SteelMuse))
+            .When(c => !c.Downtime && c.Pct.WeaponMotifDrawn && !HoldingTheHammerForTheBuff(c));
         p.OGcd(c => Current(c, A.LivingMuse)).When(c => !c.Downtime && c.Pct.CreatureMotifDrawn);
 
         p.OGcd(c => Current(c, A.MogOfTheAges))
