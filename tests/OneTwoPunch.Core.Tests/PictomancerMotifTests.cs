@@ -336,11 +336,15 @@ public sealed class PictomancerMotifTests
 
         var actions = new FakeActionState().Refused(A.PomMuse.Id, 572);
 
+        // A fresh pull - the opener will not start on a fight already underway.
+        static SnapshotBuilder Fresh(SnapshotBuilder b) => b.Gauge(s => s.CombatDuration = 0.5f);
+
         // Step one, pressed, which starts the fight.
-        session.Resolve(RotationMode.SingleTarget, Pct().Build(), actions);
+        session.Resolve(RotationMode.SingleTarget, Fresh(Pct()).Build(), actions);
         session.NotifyActionUsed(A.RainbowDrip.Id);
 
-        var next = session.Resolve(RotationMode.SingleTarget, Pct().Gcd(1.6f).Build(), actions);
+        var next = session.Resolve(
+            RotationMode.SingleTarget, Fresh(Pct()).Gcd(1.6f).Build(), actions);
 
         Assert.Null(session.OpenerOutcome);
         Assert.NotEqual(A.PomMuse.Id, next.Action.Id);
