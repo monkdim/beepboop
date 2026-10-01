@@ -120,6 +120,10 @@ public sealed class NinjaRotation : JobRotationBase
 
         // ---- Globals -------------------------------------------------------
 
+        // Above everything: inside the window the game refuses all of it anyway, and the
+        // window is six seconds long.
+        AddTenChiJinRules(p);
+
         AddNinjutsuFireRule(p);
 
         // A half-charged sequence expires in six seconds, and each step is a fast global -
@@ -156,6 +160,59 @@ public sealed class NinjaRotation : JobRotationBase
             .Because("out of range");
     }
 
+    // ---- Ten Chi Jin ----------------------------------------------------
+
+    /// <summary>
+    /// The span of ids the three mudra keys resolve into while Ten Chi Jin is up: Fuma Ten,
+    /// Fuma Chi and Fuma Jin at the bottom, the TCJ Suiton at the top, with the Katon, Raiton,
+    /// Hyoton, Huton and Doton forms between them. A key that reads inside this range is a
+    /// press the window still owes you; one that reads outside it has been spent.
+    /// </summary>
+    private const uint FirstTcjForm = 18873;
+
+    private const uint LastTcjForm = 18881;
+
+    private static bool SlotIsUnspent(RotationContext c, ActionRef slot)
+    {
+        var form = c.CurrentFormOf(slot);
+        return form >= FirstTcjForm && form <= LastTcjForm;
+    }
+
+    /// <summary>
+    /// The three presses the window exists for, in the order the guide gives them: Ten, Chi,
+    /// Jin, which the game turns into Fuma Shuriken, Raiton and Suiton on one target and Fuma
+    /// Shuriken, Katon and Doton on a group. The keys are the same either way - the game picks
+    /// the ninjutsu - so both buttons get the same three rules.
+    /// <para>
+    /// These were driven once before and it went badly: the button suggested Fuma Shuriken six
+    /// times and a recorded pull proved only the first was a real cast, because it named the
+    /// ninjutsu rather than the key and had no way to tell a spent slot from a live one. This
+    /// names the key and reads the form the game gives it, which is the same "ask the game" the
+    /// mudras themselves run on. Two recorded windows show the slots reading 18873/18874/18875
+    /// before the first press; whether a spent one leaves that range is what the next log
+    /// settles, and the readiness line already carries all three.
+    /// </para>
+    /// <para>
+    /// Left undriven, the window is worse than not pressing it at all: two recorded Ten Chi
+    /// Jins produced no ninjutsu whatever and six and seven seconds of a button with nothing
+    /// to say.
+    /// </para>
+    /// </summary>
+    private void AddTenChiJinRules(RotationPlan p)
+    {
+        p.Gcd(c => Current(c, A.Ten1))
+            .When(c => c.Buff(A.TenChiJinBuff) && SlotIsUnspent(c, A.Ten1))
+            .Because("Ten Chi Jin, first press");
+
+        p.Gcd(c => Current(c, A.Chi1))
+            .When(c => c.Buff(A.TenChiJinBuff) && SlotIsUnspent(c, A.Chi1))
+            .Because("Ten Chi Jin, second press");
+
+        p.Gcd(c => Current(c, A.Jin1))
+            .When(c => c.Buff(A.TenChiJinBuff) && SlotIsUnspent(c, A.Jin1))
+            .Because("Ten Chi Jin, third press");
+    }
+
     private void BuildAoe()
     {
         var p = Aoe;
@@ -184,6 +241,8 @@ public sealed class NinjaRotation : JobRotationBase
         p.OGcd(AreaSpender)
             .When(WantsToSpendNinki)
             .Because(c => c.Nin.Ninki >= NinkiCeiling ? "Ninki is about to cap" : "spend Ninki");
+
+        AddTenChiJinRules(p);
 
         AddNinjutsuFireRule(p);
         AddMudraContinueRules(p);

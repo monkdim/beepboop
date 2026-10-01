@@ -195,27 +195,63 @@ public sealed class NinjaMainButtonMudraTests
     }
 
     /// <summary>
-    /// Ten Chi Jin's three presses are deliberately not driven. Inside the window every
-    /// unspent slot is legal, so priority order is the whole decision and the list can only
-    /// name one of them - two recorded pulls spent the entire cooldown on four Suitons and
-    /// then on six Fuma Shurikens. Nothing the game exposes tells the steps apart, so the
-    /// cooldown is suggested and the three ninjutsu are left on the player's own keys.
+    /// Ten Chi Jin's three presses, driven off the form each key currently carries.
+    /// <para>
+    /// Left undriven the window was worse than not pressing it: two recorded Ten Chi Jins
+    /// produced no ninjutsu whatever, and six and seven seconds of a button with nothing to
+    /// say. Driving it once before went badly the other way - six Fuma Shurikens of which a
+    /// log proved one was real - because it named the ninjutsu rather than the key. This names
+    /// the key, and a key whose form has left the Ten Chi Jin range has been spent.
+    /// </para>
     /// </summary>
     [Fact]
-    public void TheTenChiJinPressesAreNotDriven()
+    public void TheTenChiJinPressesAreDrivenInOrder()
     {
         var snapshot = Global().Buff(A.TenChiJinBuff, 6f).Build();
+
+        // Nothing pressed yet: all three keys read the first-press Fuma Shuriken forms.
+        var fresh = Quiet()
+            .Resolving(A.Ten1.Id, A.FumaTen.Id)
+            .Resolving(A.Chi1.Id, A.FumaChi.Id)
+            .Resolving(A.Jin1.Id, A.FumaJin.Id);
+
+        foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
+            Assert.Equal(A.FumaTen.Id, Session().Resolve(mode, snapshot, fresh).Action.Id);
+
+        // Ten spent - its key has fallen back out of the range - so Chi is the next press.
+        var tenSpent = Quiet()
+            .Resolving(A.Chi1.Id, A.TCJRaiton.Id)
+            .Resolving(A.Jin1.Id, A.TCJSuiton.Id);
+
+        Assert.Equal(
+            A.TCJRaiton.Id,
+            Session().Resolve(RotationMode.SingleTarget, snapshot, tenSpent).Action.Id);
+
+        // And with two gone, the third.
+        var twoSpent = Quiet().Resolving(A.Jin1.Id, A.TCJSuiton.Id);
+
+        Assert.Equal(
+            A.TCJSuiton.Id,
+            Session().Resolve(RotationMode.SingleTarget, snapshot, twoSpent).Action.Id);
+    }
+
+    /// <summary>Outside the window the keys are mudras again and nothing here fires.</summary>
+    [Fact]
+    public void TheTenChiJinRulesAreSilentWithoutTheBuff()
+    {
         var inside = new[]
         {
             A.FumaTen.Id, A.FumaChi.Id, A.FumaJin.Id,
             A.TCJRaiton.Id, A.TCJSuiton.Id, A.TCJKaton.Id, A.TCJDoton.Id,
         };
 
-        foreach (var mode in new[] { RotationMode.SingleTarget, RotationMode.Aoe })
-        {
-            var suggestion = Session().Resolve(mode, snapshot, Quiet());
-            Assert.DoesNotContain(suggestion.Action.Id, inside);
-        }
+        var actions = Quiet()
+            .Resolving(A.Ten1.Id, A.FumaTen.Id)
+            .Resolving(A.Chi1.Id, A.FumaChi.Id);
+
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, Global().Build(), actions);
+
+        Assert.DoesNotContain(suggestion.Action.Id, inside);
     }
 
     /// <summary>The cooldown itself is still worth pressing, and still is.</summary>
