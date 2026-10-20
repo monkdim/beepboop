@@ -43,6 +43,22 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Master switch. When off the hook passes every action straight through.</summary>
     public bool Enabled = true;
 
+    /// <summary>Last welcome/changelog version acknowledged by this installation.</summary>
+    public string LastSeenVersion = string.Empty;
+
+    public bool NeedsWelcome(string version) => LastSeenVersion != version;
+
+    public void AcknowledgeWelcome(string version)
+    {
+        if (!NeedsWelcome(version))
+            return;
+        LastSeenVersion = version;
+        Save();
+    }
+
+    [field: NonSerialized]
+    public event Action? Changed;
+
     // ---- Rotation behaviour (mirrors RotationSettings) --------------------
 
     public WeaveStyle WeaveStyle = WeaveStyle.Single;
@@ -165,5 +181,9 @@ public sealed class Configuration : IPluginConfiguration
         PotionOnBurst = PotionOnBurst,
     };
 
-    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
+    public void Save()
+    {
+        Plugin.PluginInterface.SavePluginConfig(this);
+        Changed?.Invoke();
+    }
 }

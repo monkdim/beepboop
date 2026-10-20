@@ -17,7 +17,7 @@ public enum WeaveStyle
 /// Tuning knobs. These are deliberately player-facing: the point of the plugin is that
 /// somebody who cannot double-weave can turn double-weaving off and still play.
 /// </summary>
-public sealed class RotationSettings
+public sealed record RotationSettings
 {
     /// <summary>Weave budget per GCD window.</summary>
     public WeaveStyle WeaveStyle { get; set; } = WeaveStyle.Single;

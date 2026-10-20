@@ -9,25 +9,23 @@ using V = OneTwoPunch.Core.Jobs.Viper.ViperActions;
 namespace OneTwoPunch.Core.Tests;
 
 /// <summary>
-/// The two things a job may ask of the engine over the player's settings: a floor on the
-/// weave budget, and how many enemies its area list is a gain at.
+/// A job's weave recommendation never overrides the player; its area threshold still
+/// determines when an optional fallback to single target is worthwhile.
 /// </summary>
 public sealed class JobMinimumsTests
 {
-    // ---- Weave floor ------------------------------------------------------
+    // ---- Input ceiling ---------------------------------------------------
 
     /// <summary>
-    /// The accessible default is one weave per window. Viper's coils each hand out two
-    /// off-globals that must both go out before the next global, so on one the job silently
-    /// drops half of them. The job asks for two, and gets them over the default.
+    /// Viper recommends two weaves but the player's single-weave limit wins.
     /// </summary>
     [Fact]
-    public void ViperGetsTwoWeavesOverTheSingleWeaveDefault()
+    public void ViperRespectsTheSingleWeaveLimit()
     {
         var session = new RotationSession(JobRotationBase.Create<ViperRotation>(),
             new RotationSettings { WeaveStyle = WeaveStyle.Single, UseOpener = false, SuggestionHoldSeconds = 0f });
 
-        Assert.Equal(2, session.WeaveBudget);
+        Assert.Equal(1, session.WeaveBudget);
 
         // Twinfang Bite has gone; on a single-weave budget Twinblood Bite would not be offered.
         var snapshot = new SnapshotBuilder()
@@ -41,7 +39,7 @@ public sealed class JobMinimumsTests
         session.NotifyActionUsed(V.TwinfangBite.Id);
         var second = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
 
-        Assert.Equal(V.TwinbloodBite.Id, second.Action.Id);
+        Assert.Equal(ActionKind.Gcd, second.Kind);
     }
 
     /// <summary>"Globals only" is the player's to choose, and the job does not get to override it.</summary>

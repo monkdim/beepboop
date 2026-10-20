@@ -77,9 +77,9 @@ public sealed class ConfigWindow(
         Help("Off-globals are the abilities that do not use the global cooldown. Fitting two "
              + "of them into every gap is where most of a rotation's button presses come from. "
              + "On 'One' you lose a little damage and a lot of typing.\n\n"
-             + "A job whose rotation is written for two - Viper, whose coils each hand out a "
-             + "pair - uses two on 'One' regardless, because on one it would silently drop "
-             + "half of them. 'None' is always respected.");
+             + "Your choice is a limit on every job, including Viper. One weave may leave "
+             + "some of Viper's follow-up attacks unused. Choose Two only if it is comfortable "
+             + "for you. Changes apply while you play.");
 
         var hold = config.SuggestionHoldSeconds;
         if (ImGui.SliderFloat("Hold suggestions for", ref hold, 0f, 0.5f, "%.2f s"))

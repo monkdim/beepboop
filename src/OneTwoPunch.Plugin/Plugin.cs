@@ -41,6 +41,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("OneTwoPunch");
     private readonly ConfigWindow _configWindow;
     private readonly PreviewWindow _previewWindow;
+    private readonly WelcomeWindow _welcomeWindow;
+    private volatile bool _settingsDirty;
 
     private readonly MovementTracker _movement = new();
     private readonly ActionStateAdapter _actionState = new();
@@ -140,6 +142,7 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.Create<Svc>();
 
         _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        _config.Changed += OnConfigurationChanged;
 
         // A default only reaches a fresh install; anyone already using the plugin keeps what
         // was written last time. The AoE fallback needed to reach them too - see
@@ -164,6 +167,8 @@ public sealed class Plugin : IDalamudPlugin
 
         _windows.AddWindow(_configWindow);
         _windows.AddWindow(_previewWindow);
+        _welcomeWindow = new WelcomeWindow(_config, PluginInterface.Manifest.AssemblyVersion.ToString());
+        _windows.AddWindow(_welcomeWindow);
 
         // Deliberately not enabled here. Plugins are constructed while the game is still
         // starting up, and this one installs a hook into the action system - so it waits
@@ -259,6 +264,17 @@ public sealed class Plugin : IDalamudPlugin
 
     private void Update(IFramework framework)
     {
+        if (_settingsDirty)
+        {
+            _settingsDirty = false;
+            if (_session?.ApplySettings(_config.ToRotationSettings()) == true)
+            {
+                _resolved.Clear();
+                _lastSuggestion.Clear();
+                _frameSnapshotAt = -1;
+            }
+        }
+
         // Disarmed: not a single thing happens. No hook, no reads, no work.
         if (!_armed)
             return;
@@ -923,6 +939,10 @@ public sealed class Plugin : IDalamudPlugin
                 PrintVerification();
                 break;
 
+            case "changelog":
+                _welcomeWindow.IsOpen = true;
+                break;
+
             case "hud":
                 _config.ShowPreview = !_config.ShowPreview;
                 _config.Save();
@@ -1096,8 +1116,11 @@ public sealed class Plugin : IDalamudPlugin
 
     private void ToggleConfig() => _configWindow.Toggle();
 
+    private void OnConfigurationChanged() => _settingsDirty = true;
+
     public void Dispose()
     {
+        _config.Changed -= OnConfigurationChanged;
         foreach (var name in CommandNames)
             Commands.RemoveHandler(name);
 
