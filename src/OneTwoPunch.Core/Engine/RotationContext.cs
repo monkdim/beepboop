@@ -42,8 +42,7 @@ public sealed class RotationContext
     public int WeavesUsedThisWindow { get; }
 
     /// <summary>
-    /// Off-globals allowed per window: the player's setting, raised to the job's minimum
-    /// where the job asks for one - see <see cref="Jobs.IJobRotation.MinimumWeaveStyle"/>.
+    /// Off-globals allowed per window, capped by the player's chosen input limit.
     /// </summary>
     public int MaxWeaves { get; }
 

@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OneTwoPunch.Core/OneTwoPunch.Core.csproj" />
+    <Compile Include="../../src/OneTwoPunch.Plugin/Configuration.cs" Link="Configuration.cs" />
   </ItemGroup>
 
 </Project>

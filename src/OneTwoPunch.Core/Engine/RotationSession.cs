@@ -187,20 +187,33 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     public RotationSettings Settings => settings;
 
     /// <summary>
-    /// Off-globals per window: the player's setting, raised to the job's minimum where the
-    /// job asks for one. "Globals only" is left alone - a minimum raises a setting that
-    /// already allows weaving, it never turns weaving on.
+    /// The player's input ceiling, including jobs that recommend more weaving.
     /// </summary>
-    public int WeaveBudget =>
-        settings.MaxWeavesPerGcd <= 0
-            ? 0
-            : Math.Max(settings.MaxWeavesPerGcd, (int)job.MinimumWeaveStyle);
+    public int WeaveBudget => Math.Clamp(settings.MaxWeavesPerGcd, 0, 2);
+
+    /// <summary>Applies live preferences without rewinding the pull or forgetting used weaves.</summary>
+    public bool ApplySettings(RotationSettings updated)
+    {
+        if (settings == updated)
+            return false;
+
+        // Re-enabling a script in combat must not start or resume a stale opener.
+        if (_wasInCombat && (settings.UseOpener != updated.UseOpener
+            || (settings.WeaveStyle == WeaveStyle.None) != (updated.WeaveStyle == WeaveStyle.None)))
+            Abort("the opener setting changed during combat; priority rules continue until the next pull");
+
+        settings = updated;
+        _held.Clear();
+        // Keep the history of offered actions: a press may already be in the game's queue.
+        return true;
+    }
 
     /// <summary>Index into the opener, or -1 when the opener is not running.</summary>
     public int OpenerStep => OpenerActive ? _openerStep : -1;
 
     public bool OpenerActive =>
         settings.UseOpener
+        && WeaveBudget > 0
         && !_openerAborted
         && job.Opener is not null
         && _openerStep < job.Opener.Steps.Count;
@@ -594,6 +607,13 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             return null;
         }
 
+        // A zero-weave player must not be walked into pre-pull abilities either.
+        if (WeaveBudget == 0)
+        {
+            _openerDecline = "globals only; the priority rules are driving";
+            return null;
+        }
+
         // Named with both numbers. "The level is below the one it is written for" is true of
         // a level 99 pull and of a level 60 one, and reading a synced log you want to know
         // which without going and looking the opener up.
@@ -728,7 +748,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
         // weave budget does not apply. Most of the Balance openers start before the pull -
         // Meikyo Shisui, Reassemble, a prepull Harpe - and none of that is reachable if
         // weaving rules written for a live fight are applied to a standing start.
-        var canWeave = context.CanWeave || !context.InCombat;
+        var canWeave = context.CanWeave || !context.InCombat && WeaveBudget > 0;
 
         // If the scripted action is not usable the world has diverged from the script -
         // a late pull, a sync, a missing level. Drop out rather than jam the button.

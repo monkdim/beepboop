@@ -108,6 +108,7 @@ untouched — the plugin only ever answers for those two slots.
 | `/otp record` | start or stop recording a pull to your Downloads |
 | `/otp verify` | check every action id against the game's own data |
 | `/otp hud` | toggle the next-action display |
+| `/otp changelog` | reopen the welcome screen and latest changes |
 | `/otp on` / `off` | master switch |
 
 ## Supported jobs

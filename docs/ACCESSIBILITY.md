@@ -23,6 +23,11 @@ conflict, predictability wins. Concretely:
 actions-per-minute in this game, and it is exactly what a tremor, a splint or a fatigue
 condition makes unreliable.
 
+None, One and Two are ceilings on every job, including Viper. A job's recommended weave
+count never raises the player's choice. Rotation settings apply to the active session on
+the next framework update, clearing held suggestions while retaining used-weave counts.
+Globals-only mode uses the priority rotation instead of scripted pre-pull abilities.
+
 On `Single` the engine drops the lowest-value off-globals first rather than clipping your
 global cooldown. On `None` the plugin only ever asks you for globals. Both are supported
 first-class; neither is a degraded mode.
