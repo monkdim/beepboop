@@ -699,17 +699,16 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
             // A weave whose own cooldown is still turning is not the world diverging.
             //
-            // Nor is one the game refuses for something that is not a cooldown at all. 572 is
-            // "cannot use yet" - a prerequisite that simply is not there - and for an opener
-            // that means a step whose setup was never done, not a player who has gone off
-            // script. A recorded Pictomancer pull threw its whole opener away on "step 2 (Pom
-            // Muse) was not usable (#572)" because the creature canvas had not been painted
-            // before the pull; every step behind it was fine, and the priority list had to
-            // improvise a burst that the chart already had written down.
+            // A missing prerequisite is different: the previous action's buff/gauge can
+            // still be arriving. Give EACH step its settle period before treating #572 as
+            // missing setup. Do not judge prerequisite refusals while a cast is in flight.
+            // Once settled, still step over genuinely missing setup (such as an unpainted
+            // Pictomancer canvas) rather than leaving the opener stuck forever.
             if (candidate.Kind == ActionKind.OGcd
                 && !context.Ready(candidate)
                 && (context.Cd(candidate) > context.GcdTotal
-                    || context.Actions.RefusalCode(candidate.Id) == PrerequisiteMissing))
+                    || settled && !context.Casting
+                        && context.Actions.RefusalCode(candidate.Id) == PrerequisiteMissing))
             {
                 _openerStep++;
                 continue;

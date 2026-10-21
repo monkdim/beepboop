@@ -47,9 +47,9 @@ public static class WelcomeContent
         ImGui.SetCursorScreenPos(new Vector2(origin.X, header.Y + 112 * scale));
         ImGui.TextColored(Muted, "A few little upgrades, made for your hands.");
         ImGui.Dummy(new Vector2(0, 5 * scale));
-        Card("01", "Settings listen now", "Change a setting and keep playing. No restart, no job swap.", Mint, width, scale);
+        Card("01", "A little patience, better openers", "Your opener waits for delayed attack updates instead of jumping past follow-ups.", Mint, width, scale);
         Card("02", "Your hands set the pace", "None, One or Two: your extra-attack limit stays your choice on every job.", Peach, width, scale);
-        Card("03", "Viper learned some manners", "One really means one now. Some follow-ups may go unused, and that's okay. Pick what feels comfortable.", Mint, width, scale);
+        Card("03", "Viper keeps its place", "Twinfang and Twinblood each get time to become ready. Genuinely missing setup still lets the opener move on.", Mint, width, scale);
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
         ImGui.TextColored(Muted, "Changing the opener or globals-only mode mid-fight leaves the normal rotation in charge until your next pull.");
         ImGui.PopTextWrapPos();
