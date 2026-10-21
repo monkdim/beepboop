@@ -400,10 +400,13 @@ public sealed class PictomancerMotifTests
         session.Resolve(RotationMode.SingleTarget, Fresh(Pct()).Build(), actions);
         session.NotifyActionUsed(A.RainbowDrip.Id);
 
+        session.Resolve(RotationMode.SingleTarget, Fresh(Pct()).Gcd(1.6f).At(1).Build(), actions);
+        Assert.Equal(1, session.OpenerStep); // The canvas may simply not have updated yet.
         var next = session.Resolve(
-            RotationMode.SingleTarget, Fresh(Pct()).Gcd(1.6f).Build(), actions);
+            RotationMode.SingleTarget, Fresh(Pct()).Gcd(1.6f).At(1.75).Build(), actions);
 
         Assert.Null(session.OpenerOutcome);
+        Assert.Equal(2, session.OpenerStep); // Missing after settling: skip Pom Muse only.
         Assert.NotEqual(A.PomMuse.Id, next.Action.Id);
     }
 

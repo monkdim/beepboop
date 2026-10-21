@@ -1,5 +1,13 @@
 # Changes
 
+## 1.0.84.0
+
+- Opener follow-ups wait through their existing 750 ms settling period before a missing prerequisite is treated as missing setup.
+- Each step gets its own grace period, including Viper's Twinfang Bite and Twinblood Bite after Hunter's Coil.
+- Missing prerequisites are not judged while a cast is in flight. Genuinely missing setup still lets the opener continue after settling, and long cooldowns can still be skipped immediately.
+- Viper regression checks cover delayed updates, sequential follow-ups, persistent missing prerequisites, casting, the one-weave limit, and unsafe weave windows.
+- The welcome screen describes the opener fix.
+
 ## 1.0.83.0
 
 - Rotation settings apply to the running session without changing jobs or restarting.
