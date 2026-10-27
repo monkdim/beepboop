@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.85.0
+
+- Viper, Ninja and Beastmaster get the second weave their follow-ups need again. 1.0.83.0 made a job's weave minimum advisory, so on the default single-weave setting half of every Twinfang/Twinblood pair was dropped and the rotation read as the main combo and nothing else. "Globals only" still overrides every job, as it always did.
+- A recorded log now says when the plugin was switched off, instead of listing every id on the bar as unrecognised. The suggestions are worked out whether or not the master switch is on, so a switched-off pull used to record a healthy-looking log in which not one press was the plugin's - and the footer blamed a level sync for it.
+
 ## 1.0.84.0
 
 - Opener follow-ups wait through their existing 750 ms settling period before a missing prerequisite is treated as missing setup.

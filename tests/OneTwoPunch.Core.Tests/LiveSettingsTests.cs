@@ -129,14 +129,25 @@ public sealed class LiveSettingsTests
         Assert.True(reloaded.NeedsWelcome("1.0.84.0"));
     }
 
+    /// <summary>
+    /// "Globals only" is absolute: no job may weave against it. Above that the budget is the
+    /// selected limit or the job's own minimum, whichever is higher - a job that declares no
+    /// minimum therefore gets exactly what was selected.
+    /// </summary>
     [Fact]
-    public void EveryJobKeepsTheSelectedLimit()
+    public void GlobalsOnlyBindsEveryJobAndOtherwiseTheJobMinimumCanRaiseIt()
     {
         foreach (var job in JobRegistry.CreateAll())
         foreach (var style in new[] { WeaveStyle.None, WeaveStyle.Single, WeaveStyle.Double })
         {
-            var session = new RotationSession(job,new RotationSettings { WeaveStyle = style });
-            Assert.Equal((int)style,session.WeaveBudget);
+            var session = new RotationSession(job, new RotationSettings { WeaveStyle = style });
+
+            var expected = style == WeaveStyle.None
+                ? 0
+                : Math.Max((int)style, (int)job.MinimumWeaveStyle);
+
+            Assert.Equal(expected, session.WeaveBudget);
+            Assert.InRange(session.WeaveBudget, 0, 2);
         }
     }
 

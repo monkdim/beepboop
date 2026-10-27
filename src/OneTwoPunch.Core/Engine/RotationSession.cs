@@ -187,9 +187,22 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     public RotationSettings Settings => settings;
 
     /// <summary>
-    /// The player's input ceiling, including jobs that recommend more weaving.
+    /// Off-globals per window: the player's setting, raised to the job's minimum where the
+    /// job asks for one. "Globals only" is left alone - a minimum raises a setting that
+    /// already allows weaving, it never turns weaving on.
+    /// <para>
+    /// This override was briefly removed in favour of taking the player's limit literally,
+    /// and a recorded Viper duty is why it is back. Viper's coils and Uncoiled Fury each
+    /// hand out two off-globals that must both go out before the next global or they are
+    /// gone, so on a one-weave budget the job silently drops one of every pair - about a
+    /// sixth of its off-global damage - and the rotation reads as "the main combo and
+    /// nothing else". The jobs that declare a minimum are written against it.
+    /// </para>
     /// </summary>
-    public int WeaveBudget => Math.Clamp(settings.MaxWeavesPerGcd, 0, 2);
+    public int WeaveBudget =>
+        settings.MaxWeavesPerGcd <= 0
+            ? 0
+            : Math.Clamp(Math.Max(settings.MaxWeavesPerGcd, (int)job.MinimumWeaveStyle), 0, 2);
 
     /// <summary>Applies live preferences without rewinding the pull or forgetting used weaves.</summary>
     public bool ApplySettings(RotationSettings updated)

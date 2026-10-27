@@ -108,7 +108,12 @@ public sealed class SessionRecorder
     }
 
     /// <summary>Stops and writes the log out. Returns the path, or null if nothing was recorded.</summary>
-    public string? Stop(double now, HookTraffic traffic, IconTraffic icons, string? openerOutcome = null)
+    public string? Stop(
+        double now,
+        HookTraffic traffic,
+        IconTraffic icons,
+        string? openerOutcome = null,
+        bool switchedOn = true)
     {
         if (!IsRecording)
             return null;
@@ -207,12 +212,31 @@ public sealed class SessionRecorder
             if (icons.Held > 0)
                 _lines.Add($"  {icons.Held} slots are still carrying a suggestion.");
 
-            // Printed whenever the hotbar has plenty of slots and almost none of them are
-            // ours, which is what a synced-down button looks like from here: the id in the
-            // slot is a form this level does not have, so nothing matches it.
-            var ids = icons.PainterUnrecognisedIds;
-            if (ids is { Count: > 0 } && scanned > 0 && yours * 200 < scanned)
-                _lines.Add($"  action ids on the bar it did not recognise: {string.Join(", ", ids)}");
+            // Nothing on the bar can be recognised while the master switch is off, because
+            // the classifier short-circuits before it ever looks an id up. The suggestions
+            // above are still worked out every frame - that path does not consult the switch
+            // - so a switched-off pull records a healthy-looking log in which not one press
+            // was ours, and the only honest reading of this footer is this line.
+            //
+            // Said here because the alternative was actively misleading. A recorded Viper
+            // duty printed "did not recognise" against every id on the bar, which reads as a
+            // level sync, and that is the one explanation it cannot be: the ids listed were
+            // the buttons themselves.
+            if (!switchedOn)
+            {
+                _lines.Add("  the plugin was switched off for this pull: every press went "
+                           + "straight through to the game and no icon was repainted. "
+                           + "Turn it back on with /otp on, or the Enabled box in /otp.");
+            }
+            else
+            {
+                // Printed whenever the hotbar has plenty of slots and almost none of them are
+                // ours, which is what a synced-down button looks like from here: the id in the
+                // slot is a form this level does not have, so nothing matches it.
+                var ids = icons.PainterUnrecognisedIds;
+                if (ids is { Count: > 0 } && scanned > 0 && yours * 200 < scanned)
+                    _lines.Add($"  action ids on the bar it did not recognise: {string.Join(", ", ids)}");
+            }
         }
 
         // The opener giving up used to be silent, and a pull that stopped being driven at

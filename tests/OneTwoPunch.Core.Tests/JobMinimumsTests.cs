@@ -9,25 +9,30 @@ using V = OneTwoPunch.Core.Jobs.Viper.ViperActions;
 namespace OneTwoPunch.Core.Tests;
 
 /// <summary>
-/// A job's weave recommendation never overrides the player; its area threshold still
-/// determines when an optional fallback to single target is worthwhile.
+/// A job's weave minimum raises the player's setting where the job's rotation needs it, and
+/// "globals only" overrides even that; its area threshold still determines when an optional
+/// fallback to single target is worthwhile.
 /// </summary>
 public sealed class JobMinimumsTests
 {
     // ---- Input ceiling ---------------------------------------------------
 
     /// <summary>
-    /// Viper recommends two weaves but the player's single-weave limit wins.
+    /// Viper's follow-ups come in pairs that must both go out before the next global, so the
+    /// job's two-weave minimum raises a single-weave setting rather than losing one of each
+    /// pair. A recorded duty on the one-weave budget read as "the main combo and nothing
+    /// else", which is what this guards against.
     /// </summary>
     [Fact]
-    public void ViperRespectsTheSingleWeaveLimit()
+    public void ViperGetsTheSecondWeaveItsFollowUpsNeed()
     {
         var session = new RotationSession(JobRotationBase.Create<ViperRotation>(),
             new RotationSettings { WeaveStyle = WeaveStyle.Single, UseOpener = false, SuggestionHoldSeconds = 0f });
 
-        Assert.Equal(1, session.WeaveBudget);
+        Assert.Equal(2, session.WeaveBudget);
 
-        // Twinfang Bite has gone; on a single-weave budget Twinblood Bite would not be offered.
+        // Twinfang Bite has gone; Twinblood Bite is the other half of the pair and must
+        // still be offered inside the same window.
         var snapshot = new SnapshotBuilder()
             .Job(41).Level(100).Gcd(1.6f).Enemies(1)
             .Buff(V.SwiftskinsVenom.Id, 30f)
@@ -39,7 +44,8 @@ public sealed class JobMinimumsTests
         session.NotifyActionUsed(V.TwinfangBite.Id);
         var second = session.Resolve(RotationMode.SingleTarget, snapshot, actions);
 
-        Assert.Equal(ActionKind.Gcd, second.Kind);
+        Assert.Equal(ActionKind.OGcd, second.Kind);
+        Assert.Equal(V.TwinbloodBite.Id, second.Action.Id);
     }
 
     /// <summary>"Globals only" is the player's to choose, and the job does not get to override it.</summary>
