@@ -23,10 +23,19 @@ conflict, predictability wins. Concretely:
 actions-per-minute in this game, and it is exactly what a tremor, a splint or a fatigue
 condition makes unreliable.
 
-None, One and Two are ceilings on every job, including Viper. A job's recommended weave
-count never raises the player's choice. Rotation settings apply to the active session on
-the next framework update, clearing held suggestions while retaining used-weave counts.
-Globals-only mode uses the priority rotation instead of scripted pre-pull abilities.
+`None` is a ceiling on every job: nothing overrides globals-only, and that mode uses the
+priority rotation rather than scripted pre-pull abilities.
+
+Above that, a job may raise `Single` to `Double` where its rotation cannot work on one
+weave. Viper, Ninja and Beastmaster do: their follow-ups come in pairs that must both go
+out before the next global or they are lost, so on one weave the job drops one of every
+pair - a recorded Viper duty read as the three-step combo and nothing else. Taking the
+setting literally for those three was tried and reverted; if one weave per window is what
+you need, choose `None` and the priority rotation will play to it, or say so and the pairs
+can be made to fit a single slot instead.
+
+Rotation settings apply to the active session on the next framework update, clearing held
+suggestions while retaining used-weave counts.
 
 On `Single` the engine drops the lowest-value off-globals first rather than clipping your
 global cooldown. On `None` the plugin only ever asks you for globals. Both are supported
