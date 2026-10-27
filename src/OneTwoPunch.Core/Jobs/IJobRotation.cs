@@ -33,8 +33,16 @@ public interface IJobRotation
     int AoeMinimumEnemies { get; }
 
     /// <summary>
-    /// Informational recommendation for full use of the job's follow-ups. This never
-    /// raises the player's selected limit; lower settings can leave follow-ups unused.
+    /// The fewest off-globals per window this job's rotation is written for, applied over
+    /// the player's weave setting when theirs is lower. <see cref="WeaveStyle.None"/> means
+    /// the job asks nothing beyond what the player chose.
+    /// <para>
+    /// The accessible default is one weave per window, and for most jobs that costs a little
+    /// damage and nothing else. Viper's coils and Uncoiled Fury each hand out two off-globals
+    /// that must both go out before the next global, so on one weave the job silently drops
+    /// half of them - about a sixth of its off-global damage. A player who chose "globals
+    /// only" is still honoured: the minimum only raises a setting that already allows weaving.
+    /// </para>
     /// </summary>
     WeaveStyle MinimumWeaveStyle { get; }
 

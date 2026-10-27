@@ -90,18 +90,32 @@ public sealed class ViperOpenerLatencyTests
         Assert.Equal(V.TwinfangBite.Id,session.Resolve(RotationMode.SingleTarget,At(11),actions).Action.Id);
     }
 
+    /// <summary>
+    /// Waiting out a late prerequisite on the single-weave setting still gets both halves of
+    /// the pair, because Viper's own minimum raises the budget to two. This asserted the
+    /// opposite while the minimum was advisory, and that is the shape of the duty that came
+    /// back doing the three-step combo and nothing else: Twinfang Bite landed, Twinblood
+    /// Bite was dropped for want of a second weave, and the opener moved on without it.
+    /// </summary>
     [Fact]
-    public void WaitingDoesNotReenableDoubleWeavingOnTheSingleWeaveSetting()
+    public void WaitingStillGetsBothBitesOnTheSingleWeaveSetting()
     {
         var actions = new FakeActionState();
         var session = AfterHuntersCoil(actions,WeaveStyle.Single);
+        Assert.Equal(2,session.WeaveBudget);
+
         actions.Refused(V.TwinfangBite.Id,572);
         session.Resolve(RotationMode.SingleTarget,At(10),actions);
         actions.Usable(V.TwinfangBite.Id);
         Assert.Equal(V.TwinfangBite.Id,session.Resolve(RotationMode.SingleTarget,At(10.15),actions).Action.Id);
         session.NotifyActionUsed(V.TwinfangBite.Id);
-        Assert.Equal(ActionKind.Gcd,session.Resolve(RotationMode.SingleTarget,At(10.2),actions).Kind);
         Assert.Equal(7,session.OpenerStep);
+
+        var second = session.Resolve(RotationMode.SingleTarget,At(10.2),actions);
+        Assert.Equal(ActionKind.OGcd,second.Kind);
+        Assert.Equal(V.TwinbloodBite.Id,second.Action.Id);
+        session.NotifyActionUsed(V.TwinbloodBite.Id);
+        Assert.Equal(8,session.OpenerStep);
     }
 
     [Fact]

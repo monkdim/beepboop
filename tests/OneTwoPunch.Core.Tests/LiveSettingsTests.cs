@@ -40,7 +40,11 @@ public sealed class LiveSettingsTests
         var actions = new FakeActionState().OnCooldown(V.SerpentsIre.Id,60);
         session.Resolve(mode,snapshot,actions);
         session.NotifyActionUsed(V.TwinfangBite.Id);
-        session.ApplySettings(session.Settings with { WeaveStyle = WeaveStyle.Single });
+
+        // Lowered to "globals only", which overrides every job including Viper's two-weave
+        // minimum. Single would not lower anything here: the minimum raises it straight back.
+        session.ApplySettings(session.Settings with { WeaveStyle = WeaveStyle.None });
+        Assert.Equal(0, session.WeaveBudget);
         Assert.Equal(ActionKind.Gcd, session.Resolve(mode,snapshot,actions).Kind);
     }
 
@@ -70,10 +74,16 @@ public sealed class LiveSettingsTests
         Assert.False(session.OpenerActive);
     }
 
+    /// <summary>
+    /// The opener's second bite lands on the single-weave setting as well as the double,
+    /// because Viper's own minimum raises the budget to the two its pairs need. Under the
+    /// literal reading of the setting this came back as a global and the other half of the
+    /// pair was simply lost.
+    /// </summary>
     [Theory]
-    [InlineData(WeaveStyle.Single, ActionKind.Gcd)]
-    [InlineData(WeaveStyle.Double, ActionKind.OGcd)]
-    public void TheViperOpenerObeysTheLimitForItsSecondBite(WeaveStyle style, ActionKind expected)
+    [InlineData(WeaveStyle.Single)]
+    [InlineData(WeaveStyle.Double)]
+    public void TheViperOpenerStillGetsItsSecondBite(WeaveStyle style)
     {
         var job = JobRegistry.Create(41)!;
         var session = new RotationSession(job,new RotationSettings { WeaveStyle = style, SuggestionHoldSeconds = 0 });
@@ -82,7 +92,10 @@ public sealed class LiveSettingsTests
         var actions = new FakeActionState();
         session.Resolve(RotationMode.SingleTarget,snapshot,actions);
         foreach (var step in job.Opener!.Steps.Take(7)) session.NotifyActionUsed(step.Id);
-        Assert.Equal(expected,session.Resolve(RotationMode.SingleTarget,snapshot,actions).Kind);
+
+        var second = session.Resolve(RotationMode.SingleTarget,snapshot,actions);
+        Assert.Equal(ActionKind.OGcd,second.Kind);
+        Assert.Equal(V.TwinbloodBite.Id,second.Action.Id);
     }
 
     [Fact]
@@ -129,14 +142,25 @@ public sealed class LiveSettingsTests
         Assert.True(reloaded.NeedsWelcome("1.0.84.0"));
     }
 
+    /// <summary>
+    /// "Globals only" is absolute: no job may weave against it. Above that the budget is the
+    /// selected limit or the job's own minimum, whichever is higher - a job that declares no
+    /// minimum therefore gets exactly what was selected.
+    /// </summary>
     [Fact]
-    public void EveryJobKeepsTheSelectedLimit()
+    public void GlobalsOnlyBindsEveryJobAndOtherwiseTheJobMinimumCanRaiseIt()
     {
         foreach (var job in JobRegistry.CreateAll())
         foreach (var style in new[] { WeaveStyle.None, WeaveStyle.Single, WeaveStyle.Double })
         {
-            var session = new RotationSession(job,new RotationSettings { WeaveStyle = style });
-            Assert.Equal((int)style,session.WeaveBudget);
+            var session = new RotationSession(job, new RotationSettings { WeaveStyle = style });
+
+            var expected = style == WeaveStyle.None
+                ? 0
+                : Math.Max((int)style, (int)job.MinimumWeaveStyle);
+
+            Assert.Equal(expected, session.WeaveBudget);
+            Assert.InRange(session.WeaveBudget, 0, 2);
         }
     }
 

@@ -398,7 +398,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog);
+            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog, _config.Enabled);
 
             if (path is null)
             {
@@ -462,7 +462,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (_recorder.IsRecording)
         {
-            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog);
+            var path = _recorder.Stop(_now, Traffic(), Icons(), _session?.OpenerReportForLog, _config.Enabled);
             if (path is not null)
                 Chat.Print($"[One Two Punch] Recording written to {path}");
         }
