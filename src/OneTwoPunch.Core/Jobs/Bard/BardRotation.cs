@@ -75,12 +75,9 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime).Because("burst window");
 
         // Songs, strongest first, and only at the hand-off point - see ReadyForTheNextSong.
-        p.OGcd(A.WanderersMinuet)
-            .When(c => ReadyForTheNextSong(c, BardSong.WanderersMinuet)).Because("next song");
-        p.OGcd(A.MagesBallad)
-            .When(c => ReadyForTheNextSong(c, BardSong.MagesBallad)).Because("next song");
-        p.OGcd(A.ArmysPaeon)
-            .When(c => ReadyForTheNextSong(c, BardSong.ArmysPaeon)).Because("next song");
+        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
 
         // Repertoire caps at three under Wanderer's Minuet and is lost on song change.
         p.OGcd(A.PitchPerfect)
@@ -135,18 +132,23 @@ public sealed class BardRotation : JobRotationBase
     }
 
     /// <summary>
-    /// Army's Paeon is left with this much still on the clock. The Balance: "~43 seconds in
-    /// Wanderer's Minuet, ~43 seconds in Mage's Ballad (leaving as the timer hits 3-2 in
-    /// both cases), then ~34 seconds in Army's Paeon (leaving at 12-10 on the timer)."
-    /// Paeon is the weakest of the three, so it is the one cut short.
+    /// The last repertoire proc chance is at three seconds, so that is where a song hands
+    /// over. The Balance: "~43 seconds in Wanderer's Minuet, ~43 seconds in Mage's Ballad
+    /// (leaving as the timer hits 3-2 in both cases)."
+    /// <para>
+    /// Army's Paeon is meant to be cut shorter still - "~34 seconds in Army's Paeon
+    /// (leaving at 12-10 on the timer)" - because it is the weakest of the three. That one
+    /// is not here yet: telling Paeon from the other two means knowing which song the
+    /// gauge's SongId stands for, and the two readings available from here (Dalamud's enum
+    /// member names, and the song status ids, of which the game's sheet carries several per
+    /// song) are both guesses. DescribeGauge now prints the id, so the next recorded Bard
+    /// pull settles it from real data instead.
+    /// </para>
     /// </summary>
-    private const float LeavePaeonAt = 11f;
-
-    /// <summary>The other two run to the end; the last proc chance is at three seconds.</summary>
     private const float LeaveSongAt = 3f;
 
     /// <summary>
-    /// Whether the song that is playing has reached the point where the next one should take
+    /// Whether the song that is playing has reached the point where the next one takes
     /// over - and nothing else.
     /// <para>
     /// This used to be <c>!c.Downtime</c> on all three, on the reasoning that two minute
@@ -159,31 +161,38 @@ public sealed class BardRotation : JobRotationBase
     /// Pitch Perfect to spend - because all three were then turning at once.
     /// </para>
     /// <para>
-    /// So the song that is up decides, not the cooldowns: take the next one when nothing is
-    /// playing, or when what is playing has reached its hand-off. Ordering the three
-    /// strongest-first is what keeps the cycle in Minuet, Ballad, Paeon order, since the one
-    /// that comes back first is the one that was left first.
+    /// So the song that is up decides, not the cooldowns. Which one comes next needs no
+    /// deciding: a song runs at most forty-five seconds against a two minute recast, so the
+    /// one playing is always still on cooldown, and ordering the three strongest-first picks
+    /// the right one out of what is left.
     /// </para>
     /// </summary>
-    private static bool ReadyForTheNextSong(RotationContext c, BardSong song)
+    private static bool ReadyForTheNextSong(RotationContext c)
     {
         if (c.Downtime)
-            return false;
-
-        // Never the one already playing. Its own cooldown normally hides it - a song is two
-        // minutes and runs at most forty-five seconds - but resting on that would mean the
-        // cycle is only ever as right as the cooldown bookkeeping, and restarting the song
-        // you are in throws away everything banked under it.
-        if (c.Brd.Song == song)
             return false;
 
         // Nothing playing: a song must always be running, so take whichever is offered.
         if (!c.Brd.AnySong)
             return true;
 
-        var leaveAt = c.Brd.Song == BardSong.ArmysPaeon ? LeavePaeonAt : LeaveSongAt;
+        return c.Brd.SongTimeRemaining <= LeaveSongAt;
+    }
 
-        return c.Brd.SongTimeRemaining <= leaveAt;
+    /// <summary>
+    /// What the recorded log prints for a Bard line. The song id is raw on purpose: which
+    /// number is which song is the one thing the rules above still cannot tell, and a
+    /// recorded pull naming it beside the song timer answers that without guessing.
+    /// </summary>
+    public override string? DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Bard;
+
+        var song = g.AnySong
+            ? $"song {g.SongId} {g.SongTimeRemaining:0.#}s"
+            : "no song";
+
+        return $"{song} | repertoire {g.Repertoire} | soul {g.SoulVoice} | coda {g.CodaCount}";
     }
 
     private void BuildAoe()
@@ -194,12 +203,9 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.BattleVoice).When(c => !c.Downtime);
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime);
 
-        p.OGcd(A.WanderersMinuet)
-            .When(c => ReadyForTheNextSong(c, BardSong.WanderersMinuet)).Because("next song");
-        p.OGcd(A.MagesBallad)
-            .When(c => ReadyForTheNextSong(c, BardSong.MagesBallad)).Because("next song");
-        p.OGcd(A.ArmysPaeon)
-            .When(c => ReadyForTheNextSong(c, BardSong.ArmysPaeon)).Because("next song");
+        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
 
         p.OGcd(A.PitchPerfect)
             .When(c => c.Brd.Repertoire >= 3

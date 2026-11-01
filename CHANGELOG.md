@@ -2,7 +2,8 @@
 
 ## 1.0.86.0
 
-- Bard holds a song for its full run instead of burning two in one weave window. All three cooldowns are independent, so the moment two were up the list offered one and then the other six tenths of a second later; a recorded pull spent Mage's Ballad for a single global and then had no song at all from 01:07 to 02:02. The song that is playing now decides, at the hand-offs The Balance gives: 3 seconds for Minuet and Ballad, 12-10 for Army's Paeon.
+- Bard holds a song for its full run instead of burning two in one weave window. All three cooldowns are independent, so the moment two were up the list offered one and then the other six tenths of a second later; a recorded pull spent Mage's Ballad for a single global and then had no song at all from 01:07 to 02:02. The song that is playing now decides the hand-off, at the 3 seconds The Balance gives. Army's Paeon should be cut shorter still, at 12-10, and is not yet: that needs to know which song the gauge's id stands for, so the recorded log now prints it.
+- Bard's recorded log carries a gauge line: song id and timer, repertoire, soul voice and coda.
 - An opener weave whose own recast is still turning is stepped over however little is left on it. The same Bard pull read "step 16 of 21, gave up: step 16 (Empyreal Arrow) was not usable (#582)" and threw away six steps over about 1.6 seconds.
 - Gunbreaker puts Double Down and Sonic Break ahead of starting a fresh Gnashing Fang. Gnashing Fang only needed a cartridge to exist, which is true on nearly every global in No Mercy, so it took both charges and six of the eight globals in the first window while the thousand-potency Double Down sat unused and Sonic Break landed 3.4 seconds after the window closed. In filler it now waits for a capped charge or for No Mercy within 7 seconds.
 - Gunbreaker has The Balance's opener. There was none, and the list opened with No Mercy on the second global against an empty magazine.

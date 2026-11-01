@@ -9,12 +9,13 @@ namespace OneTwoPunch.Core.Tests;
 
 /// <summary>
 /// The song that is playing decides when the next one starts, not the three independent
-/// two-minute cooldowns. The Balance: "~43 seconds in Wanderer's Minuet, ~43 seconds in
-/// Mage's Ballad (leaving as the timer hits 3-2 in both cases), then ~34 seconds in Army's
-/// Paeon (leaving at 12-10 on the timer)."
+/// two-minute cooldowns. The Balance: "leaving as the timer hits 3-2".
 /// </summary>
 public sealed class BardSongCycleTests
 {
+    /// <summary>Any song id will do for these; which number is which is not what is on test.</summary>
+    private const byte SomeSong = 1;
+
     private static RotationSession Session() =>
         new(JobRotationBase.Create<BardRotation>(),
             new RotationSettings { WeaveStyle = WeaveStyle.Double, UseOpener = false, SuggestionHoldSeconds = 0f });
@@ -29,12 +30,12 @@ public sealed class BardSongCycleTests
             .OnCooldown(B.RagingStrikes.Id, 60f)
             .OnCooldown(B.RadiantFinale.Id, 60f);
 
-    private static CombatSnapshot Playing(BardSong song, float remaining) =>
+    private static CombatSnapshot Playing(byte songId, float remaining) =>
         new SnapshotBuilder()
             .Job(23).Level(100).Gcd(1.6f).Enemies(1)
             .Gauge(s =>
             {
-                s.Gauges.Bard.Song = song;
+                s.Gauges.Bard.SongId = songId;
                 s.Gauges.Bard.SongTimeRemaining = remaining;
             })
             .Build();
@@ -48,12 +49,13 @@ public sealed class BardSongCycleTests
     public void ASongThatJustStartedIsNotImmediatelyReplaced()
     {
         var session = Session();
-        var snapshot = Playing(BardSong.MagesBallad, 44f);
 
-        var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, Idle());
+        var suggestion = session.Resolve(
+            RotationMode.SingleTarget, Playing(SomeSong, 44f), Idle());
 
         Assert.NotEqual(B.ArmysPaeon.Id, suggestion.Action.Id);
         Assert.NotEqual(B.WanderersMinuet.Id, suggestion.Action.Id);
+        Assert.NotEqual(B.MagesBallad.Id, suggestion.Action.Id);
     }
 
     /// <summary>Repertoire only ticks under a song, so silence is always filled.</summary>
@@ -61,73 +63,72 @@ public sealed class BardSongCycleTests
     public void WithNoSongPlayingTheStrongestIsTakenAtOnce()
     {
         var session = Session();
-        var snapshot = Playing(BardSong.None, 0f);
+        var snapshot = new SnapshotBuilder().Job(23).Level(100).Gcd(1.6f).Enemies(1).Build();
 
         var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, Idle());
 
         Assert.Equal(B.WanderersMinuet.Id, suggestion.Action.Id);
     }
 
-    /// <summary>The last proc chance is at three seconds, so that is the hand-off.</summary>
+    /// <summary>
+    /// At the hand-off the next song is taken. A song runs at most forty-five seconds
+    /// against a two minute recast, so the one playing is still turning and the ordering
+    /// picks the strongest of what is actually back.
+    /// </summary>
     [Theory]
     [InlineData(3f)]
     [InlineData(2f)]
-    public void MinuetAndBalladRunToThreeSeconds(float remaining)
+    public void TheNextSongIsTakenAtTheHandOff(float remaining)
     {
         var session = Session();
-        var actions = Idle().OnCooldown(B.WanderersMinuet.Id, 60f);
+        var actions = Idle()
+            .OnCooldown(B.WanderersMinuet.Id, 60f)
+            .OnCooldown(B.MagesBallad.Id, 77f);
 
         var suggestion = session.Resolve(
-            RotationMode.SingleTarget, Playing(BardSong.MagesBallad, remaining), actions);
+            RotationMode.SingleTarget, Playing(SomeSong, remaining), actions);
 
         Assert.Equal(B.ArmysPaeon.Id, suggestion.Action.Id);
     }
 
-    /// <summary>
-    /// Army's Paeon is the weakest of the three and is the one cut short - left at 12-10 on
-    /// the timer rather than run to three like the other two.
-    /// </summary>
+    /// <summary>Half a song still to run is not a hand-off.</summary>
     [Fact]
-    public void PaeonIsLeftEarlyWithTimeStillOnIt()
-    {
-        var session = Session();
-        var actions = Idle().OnCooldown(B.MagesBallad.Id, 60f);
-
-        var suggestion = session.Resolve(
-            RotationMode.SingleTarget, Playing(BardSong.ArmysPaeon, 11f), actions);
-
-        Assert.Equal(B.WanderersMinuet.Id, suggestion.Action.Id);
-    }
-
-    /// <summary>
-    /// The song playing is never the answer, even at its own hand-off. Its two minute
-    /// cooldown normally hides it, but resting on that would make the cycle only as right
-    /// as the cooldown bookkeeping - and restarting the song you are in throws away every
-    /// Repertoire stack banked under it. This is what CI caught: Ballad at two seconds
-    /// came back as Ballad again rather than handing over to Paeon.
-    /// </summary>
-    [Fact]
-    public void TheSongPlayingIsNeverOfferedAgain()
-    {
-        var session = Session();
-        var actions = Idle().OnCooldown(B.WanderersMinuet.Id, 60f);
-
-        var suggestion = session.Resolve(
-            RotationMode.SingleTarget, Playing(BardSong.MagesBallad, 2f), actions);
-
-        Assert.NotEqual(B.MagesBallad.Id, suggestion.Action.Id);
-    }
-
-    /// <summary>But not so early that a third of the song is thrown away.</summary>
-    [Fact]
-    public void PaeonIsNotLeftTheMomentItStarts()
+    public void ASongWithTimeLeftIsNotHandedOver()
     {
         var session = Session();
 
         var suggestion = session.Resolve(
-            RotationMode.SingleTarget, Playing(BardSong.ArmysPaeon, 30f), Idle());
+            RotationMode.SingleTarget, Playing(SomeSong, 20f), Idle());
 
         Assert.NotEqual(B.WanderersMinuet.Id, suggestion.Action.Id);
         Assert.NotEqual(B.MagesBallad.Id, suggestion.Action.Id);
+        Assert.NotEqual(B.ArmysPaeon.Id, suggestion.Action.Id);
+    }
+
+    /// <summary>
+    /// The recorded log carries the raw song id, which is what will settle the one thing the
+    /// rules still cannot tell: which number is Army's Paeon, so it can be left early.
+    /// </summary>
+    [Fact]
+    public void TheGaugeLineNamesTheSongIdAndItsTimer()
+    {
+        var job = JobRotationBase.Create<BardRotation>();
+
+        var line = job.DescribeGauge(Playing(3, 41.5f)) ?? string.Empty;
+
+        Assert.Contains("song 3", line);
+        Assert.Contains("41.5s", line);
+        Assert.Contains("repertoire", line);
+        Assert.Contains("coda", line);
+    }
+
+    /// <summary>With nothing playing the line says so rather than printing a zero.</summary>
+    [Fact]
+    public void TheGaugeLineSaysWhenThereIsNoSong()
+    {
+        var job = JobRotationBase.Create<BardRotation>();
+        var snapshot = new SnapshotBuilder().Job(23).Level(100).Build();
+
+        Assert.Contains("no song", job.DescribeGauge(snapshot) ?? string.Empty);
     }
 }
