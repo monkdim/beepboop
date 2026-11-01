@@ -244,6 +244,19 @@ public enum SerpentCombo : byte
 
 // ---- Physical ranged -----------------------------------------------------
 
+/// <summary>
+/// Which song is playing. Mapped by name at the plugin boundary rather than cast from the
+/// game's own numbering, so the values here are this project's to choose and a rename on
+/// the other side is a build error instead of a silently wrong song.
+/// </summary>
+public enum BardSong : byte
+{
+    None = 0,
+    MagesBallad = 1,
+    ArmysPaeon = 2,
+    WanderersMinuet = 3,
+}
+
 public struct BardGauge
 {
     /// <summary>Seconds left on the current song.</summary>
@@ -261,10 +274,13 @@ public struct BardGauge
     /// </summary>
     public byte SongId;
 
+    /// <summary>Which song is playing, or <see cref="BardSong.None"/>.</summary>
+    public BardSong Song;
+
     /// <summary>Coda collected, 0-3. Three enables Radiant Finale.</summary>
     public byte CodaCount;
 
-    public readonly bool AnySong => SongId != 0;
+    public readonly bool AnySong => Song != BardSong.None;
 }
 
 public struct MachinistGauge

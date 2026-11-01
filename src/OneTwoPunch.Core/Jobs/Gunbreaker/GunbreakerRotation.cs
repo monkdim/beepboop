@@ -20,7 +20,8 @@ namespace OneTwoPunch.Core.Jobs.Gunbreaker;
 /// Light, Aurora and Superbolide are declared for verification and left to the player.
 /// </para>
 /// <para>
-/// No scripted opener - see PaladinRotation for why.
+/// The scripted opener is The Balance's, checked against the chart - which is the
+/// condition PaladinRotation sets for having one at all.
 /// </para>
 /// </summary>
 public sealed class GunbreakerRotation : JobRotationBase
@@ -40,6 +41,52 @@ public sealed class GunbreakerRotation : JobRotationBase
     public override ActionRef? BurstAction => A.NoMercy;
 
     public override StatusRef? BurstStatus => A.NoMercyBuff;
+
+    /// <summary>
+    /// How close No Mercy has to be before a Gnashing Fang charge is spent in filler. The
+    /// Balance: "Once No Mercy's cooldown reaches 7 seconds or less, begin Gnashing Fang."
+    /// </summary>
+    private const float GnashingFangLead = 7f;
+
+    /// <summary>
+    /// The Balance's "Opener" for Gunbreaker level 100, Dawntrail patch 7.4. Lightning Shot
+    /// is the pull at -0.7s with Bloodfest weaved behind it, so the magazine is full before
+    /// No Mercy opens and Reign of Beasts is armed for the back half of the window.
+    /// <para>
+    /// There was no scripted opener here, because the chart had not been checked. It has
+    /// now. A recorded pull shows what the priority list opened with on its own: No Mercy
+    /// on the second global against an empty magazine, the Reign chain spent at once, two
+    /// Gnashing Fang chains filling the rest of the window, and neither Double Down nor
+    /// Sonic Break landing inside it.
+    /// </para>
+    /// <para>
+    /// The chart is written for a 2.50 global and matches party raid buffs at about 6.8
+    /// seconds. Its two optimisations are left to the player: late weaving No Mercy to fit
+    /// a ninth global in, and holding Wicked Talon into the window.
+    /// </para>
+    /// </summary>
+    private static readonly Opener Sequence = new(
+        "The Balance opener", 100,
+        A.LightningShot, A.Bloodfest,
+        A.KeenEdge,
+        A.BrutalShell, A.NoMercy,
+        A.GnashingFang, A.JugularRip, A.BowShock,
+        A.DoubleDown, A.BlastingZone,
+        A.SonicBreak,
+        A.SavageClaw, A.AbdomenTear,
+        A.WickedTalon, A.EyeGouge,
+        A.ReignOfBeasts,
+        A.NobleBlood,
+        A.LionHeart,
+        A.SolidBarrel,
+        A.GnashingFang, A.JugularRip)
+    {
+        // The chart draws the tincture beside No Mercy, in the weave window that opens once
+        // Brutal Shell is away.
+        PotionBeforeStep = 6,
+    };
+
+    public override Opener? Opener => Sequence;
 
     protected override void Build()
     {
@@ -69,11 +116,13 @@ public sealed class GunbreakerRotation : JobRotationBase
         p.OGcd(c => ZoneAction(c)).When(c => !c.Downtime);
         p.OGcd(A.BowShock).When(c => !c.Downtime);
 
-        // A dash, so it is only offered inside the burst rather than as filler that moves
-        // the player somewhere they did not ask to be.
-        p.OGcd(A.Trajectory)
-            .When(c => !c.Downtime && c.Buff(A.NoMercyBuff))
-            .Because("spend a charge in burst");
+        // Trajectory is not here, and must not come back. It was offered inside the burst
+        // on the reasoning that a charge is worth spending there; the game's own text says
+        // otherwise - "Rush to a targeted enemy's location. Additional Effect: Increased
+        // enmity" - and it has no potency line at all. A recorded pull spent it twice in
+        // the first No Mercy and twice in the second: four of the most contested weave
+        // slots in the rotation, for zero damage, extra enmity, and a tank yanked onto the
+        // boss each time. It is a gap closer and belongs to the player.
 
         // ---- GCDs --------------------------------------------------------
         // Both chains live in the same gauge step, and I had this wrong: the reasoning was
@@ -88,13 +137,28 @@ public sealed class GunbreakerRotation : JobRotationBase
         // has not been where it looked like it should be.
         p.Gcd(A.LionHeart).When(c => c.Gnb.AmmoComboStep >= 4 || c.ComboIs(A.NobleBlood));
         p.Gcd(A.NobleBlood).When(c => c.Gnb.AmmoComboStep == 3 || c.ComboIs(A.ReignOfBeasts));
-        p.Gcd(A.ReignOfBeasts).When(c => c.Buff(A.ReadyToReign)).Because("Ready to Reign");
 
         p.Gcd(A.WickedTalon).When(c => c.Gnb.AmmoComboStep == 2);
         p.Gcd(A.SavageClaw).When(c => c.Gnb.AmmoComboStep == 1);
 
-        p.Gcd(A.GnashingFang)
-            .When(c => !c.Downtime && c.Gnb.AmmoComboStep == 0 && c.Gnb.Ammo > 0);
+        // Everything below here is "what starts next", and the order is the whole burst.
+        //
+        // Gnashing Fang used to sit at the top of it, above Double Down and Sonic Break,
+        // with nothing but "a cartridge exists" to hold it back. Inside No Mercy that is
+        // true on almost every global, so it won every slot it was offered: a recorded
+        // pull spent both charges on two full Gnashing chains - six of the eight globals
+        // in the first window - and Double Down and Sonic Break never got one. Double Down
+        // is a thousand potency and the single biggest global in the kit; Sonic Break
+        // landed 3.4 seconds after the window had closed.
+        //
+        // The Balance's burst runs Reign of Beasts, Double Down, Sonic Break, then the
+        // Reign chain, then Gnashing Fang. Reign leads because it opens a three global
+        // chain that has to finish inside the window; Double Down and Sonic Break are
+        // single globals that cannot break a combo, so they slot in behind it. The guide's
+        // own tie-break for anything about to fall out of the window is Double Down, Reign
+        // of Beasts, Sonic Break, Gnashing Fang - the same four, and Gnashing Fang is last
+        // in both readings.
+        p.Gcd(A.ReignOfBeasts).When(c => c.Buff(A.ReadyToReign)).Because("Ready to Reign");
 
         p.Gcd(A.DoubleDown)
             .When(c => c.Buff(A.NoMercyBuff) && c.Gnb.Ammo >= 2)
@@ -106,6 +170,17 @@ public sealed class GunbreakerRotation : JobRotationBase
         p.Gcd(A.SonicBreak)
             .When(c => c.Buff(A.ReadyToBreak) || c.Buff(A.NoMercyBuff))
             .Because("in No Mercy");
+
+        // In the window, or to stop a charge capping, or to have one in hand when the
+        // window opens. The Balance: "Keep Gnashing Fang below 2 charges" in filler, and
+        // "Once No Mercy's cooldown reaches 7 seconds or less, begin Gnashing Fang."
+        p.Gcd(A.GnashingFang)
+            .When(c => !c.Downtime
+                       && c.Gnb.AmmoComboStep == 0
+                       && c.Gnb.Ammo > 0
+                       && (c.Buff(A.NoMercyBuff)
+                           || c.Charges(A.GnashingFang) >= c.MaxCharges(A.GnashingFang)
+                           || c.ReadyIn(A.NoMercy, GnashingFangLead)));
 
         // Burst Strike inside the window, and outside it only to stop the magazine
         // overflowing - a cartridge lost to a full gauge is a Gnashing Fang that never

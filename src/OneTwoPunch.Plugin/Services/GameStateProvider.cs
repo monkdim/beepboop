@@ -1,4 +1,5 @@
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -354,6 +355,18 @@ public sealed unsafe class GameStateProvider(
                 t.Repertoire = g.Repertoire;
                 t.SoulVoice = g.SoulVoice;
                 t.SongId = (byte)g.Song;
+
+                // Mapped by name, not cast. The engine needs to tell Army's Paeon from the
+                // other two - it is left early, at 12-10 on the timer, where the other two
+                // run to 3 - and a numeric cast would turn a rename on Dalamud's side into
+                // a silently wrong song rather than a build error.
+                t.Song = g.Song switch
+                {
+                    Song.Mage => BardSong.MagesBallad,
+                    Song.Army => BardSong.ArmysPaeon,
+                    Song.Wanderer => BardSong.WanderersMinuet,
+                    _ => BardSong.None,
+                };
 
                 var coda = 0;
                 foreach (var song in g.Coda)

@@ -148,6 +148,12 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
     /// </summary>
     private const int PrerequisiteMissing = 572;
 
+    /// <summary>
+    /// The game's "not yet ready" - the action's own recast is still turning. Nothing about
+    /// the world has diverged from the chart; the cooldown is simply not back.
+    /// </summary>
+    private const int RecastNotReady = 582;
+
     /// <summary>Where the opener got to and what it is doing, for the recorded log.</summary>
     public string? OpenerReport
     {
@@ -710,7 +716,18 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
 
             var settled = context.Snapshot.Now - _openerStepSince >= StepSettleSeconds;
 
-            // A weave whose own cooldown is still turning is not the world diverging.
+            // A weave whose own cooldown is still turning is not the world diverging, and
+            // how much of it is left does not change that.
+            //
+            // This used to step over only a cooldown longer than one global, on the
+            // reasoning that a short one is worth waiting a beat for. Waiting is not what
+            // happened: anything that fell through here abandoned the rest of the chart. A
+            // recorded Bard pull is the case - "step 16 of 21, gave up: step 16 (Empyreal
+            // Arrow) was not usable (#582)" - where Empyreal had about 1.6 seconds left
+            // against a 2.3 second global. Six steps were thrown away over a cooldown that
+            // came back before the next one, and the priority list fired that same Empyreal
+            // Arrow two seconds later anyway. Stepping over costs one scripted weave; giving
+            // up costs the rest of the opener.
             //
             // A missing prerequisite is different: the previous action's buff/gauge can
             // still be arriving. Give EACH step its settle period before treating #572 as
@@ -720,6 +737,7 @@ public sealed class RotationSession(IJobRotation job, RotationSettings settings)
             if (candidate.Kind == ActionKind.OGcd
                 && !context.Ready(candidate)
                 && (context.Cd(candidate) > context.GcdTotal
+                    || context.Actions.RefusalCode(candidate.Id) == RecastNotReady
                     || settled && !context.Casting
                         && context.Actions.RefusalCode(candidate.Id) == PrerequisiteMissing))
             {
