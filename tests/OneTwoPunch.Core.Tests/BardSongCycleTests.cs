@@ -99,6 +99,25 @@ public sealed class BardSongCycleTests
         Assert.Equal(B.WanderersMinuet.Id, suggestion.Action.Id);
     }
 
+    /// <summary>
+    /// The song playing is never the answer, even at its own hand-off. Its two minute
+    /// cooldown normally hides it, but resting on that would make the cycle only as right
+    /// as the cooldown bookkeeping - and restarting the song you are in throws away every
+    /// Repertoire stack banked under it. This is what CI caught: Ballad at two seconds
+    /// came back as Ballad again rather than handing over to Paeon.
+    /// </summary>
+    [Fact]
+    public void TheSongPlayingIsNeverOfferedAgain()
+    {
+        var session = Session();
+        var actions = Idle().OnCooldown(B.WanderersMinuet.Id, 60f);
+
+        var suggestion = session.Resolve(
+            RotationMode.SingleTarget, Playing(BardSong.MagesBallad, 2f), actions);
+
+        Assert.NotEqual(B.MagesBallad.Id, suggestion.Action.Id);
+    }
+
     /// <summary>But not so early that a third of the song is thrown away.</summary>
     [Fact]
     public void PaeonIsNotLeftTheMomentItStarts()

@@ -75,9 +75,12 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime).Because("burst window");
 
         // Songs, strongest first, and only at the hand-off point - see ReadyForTheNextSong.
-        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
-        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
-        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.WanderersMinuet)
+            .When(c => ReadyForTheNextSong(c, BardSong.WanderersMinuet)).Because("next song");
+        p.OGcd(A.MagesBallad)
+            .When(c => ReadyForTheNextSong(c, BardSong.MagesBallad)).Because("next song");
+        p.OGcd(A.ArmysPaeon)
+            .When(c => ReadyForTheNextSong(c, BardSong.ArmysPaeon)).Because("next song");
 
         // Repertoire caps at three under Wanderer's Minuet and is lost on song change.
         p.OGcd(A.PitchPerfect)
@@ -162,9 +165,16 @@ public sealed class BardRotation : JobRotationBase
     /// that comes back first is the one that was left first.
     /// </para>
     /// </summary>
-    private static bool ReadyForTheNextSong(RotationContext c)
+    private static bool ReadyForTheNextSong(RotationContext c, BardSong song)
     {
         if (c.Downtime)
+            return false;
+
+        // Never the one already playing. Its own cooldown normally hides it - a song is two
+        // minutes and runs at most forty-five seconds - but resting on that would mean the
+        // cycle is only ever as right as the cooldown bookkeeping, and restarting the song
+        // you are in throws away everything banked under it.
+        if (c.Brd.Song == song)
             return false;
 
         // Nothing playing: a song must always be running, so take whichever is offered.
@@ -184,9 +194,12 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.BattleVoice).When(c => !c.Downtime);
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime);
 
-        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
-        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
-        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.WanderersMinuet)
+            .When(c => ReadyForTheNextSong(c, BardSong.WanderersMinuet)).Because("next song");
+        p.OGcd(A.MagesBallad)
+            .When(c => ReadyForTheNextSong(c, BardSong.MagesBallad)).Because("next song");
+        p.OGcd(A.ArmysPaeon)
+            .When(c => ReadyForTheNextSong(c, BardSong.ArmysPaeon)).Because("next song");
 
         p.OGcd(A.PitchPerfect)
             .When(c => c.Brd.Repertoire >= 3
