@@ -1,4 +1,5 @@
 using OneTwoPunch.Core.Jobs.Bard;
+using OneTwoPunch.Core.Jobs.Healers;
 using OneTwoPunch.Core.Jobs.Beastmaster;
 using OneTwoPunch.Core.Jobs.BlackMage;
 using OneTwoPunch.Core.Jobs.Dancer;
@@ -34,6 +35,10 @@ public static class JobRegistry
 {
     public static readonly (uint JobId, Func<IJobRotation> Factory)[] Factories =
     [
+        (24, JobRotationBase.Create<WhiteMageRotation>),
+        (28, JobRotationBase.Create<ScholarRotation>),
+        (33, JobRotationBase.Create<AstrologianRotation>),
+        (40, JobRotationBase.Create<SageRotation>),
         (19, JobRotationBase.Create<PaladinRotation>),
         (20, JobRotationBase.Create<MonkRotation>),
         (21, JobRotationBase.Create<WarriorRotation>),

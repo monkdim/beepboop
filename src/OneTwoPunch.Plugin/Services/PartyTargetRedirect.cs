@@ -1,11 +1,13 @@
 using Dalamud.Hooking;
+using Dalamud.Game.ClientState.Objects.Types;
+using OneTwoPunch.Core.Jobs.Healers;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace OneTwoPunch.Plugin.Services;
 
 /// <summary>
-/// Sends Aetherial Manipulation to the tank when nothing worth jumping to is targeted.
+/// Routes AST cards from rotation buttons and optionally redirects Aetherial Manipulation.
 /// <para>
 /// Aetherial Manipulation teleports the Black Mage to a party member, so it needs one
 /// targeted - and in the moment you want it, what is targeted is the boss. The usual answer
@@ -22,7 +24,7 @@ namespace OneTwoPunch.Plugin.Services;
 /// </summary>
 public sealed unsafe class PartyTargetRedirect : IDisposable
 {
-    /// <summary>Aetherial Manipulation. The only action this touches.</summary>
+    /// <summary>Aetherial Manipulation; the only non-card action this changes.</summary>
     private const uint AetherialManipulation = 155;
 
     /// <summary>The game's own "no target" sentinel.</summary>
@@ -35,6 +37,8 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
     private readonly IPluginLog _log;
     private readonly IPartyList _party;
     private readonly Func<bool> _enabled;
+    private readonly Func<uint, uint> _cardForButton;
+    private readonly Func<IBattleChara?> _player;
 
     private Hook<ActionManager.Delegates.UseAction>? _hook;
     private bool _unavailable;
@@ -45,12 +49,14 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
         IGameInteropProvider interop,
         IPluginLog log,
         IPartyList party,
-        Func<bool> enabled)
+        Func<bool> enabled, Func<uint, uint> cardForButton, Func<IBattleChara?> player)
     {
         _interop = interop;
         _log = log;
         _party = party;
         _enabled = enabled;
+        _cardForButton = cardForButton;
+        _player = player;
     }
 
     public bool IsActive => _hook is { IsEnabled: true };
@@ -84,7 +90,7 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
         {
             // Never worth the game. Without it the key behaves exactly as the game intends.
             _unavailable = true;
-            _log.Error(ex, "One Two Punch: could not hook UseAction; Aetherial Manipulation will need its own target.");
+            _log.Error(ex, "One Two Punch: party targeting is unavailable; AST cards stay manual.");
             return false;
         }
     }
@@ -114,7 +120,23 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
     {
         try
         {
-            if (_enabled()
+            var card = actionType == ActionType.Action ? _cardForButton(actionId) : 0;
+            if (AstrologianCardTarget.IsCard(card))
+            {
+                var recipient = FindCardTarget(self, card);
+                if (recipient == 0)
+                {
+                    // The party may have changed since the button was drawn.
+                    if (outOptAreaTargeted != null)
+                        *outOptAreaTargeted = false;
+                    return false;
+                }
+                // Pass one original action request with the resolved card and its target.
+                // Do not switch the player's selected target or send another press.
+                actionId = card;
+                targetId = recipient;
+            }
+            else if (_enabled()
                 && actionType == ActionType.Action
                 && actionId == AetherialManipulation
                 && !IsPartyMember(targetId))
@@ -171,6 +193,36 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
         }
 
         return 0;
+    }
+
+    private ulong FindCardTarget(ActionManager* manager, uint card)
+    {
+        var player = _player();
+        if (player is null || player.Address == 0)
+            return 0;
+
+        Span<CardRecipient> candidates = stackalloc CardRecipient[_party.Length + 1];
+        var count = 0;
+        for (var i = 0; i <= _party.Length; i++)
+        {
+            // Include self even when solo. A player may also appear in the party list.
+            var candidate = i == _party.Length ? player : _party[i]?.GameObject as IBattleChara;
+            if (candidate is null || candidate.IsDead || !candidate.IsTargetable
+                || candidate.Address == 0 || candidate.CurrentHp == 0)
+                continue;
+            var isSelf = candidate.GameObjectId == player.GameObjectId;
+            if (!isSelf && ActionManager.GetActionInRangeOrLoS(card,
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address,
+                (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)candidate.Address) != 0)
+                continue;
+            if (manager->GetActionStatus(ActionType.Action, card, candidate.GameObjectId) != 0)
+                continue;
+
+            candidates[count++] = new CardRecipient(candidate.GameObjectId, candidate.ClassJob.Value.Role,
+                isSelf, candidate.CurrentHp / (float)Math.Max(1u, candidate.MaxHp));
+        }
+
+        return AstrologianCardTarget.Choose(card, candidates[..count]);
     }
 
     public void Dispose()

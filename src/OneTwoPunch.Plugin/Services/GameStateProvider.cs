@@ -1,3 +1,4 @@
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -141,6 +142,9 @@ public sealed unsafe class GameStateProvider(
         s.TargetId = battleTarget?.GameObjectId ?? CombatSnapshot.NoTarget;
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc;
+        s.TargetDistance = battleTarget is null ? float.PositiveInfinity
+            : Math.Max(0, System.Numerics.Vector3.Distance(player.Position, battleTarget.Position)
+                - battleTarget.HitboxRadius);
 
         // Both addresses are handed straight to the game as pointers. A target that was
         // destroyed between frames leaves a live-looking wrapper around a null address, and
@@ -172,7 +176,7 @@ public sealed unsafe class GameStateProvider(
 
         if (s.Now - _enemyCountedAt >= EnemyCountInterval)
         {
-            _enemyCount = EnemyCounter.CountAround(objects, battleTarget, job.AoeRadius);
+            _enemyCount = EnemyCounter.CountAround(objects, job.AoeCenteredOnPlayer ? player : battleTarget, job.AoeRadius);
             _enemyCountedAt = s.Now;
         }
 
@@ -380,12 +384,25 @@ public sealed unsafe class GameStateProvider(
                 break;
             }
 
+            case 24:
+                s.Gauges.WhiteMageBloodLily = gauges.Get<WHMGauge>().BloodLily;
+                break;
             case 27:
             {
                 var g = gauges.Get<SMNGauge>();
                 ref var t = ref s.Gauges.Summoner;
                 t.AetherflowStacks = g.AetherflowStacks;
-                t.Attunement = g.Attunement;
+                t.Attunement = g.AttunementCount;
+                var local = objects.LocalPlayer;
+                t.HasPet = false;
+                if (local is not null)
+                    foreach (var obj in objects)
+                        if (obj is IBattleNpc { BattleNpcKind: BattleNpcSubKind.Pet, IsDead: false }
+                            && (obj.OwnerId == local.EntityId || obj.OwnerId == local.GameObjectId))
+                        {
+                            t.HasPet = true;
+                            break;
+                        }
                 t.SummonTimeRemaining = g.SummonTimerRemaining / 1000f;
                 t.IfritReady = g.IsIfritReady;
                 t.TitanReady = g.IsTitanReady;

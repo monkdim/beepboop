@@ -1,5 +1,11 @@
 # Changes
 
+## 1.0.86.0
+
+- Summoner's two buttons follow demi-summon and primal phases, including elemental attacks and Ifrit's follow-ups.
+- White Mage, Scholar, Astrologian and Sage now have single-target and AoE damage buttons.
+- Astrologian's two buttons draw and play targeted cards with role-based recipients and eligible backups. Manual healing and card buttons are unchanged.
+
 ## 1.0.85.0
 
 - Viper, Ninja and Beastmaster get the second weave their follow-ups need again. 1.0.83.0 made a job's weave minimum advisory, so on the default single-weave setting half of every Twinfang/Twinblood pair was dropped and the rotation read as the main combo and nothing else. "Globals only" still overrides every job, as it always did.
