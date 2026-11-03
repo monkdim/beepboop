@@ -21,6 +21,7 @@ public abstract class JobRotationBase : IJobRotation
     public abstract ActionRef AoeButton { get; }
 
     public virtual float AoeRadius => 5f;
+    public virtual bool AoeCenteredOnPlayer => false;
 
     public virtual int AoeMinimumEnemies => 2;
 

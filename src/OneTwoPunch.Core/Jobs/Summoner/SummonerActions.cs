@@ -53,7 +53,7 @@ public static class SummonerActions
     public static readonly ActionRef AstralImpulse = new(25820, "Astral Impulse", ActionKind.Gcd, 58);
     public static readonly ActionRef AstralFlare = new(25821, "Astral Flare", ActionKind.Gcd, 58);
     public static readonly ActionRef Deathflare = new(3582, "Deathflare", ActionKind.OGcd, 60);
-    public static readonly ActionRef AstralFlow = new(25822, "Astral Flow", ActionKind.Gcd, 60);
+    public static readonly ActionRef AstralFlow = new(25822, "Astral Flow", ActionKind.OGcd, 60);
     public static readonly ActionRef Ruin4 = new(7426, "Ruin IV", ActionKind.Gcd, 62);
     public static readonly ActionRef SearingLight = new(25801, "Searing Light", ActionKind.OGcd, 66);
     public static readonly ActionRef SummonBahamut = new(7427, "Summon Bahamut", ActionKind.Gcd, 70);
@@ -68,13 +68,13 @@ public static class SummonerActions
     public static readonly ActionRef Rekindle = new(25830, "Rekindle", ActionKind.OGcd, 80);
     public static readonly ActionRef SummonPhoenix = new(25831, "Summon Phoenix", ActionKind.Gcd, 80);
     public static readonly ActionRef EnkindlePhoenix = new(16516, "Enkindle Phoenix", ActionKind.OGcd, 80);
-    public static readonly ActionRef BrandOfPurgatory = new(16515, "Br and of Purgatory", ActionKind.Gcd, 80);
-    public static readonly ActionRef FountainOfFire = new(16514, "Founta in of Fire", ActionKind.Gcd, 80);
+    public static readonly ActionRef BrandOfPurgatory = new(16515, "Brand of Purgatory", ActionKind.Gcd, 80);
+    public static readonly ActionRef FountainOfFire = new(16514, "Fountain of Fire", ActionKind.Gcd, 80);
     public static readonly ActionRef RubyCatastrophe = new(25832, "Ruby Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef TopazCatastrophe = new(25833, "Topaz Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef EmeraldCatastrophe = new(25834, "Emerald Catastrophe", ActionKind.Gcd, 82);
     public static readonly ActionRef Slipstream = new(25837, "Slipstream", ActionKind.Gcd, 86);
-    public static readonly ActionRef MountainBuster = new(25836, "Mounta in Buster", ActionKind.OGcd, 86);
+    public static readonly ActionRef MountainBuster = new(25836, "Mountain Buster", ActionKind.OGcd, 86);
     public static readonly ActionRef CrimsonCyclone = new(25835, "Crimson Cyclone", ActionKind.Gcd, 86);
     public static readonly ActionRef CrimsonStrike = new(25885, "Crimson Strike", ActionKind.Gcd, 86);
     public static readonly ActionRef SummonIfrit2 = new(25838, "Summon Ifrit II", ActionKind.Gcd, 90);

@@ -20,6 +20,7 @@ public sealed class JobGauges
     public BardGauge Bard;
     public BlackMageGauge BlackMage;
     public SummonerGauge Summoner;
+    public byte WhiteMageBloodLily;
     public NinjaGauge Ninja;
     public MachinistGauge Machinist;
     public SamuraiGauge Samurai;
@@ -353,6 +354,8 @@ public struct SummonerGauge
 
     /// <summary>Seconds left on the active summon.</summary>
     public float SummonTimeRemaining;
+
+    public bool HasPet;
 
     public bool IfritReady;
 

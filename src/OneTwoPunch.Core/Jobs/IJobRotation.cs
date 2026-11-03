@@ -24,6 +24,7 @@ public interface IJobRotation
 
     /// <summary>Radius in yalms used to count enemies for the AoE button.</summary>
     float AoeRadius { get; }
+    bool AoeCenteredOnPlayer { get; }
 
     /// <summary>
     /// How many enemies the AoE list is a gain over the single-target one. Below this, the
