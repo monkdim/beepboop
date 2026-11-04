@@ -129,7 +129,7 @@ public sealed class NinjaRotation : JobRotationBase
         // A half-charged sequence expires in six seconds, and each step is a fast global -
         // half a second for the second mudra, a second and a half for the cast - so finishing
         // one costs almost nothing and abandoning it wastes a charge.
-        AddMudraContinueRules(p);
+        AddMudraContinueRules(p, aoe: false);
 
         p.Gcd(A.PhantomKamaitachi).When(c => c.Buff(A.PhantomKamaitachiReady));
 
@@ -245,7 +245,7 @@ public sealed class NinjaRotation : JobRotationBase
         AddTenChiJinRules(p);
 
         AddNinjutsuFireRule(p);
-        AddMudraContinueRules(p);
+        AddMudraContinueRules(p, aoe: true);
 
         p.Gcd(A.PhantomKamaitachi).When(c => c.Buff(A.PhantomKamaitachiReady));
 
@@ -269,7 +269,7 @@ public sealed class NinjaRotation : JobRotationBase
             + "nobody who bound it loses it.").Plan;
 
         AddNinjutsuFireRule(p);
-        AddMudraContinueRules(p);
+        AddMudraContinueRules(p, aoe: null);
         AddMudraStartRules(p, aoe: null);
     }
 
@@ -302,7 +302,24 @@ public sealed class NinjaRotation : JobRotationBase
     /// second of recast each - the game only accepts these ids once a sequence is running, so
     /// they are self-gating as well as guarded here.
     /// </summary>
-    private static void AddMudraContinueRules(RotationPlan p)
+    /// <param name="aoe">
+    /// Which line the sequence is on, exactly as <see cref="AddMudraStartRules"/> takes it.
+    /// <para>
+    /// This used to be left out, and the second mudra read the enemy count on its own. The
+    /// opening mudra does not: the area button forces Chi whatever the count is. So on the
+    /// area button against one or two targets the sequence opened on Chi and then asked the
+    /// count, got "not an area fight", and answered Chi a second time. A recorded pull shows
+    /// both halves of it - "00:05.2 Chi (Suiton)" one global after "00:04.7 Chi (Katon)",
+    /// then Rabbit Medium - and it repeats every time the area button starts a ninjutsu
+    /// below three targets, which is most of a dungeon pull as the pack dies.
+    /// </para>
+    /// <para>
+    /// The hysteresis in <see cref="Area"/> was meant to cover this and cannot: it guards a
+    /// count falling from three to two mid-sequence, not a button that never consulted the
+    /// count to begin with. Whoever opened the sequence decides how it finishes.
+    /// </para>
+    /// </param>
+    private static void AddMudraContinueRules(RotationPlan p, bool? aoe)
     {
         // Raiton is the one spell that can still grow: Jin turns it into Suiton, which is
         // what arms Kunai's Bane and what Meisui needs. WantsToGrow tests Jin's readiness
@@ -311,15 +328,18 @@ public sealed class NinjaRotation : JobRotationBase
         p.Gcd(A.Jin2).When(WantsToGrow).Because("grow it into Suiton");
 
         p.Gcd(A.Ten2)
-            .When(c => Charged(c) == A.FumaShuriken.Id && Area(c))
+            .When(c => Charged(c) == A.FumaShuriken.Id && OnTheAreaLine(c, aoe))
             .Because(c => c.Buff(A.KassatsuBuff) ? "Goka Mekkyaku" : "Katon");
 
         p.Gcd(A.Jin2)
             .When(c => Charged(c) == A.FumaShuriken.Id && c.Buff(A.KassatsuBuff))
             .Because("Hyosho Ranryu");
 
+        // Explicitly not the area line, rather than a fallthrough. Chi on top of Chi is the
+        // botch this whole parameter exists to stop, so it is spelled out instead of being
+        // whatever is left when the two rules above decline.
         p.Gcd(A.Chi2)
-            .When(c => Charged(c) == A.FumaShuriken.Id)
+            .When(c => Charged(c) == A.FumaShuriken.Id && !OnTheAreaLine(c, aoe))
             .Because(c => NeedsShadowWalker(c) ? "Suiton" : "Raiton");
     }
 
@@ -420,6 +440,14 @@ public sealed class NinjaRotation : JobRotationBase
     /// </summary>
     private static bool Area(RotationContext c) =>
         Charged(c) == A.Ninjutsu.Id ? c.Enemies >= 3 : c.Enemies >= 2;
+
+    /// <summary>
+    /// Which line a mudra sequence is on: the button's own, where it has one, and the enemy
+    /// count only for the extra mudra key, which has no line of its own. The start and the
+    /// continue rules both read it, so the second mudra always belongs to the sequence the
+    /// first one opened.
+    /// </summary>
+    private static bool OnTheAreaLine(RotationContext c, bool? aoe) => aoe ?? Area(c);
 
     /// <summary>
     /// Whether a Suiton is owed. Kunai's Bane and Meisui both need Shadow Walker and both

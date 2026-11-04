@@ -74,11 +74,10 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.BattleVoice).When(c => !c.Downtime).Because("raid buff");
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime).Because("burst window");
 
-        // Songs. Their cooldowns already enforce the cycle, so taking whichever is up is
-        // enough - and a song must always be running, since Repertoire only ticks under one.
-        p.OGcd(A.WanderersMinuet).When(c => !c.Downtime);
-        p.OGcd(A.MagesBallad).When(c => !c.Downtime);
-        p.OGcd(A.ArmysPaeon).When(c => !c.Downtime);
+        // Songs, strongest first, and only at the hand-off point - see ReadyForTheNextSong.
+        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
 
         // Repertoire caps at three under Wanderer's Minuet and is lost on song change.
         p.OGcd(A.PitchPerfect)
@@ -132,6 +131,70 @@ public sealed class BardRotation : JobRotationBase
         p.Gcd(c => c.Has(A.BurstShot) ? A.BurstShot : A.HeavyShot);
     }
 
+    /// <summary>
+    /// The last repertoire proc chance is at three seconds, so that is where a song hands
+    /// over. The Balance: "~43 seconds in Wanderer's Minuet, ~43 seconds in Mage's Ballad
+    /// (leaving as the timer hits 3-2 in both cases)."
+    /// <para>
+    /// Army's Paeon is meant to be cut shorter still - "~34 seconds in Army's Paeon
+    /// (leaving at 12-10 on the timer)" - because it is the weakest of the three. That one
+    /// is not here yet: telling Paeon from the other two means knowing which song the
+    /// gauge's SongId stands for, and the two readings available from here (Dalamud's enum
+    /// member names, and the song status ids, of which the game's sheet carries several per
+    /// song) are both guesses. DescribeGauge now prints the id, so the next recorded Bard
+    /// pull settles it from real data instead.
+    /// </para>
+    /// </summary>
+    private const float LeaveSongAt = 3f;
+
+    /// <summary>
+    /// Whether the song that is playing has reached the point where the next one takes
+    /// over - and nothing else.
+    /// <para>
+    /// This used to be <c>!c.Downtime</c> on all three, on the reasoning that two minute
+    /// cooldowns enforce the cycle by themselves. They do not. The three cooldowns run
+    /// independently, so the moment two of them are up the list offers one, the player takes
+    /// it, and the very next weave window it offers the other. A recorded pull is the whole
+    /// case: Mage's Ballad at 00:20.3 and Army's Paeon at 00:20.9, six tenths of a second
+    /// apart. Ballad was spent for one global, Paeon ran its course, and from 01:07 to 02:02
+    /// the log shows no song at all - no Repertoire, no Soul Voice, no party buff, and no
+    /// Pitch Perfect to spend - because all three were then turning at once.
+    /// </para>
+    /// <para>
+    /// So the song that is up decides, not the cooldowns. Which one comes next needs no
+    /// deciding: a song runs at most forty-five seconds against a two minute recast, so the
+    /// one playing is always still on cooldown, and ordering the three strongest-first picks
+    /// the right one out of what is left.
+    /// </para>
+    /// </summary>
+    private static bool ReadyForTheNextSong(RotationContext c)
+    {
+        if (c.Downtime)
+            return false;
+
+        // Nothing playing: a song must always be running, so take whichever is offered.
+        if (!c.Brd.AnySong)
+            return true;
+
+        return c.Brd.SongTimeRemaining <= LeaveSongAt;
+    }
+
+    /// <summary>
+    /// What the recorded log prints for a Bard line. The song id is raw on purpose: which
+    /// number is which song is the one thing the rules above still cannot tell, and a
+    /// recorded pull naming it beside the song timer answers that without guessing.
+    /// </summary>
+    public override string? DescribeGauge(CombatSnapshot snapshot)
+    {
+        var g = snapshot.Gauges.Bard;
+
+        var song = g.AnySong
+            ? $"song {g.SongId} {g.SongTimeRemaining:0.#}s"
+            : "no song";
+
+        return $"{song} | repertoire {g.Repertoire} | soul {g.SoulVoice} | coda {g.CodaCount}";
+    }
+
     private void BuildAoe()
     {
         var p = Aoe;
@@ -140,9 +203,9 @@ public sealed class BardRotation : JobRotationBase
         p.OGcd(A.BattleVoice).When(c => !c.Downtime);
         p.OGcd(A.RagingStrikes).When(c => !c.Downtime);
 
-        p.OGcd(A.WanderersMinuet).When(c => !c.Downtime);
-        p.OGcd(A.MagesBallad).When(c => !c.Downtime);
-        p.OGcd(A.ArmysPaeon).When(c => !c.Downtime);
+        p.OGcd(A.WanderersMinuet).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.MagesBallad).When(ReadyForTheNextSong).Because("next song");
+        p.OGcd(A.ArmysPaeon).When(ReadyForTheNextSong).Because("next song");
 
         p.OGcd(A.PitchPerfect)
             .When(c => c.Brd.Repertoire >= 3
