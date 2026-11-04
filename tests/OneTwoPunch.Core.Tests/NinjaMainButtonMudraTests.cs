@@ -182,6 +182,56 @@ public sealed class NinjaMainButtonMudraTests
         Assert.Equal(A.Ten2.Id, suggestion.Action.Id);
     }
 
+    /// <summary>
+    /// The area button forces Chi as the opening mudra whatever the enemy count is, so the
+    /// second mudra has to belong to that same sequence. It used to read the count on its own
+    /// and answer Chi a second time, which the game turns into Rabbit Medium.
+    /// <para>
+    /// Straight from a recorded dungeon pull on 1.0.85.0, one target left in the pack:
+    /// "00:04.7 Chi (Katon)" then "00:05.2 Chi (Suiton)" then "00:05.7 Rabbit Medium".
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void TheAreaSecondMudraIsTenWhateverTheCount(int enemies)
+    {
+        var session = Session();
+        var snapshot = Global().Enemies(enemies).Build();
+
+        var first = session.Resolve(RotationMode.Aoe, snapshot, Quiet());
+        Assert.Equal(A.Chi1.Id, first.Action.Id);
+
+        var second = session.Resolve(
+            RotationMode.Aoe, snapshot, Charged(Quiet(), A.FumaShuriken));
+
+        Assert.Equal(A.Ten2.Id, second.Action.Id);
+        Assert.NotEqual(A.Chi2.Id, second.Action.Id);
+    }
+
+    /// <summary>
+    /// And the mirror: the single-target button always opens on Ten, so a pack gathering
+    /// around the player must not turn its second mudra into another Ten.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void TheSingleTargetSecondMudraIsChiWhateverTheCount(int enemies)
+    {
+        var session = Session();
+        var snapshot = Global().Enemies(enemies).Build();
+
+        var first = session.Resolve(RotationMode.SingleTarget, snapshot, Quiet());
+        Assert.Equal(A.Ten1.Id, first.Action.Id);
+
+        var second = session.Resolve(
+            RotationMode.SingleTarget, snapshot, Charged(Quiet(), A.FumaShuriken));
+
+        Assert.Equal(A.Chi2.Id, second.Action.Id);
+        Assert.NotEqual(A.Ten2.Id, second.Action.Id);
+    }
+
     // ---- Ten Chi Jin ------------------------------------------------------
 
     [Fact]
