@@ -98,6 +98,29 @@ For Dragoon that is **True Thrust** and **Doom Spike**; for Machinist, **Split S
 **Spread Shot**. Their icons change as you play. Everything else on your hotbar is
 untouched — the plugin only ever answers for those two slots.
 
+### Summoner and healer rotation buttons
+
+| Job | Single target | Area damage |
+| --- | --- | --- |
+| Summoner | Ruin (or its current upgrade) | Outburst (or its current upgrade) |
+| White Mage | Stone / Glare | Holy |
+| Scholar | Ruin / Broil | Art of War |
+| Astrologian | Malefic | Gravity |
+| Sage | Dosis | Dyskrasia |
+
+The healer buttons handle damage and offensive cooldowns. Healing, raises,
+Scholar's healing resources, and Lady of Crowns stay on their own buttons.
+Astrologian's rotation buttons draw and play the six targeted cards when the
+selected weave budget allows it. Balance prefers melee DPS, then tanks;
+Spear prefers ranged DPS, then healers. Defensive cards prefer tanks, and Ewer
+prefers the lowest-health eligible player. Out-of-range and unavailable players
+are skipped, with self available as a fallback. Card targeting applies only to
+the two rotation buttons; manually pressed cards keep their normal targeting.
+
+Summoner uses the game's current action forms for each summon and restores a
+missing Carbuncle on a rotation press. Ifrit's movement attack remains part
+of the damage sequence. No rotation action is sent without a player press.
+
 ### Commands
 
 | Command | What it does |
@@ -113,7 +136,7 @@ untouched — the plugin only ever answers for those two slots.
 
 ## Supported jobs
 
-All thirteen DPS jobs, all four tanks, and Beastmaster — single target and AoE:
+All thirteen DPS jobs, all four tanks, all four healers, and Beastmaster — single target and AoE:
 
 | | |
 |---|---|
@@ -121,6 +144,7 @@ All thirteen DPS jobs, all four tanks, and Beastmaster — single target and AoE
 | **Melee** | Monk, Dragoon, Ninja, Samurai, Reaper, Viper |
 | **Physical ranged** | Bard, Machinist, Dancer |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer |
+| **Healers** | White Mage, Scholar, Astrologian, Sage |
 | **Limited** | Beastmaster |
 
 The AoE button always shows the AoE rotation, including against a single enemy, so it can

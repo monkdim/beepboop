@@ -1,5 +1,6 @@
 using FFXIVClientStructs.FFXIV.Client.Game;
 using OneTwoPunch.Core.Model;
+using OneTwoPunch.Core.Jobs.Healers;
 
 namespace OneTwoPunch.Plugin.Services;
 
@@ -91,8 +92,11 @@ public sealed unsafe class ActionStateAdapter : IActionState
 
     public int MaxCharges(uint actionId) => Lookup(actionId).MaxCharges;
 
+    public Func<bool>? CardTargetingAvailable { get; set; }
+
     public bool CanUse(uint actionId, bool ignoreRecast = false) =>
-        ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable;
+        (!AstrologianCardTarget.IsCard(actionId) || CardTargetingAvailable?.Invoke() == true)
+        && (ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable);
 
     public int RefusalCode(uint actionId) => Lookup(actionId).Refusal;
 

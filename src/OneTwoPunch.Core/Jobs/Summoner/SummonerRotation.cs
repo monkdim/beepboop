@@ -40,124 +40,40 @@ public sealed class SummonerRotation : JobRotationBase
 
     protected override void Build()
     {
-        BuildSingleTarget();
-        BuildAoe();
+        BuildRotation(SingleTarget, false);
+        BuildRotation(Aoe, true);
     }
 
-    private void BuildSingleTarget()
+    private void BuildRotation(RotationPlan plan, bool aoe)
     {
-        var p = SingleTarget;
+        var filler = aoe ? A.Outburst : A.Ruin1;
+        plan.OGcd(A.SearingLight).When(c => c.HasTarget && !c.Downtime);
+        plan.OGcd(A.SearingFlash).When(c => c.HasTarget && c.Buff(A.RubysGlimmer));
+        plan.OGcd(A.Sunflare).When(c => c.HasTarget && Current(c, A.AstralFlow) == A.Sunflare);
+        plan.OGcd(A.Deathflare).When(c => c.HasTarget && Current(c, A.AstralFlow) == A.Deathflare);
+        plan.OGcd(A.MountainBuster).When(c => c.HasTarget && c.Buff(A.TitansFavor));
+        plan.OGcd(c => Current(c, A.EnkindleBahamut))
+            .When(c => c.HasTarget && c.Smn.SummonTimeRemaining > 0
+                && !c.Smn.PrimalActive && c.Has(A.EnkindleBahamut));
+        plan.OGcd(c => aoe && c.Has(A.Painflare) ? A.Painflare : c.Has(A.Necrotize) ? A.Necrotize : A.Fester)
+            .When(c => c.HasTarget && c.Smn.AetherflowStacks > 0);
+        plan.OGcd(c => aoe && c.Has(A.EnergySiphon) ? A.EnergySiphon : A.EnergyDrain)
+            .When(c => c.HasTarget && c.Smn.AetherflowStacks == 0);
 
-        // ---- Off-globals -------------------------------------------------
-        p.OGcd(A.SearingLight).When(c => !c.Downtime).Because("raid buff");
-        p.OGcd(A.SearingFlash).When(c => c.Buff(A.RubysGlimmer));
-
-        // Whichever pet is out; the game only accepts the matching one.
-        p.OGcd(A.EnkindleSolarBahamut).When(c => !c.Downtime);
-        p.OGcd(A.EnkindleBahamut).When(c => !c.Downtime);
-        p.OGcd(A.EnkindlePhoenix).When(c => !c.Downtime);
-
-        // Astral Flow is Mountain Buster, Slipstream or Crimson Cyclone depending on the
-        // primal - again resolved by the game rather than duplicated here.
-        p.OGcd(A.AstralFlow)
-            .When(c => c.Buff(A.TitansFavor) || c.Buff(A.GarudasFavor) || c.Buff(A.IfritsFavor));
-
-        p.OGcd(A.MountainBuster).When(c => c.Buff(A.TitansFavor));
-        p.OGcd(A.CrimsonStrike).When(c => c.Buff(A.CrimsonStrikeReady));
-
-        // Aetherflow: Fester is the single-target spend and caps at two stacks.
-        p.OGcd(c => c.Has(A.Necrotize) ? A.Necrotize : A.Fester)
-            .When(c => c.Smn.AetherflowStacks > 0)
-            .Because("spend Aetherflow");
-
-        p.OGcd(A.EnergyDrain)
-            .When(c => c.Smn.AetherflowStacks == 0 && !c.Downtime)
-            .Because("refill Aetherflow");
-
-        // ---- GCDs --------------------------------------------------------
-        // While a primal is attuned the whole bar is its element.
-        p.Gcd(A.Gemshine)
-            .When(c => c.Smn.Attunement > 0)
-            .Because("primal attunement");
-
-        p.Gcd(A.Slipstream).When(c => c.Buff(A.SlipstreamBuff));
-
-        // Great wyrm phase.
-        p.Gcd(A.UmbralImpulse).When(c => !c.Downtime);
-        p.Gcd(A.AstralImpulse).When(c => !c.Downtime);
-        p.Gcd(A.FountainOfFire).When(c => !c.Downtime);
-
-        p.Gcd(A.Sunflare).When(c => !c.Downtime);
-        p.Gcd(A.Deathflare).When(c => !c.Downtime);
-
-        // Summons, in the order the loop wants them. Each is only accepted at its point in
-        // the cycle, so Ready() keeps the sequence without a phase counter here.
-        p.Gcd(A.SummonSolarBahamut).When(c => !c.Downtime);
-        p.Gcd(A.SummonBahamut).When(c => !c.Downtime);
-        p.Gcd(A.SummonPhoenix).When(c => !c.Downtime);
-
-        p.Gcd(c => c.Has(A.SummonIfrit2) ? A.SummonIfrit2 : A.SummonIfrit1).When(c => !c.Downtime);
-        p.Gcd(c => c.Has(A.SummonTitan2) ? A.SummonTitan2 : A.SummonTitan1).When(c => !c.Downtime);
-        p.Gcd(c => c.Has(A.SummonGaruda2) ? A.SummonGaruda2 : A.SummonGaruda1).When(c => !c.Downtime);
-
-        p.Gcd(A.LuxSolaris).When(c => c.Buff(A.RefulgentLux));
-
-        p.Gcd(A.Ruin4)
-            .When(c => c.Buff(A.FurtherRuin))
-            .Because("free and instant");
-
-        p.Gcd(c => c.Has(A.Ruin3) ? A.Ruin3 : A.Ruin1);
-    }
-
-    private void BuildAoe()
-    {
-        var p = Aoe;
-
-        p.OGcd(A.SearingLight).When(c => !c.Downtime).Because("raid buff");
-        p.OGcd(A.SearingFlash).When(c => c.Buff(A.RubysGlimmer));
-
-        p.OGcd(A.EnkindleSolarBahamut).When(c => !c.Downtime);
-        p.OGcd(A.EnkindleBahamut).When(c => !c.Downtime);
-        p.OGcd(A.EnkindlePhoenix).When(c => !c.Downtime);
-
-        p.OGcd(A.AstralFlow)
-            .When(c => c.Buff(A.TitansFavor) || c.Buff(A.GarudasFavor) || c.Buff(A.IfritsFavor));
-
-        p.OGcd(A.MountainBuster).When(c => c.Buff(A.TitansFavor));
-        p.OGcd(A.CrimsonStrike).When(c => c.Buff(A.CrimsonStrikeReady));
-
-        p.OGcd(A.Painflare)
-            .When(c => c.Smn.AetherflowStacks > 0)
-            .Because("spend Aetherflow");
-
-        p.OGcd(A.EnergySiphon)
-            .When(c => c.Smn.AetherflowStacks == 0 && !c.Downtime)
-            .Because("refill Aetherflow");
-
-        p.Gcd(A.PreciousBrilliance)
-            .When(c => c.Smn.Attunement > 0)
-            .Because("primal attunement");
-
-        p.Gcd(A.Slipstream).When(c => c.Buff(A.SlipstreamBuff));
-
-        p.Gcd(A.UmbralFlare).When(c => !c.Downtime);
-        p.Gcd(A.AstralFlare).When(c => !c.Downtime);
-        p.Gcd(A.BrandOfPurgatory).When(c => !c.Downtime);
-
-        p.Gcd(A.Sunflare).When(c => !c.Downtime);
-        p.Gcd(A.Deathflare).When(c => !c.Downtime);
-
-        p.Gcd(A.SummonSolarBahamut).When(c => !c.Downtime);
-        p.Gcd(A.SummonBahamut).When(c => !c.Downtime);
-        p.Gcd(A.SummonPhoenix).When(c => !c.Downtime);
-
-        p.Gcd(c => c.Has(A.SummonIfrit2) ? A.SummonIfrit2 : A.SummonIfrit1).When(c => !c.Downtime);
-        p.Gcd(c => c.Has(A.SummonTitan2) ? A.SummonTitan2 : A.SummonTitan1).When(c => !c.Downtime);
-        p.Gcd(c => c.Has(A.SummonGaruda2) ? A.SummonGaruda2 : A.SummonGaruda1).When(c => !c.Downtime);
-
-        p.Gcd(A.LuxSolaris).When(c => c.Buff(A.RefulgentLux));
-        p.Gcd(A.Ruin4).When(c => c.Buff(A.FurtherRuin)).Because("free and instant");
-
-        p.Gcd(A.Outburst);
+        plan.Gcd(A.SummonCarbuncle).When(c => !c.Smn.HasPet && c.Smn.SummonTimeRemaining <= 0 && !c.Smn.PrimalActive);
+        plan.Gcd(A.CrimsonStrike).When(c => c.HasTarget && c.Buff(A.CrimsonStrikeReady));
+        plan.Gcd(A.CrimsonCyclone).When(c => c.HasTarget && c.Buff(A.IfritsFavor));
+        plan.Gcd(A.Slipstream).When(c => c.HasTarget && c.Buff(A.GarudasFavor));
+        plan.Gcd(c => Current(c, aoe && c.Has(A.PreciousBrilliance) ? A.PreciousBrilliance : A.Gemshine))
+            .When(c => c.HasTarget && c.Smn.PrimalActive);
+        plan.Gcd(c => Current(c, filler))
+            .When(c => c.HasTarget && c.Smn.SummonTimeRemaining > 0 && !c.Smn.PrimalActive);
+        plan.Gcd(c => Current(c, A.Aethercharge))
+            .When(c => c.HasTarget && c.Smn.SummonTimeRemaining <= 0);
+        plan.Gcd(c => Current(c, A.SummonTopaz)).When(c => c.HasTarget && c.Smn.TitanReady && !c.Smn.PrimalActive);
+        plan.Gcd(c => Current(c, A.SummonEmerald)).When(c => c.HasTarget && c.Smn.GarudaReady && !c.Smn.PrimalActive);
+        plan.Gcd(c => Current(c, A.SummonRuby)).When(c => c.HasTarget && c.Smn.IfritReady && !c.Smn.PrimalActive);
+        plan.Gcd(A.Ruin4).When(c => c.HasTarget && c.Buff(A.FurtherRuin));
+        plan.Gcd(c => Current(c, c.Has(filler) ? filler : A.Ruin1));
     }
 }

@@ -120,6 +120,9 @@ public sealed class CombatSnapshot
 
     public bool HasTarget { get; set; }
 
+    /// <summary>Distance to the selected target hitbox in yalms.</summary>
+    public float TargetDistance { get; set; } = float.PositiveInfinity;
+
     public bool TargetIsHostile { get; set; }
 
     public bool TargetInRange { get; set; }

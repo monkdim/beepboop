@@ -4,6 +4,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Jobs;
+using OneTwoPunch.Core.Jobs.Healers;
 using OneTwoPunch.Core.Model;
 using OneTwoPunch.Plugin.Services;
 using OneTwoPunch.Plugin.UI;
@@ -184,7 +185,9 @@ public sealed class Plugin : IDalamudPlugin
         _icons = new HotbarIconReplacer(Interop, Log, Classify, Resolve);
         _painter = new HotbarIconPainter(Log, Classify, Resolve);
         _partyTargeting = new PartyTargetRedirect(
-            Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank);
+            Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank,
+            CardForRotationButton, () => Objects.LocalPlayer);
+        _actionState.CardTargetingAvailable = () => _partyTargeting.IsActive;
 
         _castLock = new CastMovementLock(
             Interop,
@@ -489,9 +492,8 @@ public sealed class Plugin : IDalamudPlugin
         // established the plugin still does its job, and the slot keeps its own art.
         _icons.Enable();
 
-        // Only ever hooked when the player has asked for it, so a plugin nobody opted in to
-        // never touches the function a keypress enters.
-        if (_config.AetherialManipulationToTank)
+        // Only install the press hook when teleport assistance or AST cards need it.
+        if (_config.AetherialManipulationToTank || Objects.LocalPlayer?.ClassJob.RowId == 33)
             _partyTargeting.Enable();
 
         if (_config.LockMovementWhileCasting)
@@ -642,6 +644,9 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        if (jobId == 33 && !_partyTargeting.IsActive)
+            _partyTargeting.Enable();
+
         _job = rotation;
         _session = new RotationSession(rotation, _config.ToRotationSettings());
         _session.RefreshActionIds();
@@ -780,6 +785,14 @@ public sealed class Plugin : IDalamudPlugin
     /// Decides whether an action id is one of our two buttons. Everything else is passed
     /// straight through untouched, so the rest of the hotbar behaves exactly as it always did.
     /// </summary>
+    private uint CardForRotationButton(uint actionId)
+    {
+        if (_job?.JobId != 33 || Classify(actionId) is not { } mode)
+            return 0;
+
+        return Resolve(mode)?.Action.Id ?? 0;
+    }
+
     private RotationMode? Classify(uint actionId)
     {
         if (!_config.Enabled || _job is null || _session is null)

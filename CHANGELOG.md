@@ -1,6 +1,6 @@
 # Changes
 
-## 1.0.86.0
+## 1.0.87.0
 
 - Ninja's area button stops botching its own mudras. The opening mudra is forced to Chi by the button, but the second one read the enemy count on its own, so below three targets it answered Chi again and the game turned the pair into Rabbit Medium - every ninjutsu the area button started, which is most of a dungeon pull once the pack thins. Whichever button opened the sequence now finishes it, and the single-target button is guarded the same way against a pack gathering mid-sequence.
 - Bard holds a song for its full run instead of burning two in one weave window. All three cooldowns are independent, so the moment two were up the list offered one and then the other six tenths of a second later; a recorded pull spent Mage's Ballad for a single global and then had no song at all from 01:07 to 02:02. The song that is playing now decides the hand-off, at the 3 seconds The Balance gives. Army's Paeon should be cut shorter still, at 12-10, and is not yet: that needs to know which song the gauge's id stands for, so the recorded log now prints it.
@@ -9,6 +9,12 @@
 - Gunbreaker puts Double Down and Sonic Break ahead of starting a fresh Gnashing Fang. Gnashing Fang only needed a cartridge to exist, which is true on nearly every global in No Mercy, so it took both charges and six of the eight globals in the first window while the thousand-potency Double Down sat unused and Sonic Break landed 3.4 seconds after the window closed. In filler it now waits for a capped charge or for No Mercy within 7 seconds.
 - Gunbreaker has The Balance's opener. There was none, and the list opened with No Mercy on the second global against an empty magazine.
 - Trajectory is no longer offered as damage. It has no potency line at all - it is the gap closer - and it was spending four of the most contested weave slots in the rotation, adding enmity and dragging the tank onto the boss each time.
+
+## 1.0.86.0
+
+- Summoner's two buttons follow demi-summon and primal phases, including elemental attacks and Ifrit's follow-ups.
+- White Mage, Scholar, Astrologian and Sage now have single-target and AoE damage buttons.
+- Astrologian's two buttons draw and play targeted cards with role-based recipients and eligible backups. Manual healing and card buttons are unchanged.
 
 ## 1.0.85.0
 
