@@ -47,9 +47,9 @@ public static class WelcomeContent
         ImGui.SetCursorScreenPos(new Vector2(origin.X, header.Y + 112 * scale));
         ImGui.TextColored(Muted, "A few little upgrades, made for your hands.");
         ImGui.Dummy(new Vector2(0, 5 * scale));
-        Card("01", "Summoner finds its rhythm", "Both damage buttons follow your summons and their elemental attacks.", Mint, width, scale);
-        Card("02", "Healers join in", "White Mage, Scholar, Astrologian and Sage get single-target and area damage buttons.", Peach, width, scale);
-        Card("03", "A card for the right teammate", "Astrologian draws and plays cards on your rotation presses, with a backup if the preferred teammate is unavailable.", Mint, width, scale);
+        Card("01", "Gunbreaker reloads sooner", "Bloodfest can refill during No Mercy before your cartridges run out.", Mint, width, scale);
+        Card("02", "Room in the magazine", "The rotation accounts for the extra cartridge capacity Bloodfest gives you.", Peach, width, scale);
+        Card("03", "A better tincture cue", "If opener potion prompts are on, Gunbreaker cues your tincture alongside No Mercy.", Mint, width, scale);
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
         ImGui.TextColored(Muted, "Changing the opener or globals-only mode mid-fight leaves the normal rotation in charge until your next pull.");
         ImGui.PopTextWrapPos();

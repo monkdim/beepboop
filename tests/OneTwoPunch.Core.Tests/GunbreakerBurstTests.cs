@@ -14,6 +14,14 @@ namespace OneTwoPunch.Core.Tests;
 /// </summary>
 public sealed class GunbreakerBurstTests
 {
+    [Fact]
+    public void OpenerPotionIsPromptedAlongsideNoMercy()
+    {
+        var opener = JobRotationBase.Create<GunbreakerRotation>().Opener!;
+        Assert.Equal(G.NoMercy.Id, opener.Steps[opener.PotionBeforeStep].Id);
+        Assert.Equal(G.BrutalShell.Id, opener.Steps[opener.PotionBeforeStep - 1].Id);
+    }
+
     private static RotationSession Session() =>
         new(JobRotationBase.Create<GunbreakerRotation>(),
             new RotationSettings { WeaveStyle = WeaveStyle.Double, UseOpener = false, SuggestionHoldSeconds = 0f });
@@ -68,6 +76,33 @@ public sealed class GunbreakerBurstTests
         var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot, new FakeActionState());
 
         Assert.Equal(G.ReignOfBeasts.Id, suggestion.Action.Id);
+    }
+
+    [Theory]
+    [InlineData(RotationMode.SingleTarget, 2, true)]
+    [InlineData(RotationMode.Aoe, 3, true)]
+    [InlineData(RotationMode.SingleTarget, 4, false)]
+    public void BloodfestRefillsDuringNoMercyWhenAllCartridgesFit(
+        RotationMode mode, byte ammo, bool shouldRefill)
+    {
+        var actions = new FakeActionState().OnCooldown(G.NoMercy.Id, 56f);
+        var suggestion = Session().Resolve(mode, InBurst(ammo).Gcd(1.6f).Build(), actions);
+        Assert.Equal(shouldRefill, suggestion.Action.Id == G.Bloodfest.Id);
+    }
+
+    [Theory]
+    [InlineData(3, false)]
+    [InlineData(5, false)]
+    [InlineData(6, true)]
+    public void BloodfestCapacityPreventsPrematureOverflowSpends(byte ammo, bool atCapacity)
+    {
+        var snapshot = new SnapshotBuilder().Job(37).Level(100).Gcd(0f)
+            .Combo(G.BrutalShell.Id).Buff(G.BloodfestBuff.Id, 12f)
+            .Gauge(s => s.Gauges.Gunbreaker.Ammo = ammo).Build();
+        var actions = new FakeActionState().OnCooldown(G.NoMercy.Id, 40f)
+            .OnCooldown(G.GnashingFang.Id, 20f);
+        var suggestion = Session().Resolve(RotationMode.SingleTarget, snapshot, actions);
+        Assert.Equal(atCapacity ? G.BurstStrike.Id : G.SolidBarrel.Id, suggestion.Action.Id);
     }
 
     /// <summary>A chain already running still finishes before anything new starts.</summary>
