@@ -19,10 +19,6 @@ namespace OneTwoPunch.Core.Jobs.Gunbreaker;
 /// Mitigation is not here: Nebula, Great Nebula, Camouflage, Heart of Corundum, Heart of
 /// Light, Aurora and Superbolide are declared for verification and left to the player.
 /// </para>
-/// <para>
-/// The scripted opener is The Balance's, checked against the chart - which is the
-/// condition PaladinRotation sets for having one at all.
-/// </para>
 /// </summary>
 public sealed class GunbreakerRotation : JobRotationBase
 {
@@ -48,30 +44,15 @@ public sealed class GunbreakerRotation : JobRotationBase
     /// </summary>
     private const float GnashingFangLead = 7f;
 
-    /// <summary>
-    /// The Balance's "Opener" for Gunbreaker level 100, Dawntrail patch 7.4. Lightning Shot
-    /// is the pull at -0.7s with Bloodfest weaved behind it, so the magazine is full before
-    /// No Mercy opens and Reign of Beasts is armed for the back half of the window.
-    /// <para>
-    /// There was no scripted opener here, because the chart had not been checked. It has
-    /// now. A recorded pull shows what the priority list opened with on its own: No Mercy
-    /// on the second global against an empty magazine, the Reign chain spent at once, two
-    /// Gnashing Fang chains filling the rest of the window, and neither Double Down nor
-    /// Sonic Break landing inside it.
-    /// </para>
-    /// <para>
-    /// The chart is written for a 2.50 global and matches party raid buffs at about 6.8
-    /// seconds. Its two optimisations are left to the player: late weaving No Mercy to fit
-    /// a ninth global in, and holding Wicked Talon into the window.
-    /// </para>
-    /// </summary>
+    // Level 100 standard opener. Use Jugular Rip before the next weaponskill so the proc
+    // is preserved. Blasting Zone and Bow Shock share the Double Down weave window.
     private static readonly Opener Sequence = new(
-        "The Balance opener", 100,
+        "Standard Gunbreaker opener", 100,
         A.LightningShot, A.Bloodfest,
         A.KeenEdge,
         A.BrutalShell, A.NoMercy,
-        A.GnashingFang, A.JugularRip, A.BowShock,
-        A.DoubleDown, A.BlastingZone,
+        A.GnashingFang, A.JugularRip,
+        A.DoubleDown, A.BlastingZone, A.BowShock,
         A.SonicBreak,
         A.SavageClaw, A.AbdomenTear,
         A.WickedTalon, A.EyeGouge,
@@ -81,8 +62,6 @@ public sealed class GunbreakerRotation : JobRotationBase
         A.SolidBarrel,
         A.GnashingFang, A.JugularRip)
     {
-        // The chart draws the tincture beside No Mercy, in the weave window that opens once
-        // Brutal Shell is away.
         PotionBeforeStep = 4,
     };
 

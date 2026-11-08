@@ -47,9 +47,8 @@ public static class WelcomeContent
         ImGui.SetCursorScreenPos(new Vector2(origin.X, header.Y + 112 * scale));
         ImGui.TextColored(Muted, "A few little upgrades, made for your hands.");
         ImGui.Dummy(new Vector2(0, 5 * scale));
-        Card("01", "Gunbreaker reloads sooner", "Bloodfest can refill during No Mercy before your cartridges run out.", Mint, width, scale);
-        Card("02", "Room in the magazine", "The rotation accounts for the extra cartridge capacity Bloodfest gives you.", Peach, width, scale);
-        Card("03", "A better tincture cue", "If opener potion prompts are on, Gunbreaker cues your tincture alongside No Mercy.", Mint, width, scale);
+        Card("01", "Gunbreaker's opening burst", "Blasting Zone and Bow Shock now go together right after Double Down.", Mint, width, scale);
+        Card("02", "Two weaves, one gap", "Choose Double weaving in settings to follow the full opener.", Peach, width, scale);
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
         ImGui.TextColored(Muted, "Changing the opener or globals-only mode mid-fight leaves the normal rotation in charge until your next pull.");
         ImGui.PopTextWrapPos();

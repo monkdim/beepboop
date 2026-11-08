@@ -22,6 +22,70 @@ public sealed class GunbreakerBurstTests
         Assert.Equal(G.BrutalShell.Id, opener.Steps[opener.PotionBeforeStep - 1].Id);
     }
 
+    [Theory]
+    [InlineData(2.48f)]
+    [InlineData(2.50f)]
+    public void StandardOpenerDoubleWeavesAfterDoubleDownAndFinishesNoMercy(float gcd)
+    {
+        const float weaveDelay = 0.65f;
+        const float effectDelay = 0.65f;
+        var session = new RotationSession(JobRotationBase.Create<GunbreakerRotation>(),
+            new RotationSettings { WeaveStyle = WeaveStyle.Double });
+        var actions = new FakeActionState();
+        var noMercyStarts = 2 * gcd + weaveDelay + effectDelay;
+        var ammo = 0;
+
+        void Press(ActionRef expected, int slot, StatusRef? proc = null, byte chain = 0, int weave = 0)
+        {
+            var delay = weave * weaveDelay;
+            var time = slot * gcd + delay;
+            var snapshot = new SnapshotBuilder().Job(37).At(time)
+                .Gcd(weave > 0 ? gcd - delay : 0f, gcd)
+                .Gauge(s =>
+                {
+                    s.InCombat = time > 0f;
+                    s.CombatDuration = time;
+                    s.Gauges.Gunbreaker.Ammo = (byte)ammo;
+                    s.Gauges.Gunbreaker.AmmoComboStep = chain;
+                });
+            var noMercyLeft = noMercyStarts + 20f - time;
+            if (time >= noMercyStarts && noMercyLeft > 0f)
+                snapshot.Buff(G.NoMercyBuff.Id, noMercyLeft);
+            if (proc is { } ready)
+                snapshot.Buff(ready.Id);
+
+            var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot.Build(), actions);
+            Assert.Equal(expected.Id, suggestion.Action.Id);
+            Assert.StartsWith("opener step ", suggestion.Note);
+            if (slot is >= 3 and <= 10)
+                Assert.InRange(time + effectDelay, noMercyStarts, noMercyStarts + 20f);
+            session.NotifyActionUsed(expected.Id);
+        }
+
+        Press(G.LightningShot, 0);
+        Press(G.Bloodfest, 0, weave: 1);
+        ammo += 3;
+        Press(G.KeenEdge, 1);
+        Press(G.BrutalShell, 2);
+        Press(G.NoMercy, 2, weave: 1);
+        Press(G.GnashingFang, 3);
+        ammo -= 1;
+        Press(G.JugularRip, 3, G.ReadyToRip, chain: 1, weave: 1);
+        Press(G.DoubleDown, 4, chain: 1);
+        ammo -= 2;
+        Press(G.BlastingZone, 4, chain: 1, weave: 1);
+        Press(G.BowShock, 4, chain: 1, weave: 2);
+        Press(G.SonicBreak, 5, G.ReadyToBreak, chain: 1);
+        Press(G.SavageClaw, 6, chain: 1);
+        Press(G.AbdomenTear, 6, G.ReadyToTear, chain: 2, weave: 1);
+        Press(G.WickedTalon, 7, chain: 2);
+        Press(G.EyeGouge, 7, G.ReadyToGouge, weave: 1);
+        Press(G.ReignOfBeasts, 8, G.ReadyToReign);
+        Press(G.NobleBlood, 9, chain: 3);
+        Press(G.LionHeart, 10, chain: 4);
+        Assert.Null(session.OpenerOutcome);
+    }
+
     private static RotationSession Session() =>
         new(JobRotationBase.Create<GunbreakerRotation>(),
             new RotationSettings { WeaveStyle = WeaveStyle.Double, UseOpener = false, SuggestionHoldSeconds = 0f });
