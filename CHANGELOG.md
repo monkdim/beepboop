@@ -1,5 +1,11 @@
 # Changes
 
+## 1.0.88.0
+
+- Gunbreaker uses Bloodfest during No Mercy when its cartridges fit, instead of waiting for an empty magazine. This lets the Reign chain start sooner in repeat bursts.
+- Gunbreaker respects Bloodfest's temporary cartridge capacity when deciding whether to spend to avoid overflow.
+- The Gunbreaker opener prompts for the optional tincture alongside No Mercy, before the first burst weaponskill.
+
 ## 1.0.87.0
 
 - Ninja's area button stops botching its own mudras. The opening mudra is forced to Chi by the button, but the second one read the enemy count on its own, so below three targets it answered Chi again and the game turned the pair into Rabbit Medium - every ninjutsu the area button started, which is most of a dungeon pull once the pack thins. Whichever button opened the sequence now finishes it, and the single-target button is guarded the same way against a pack gathering mid-sequence.

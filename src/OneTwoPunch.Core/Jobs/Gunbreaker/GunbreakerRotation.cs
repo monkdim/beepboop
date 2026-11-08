@@ -83,7 +83,7 @@ public sealed class GunbreakerRotation : JobRotationBase
     {
         // The chart draws the tincture beside No Mercy, in the weave window that opens once
         // Brutal Shell is away.
-        PotionBeforeStep = 6,
+        PotionBeforeStep = 4,
     };
 
     public override Opener? Opener => Sequence;
@@ -108,9 +108,10 @@ public sealed class GunbreakerRotation : JobRotationBase
 
         p.OGcd(A.NoMercy).When(c => !c.Downtime).Because("burst window");
 
-        // Bloodfest refills the whole magazine, so it is worth nothing thrown at a full one.
+        // Use Bloodfest promptly in No Mercy when all its cartridges fit, rather than
+        // spending down to zero and unlocking Reign late in the burst.
         p.OGcd(A.Bloodfest)
-            .When(c => !c.Downtime && c.Gnb.Ammo == 0)
+            .When(CanRefill)
             .Because("refill the cartridges");
 
         p.OGcd(c => ZoneAction(c)).When(c => !c.Downtime);
@@ -210,7 +211,7 @@ public sealed class GunbreakerRotation : JobRotationBase
         p.OGcd(A.NoMercy).When(c => !c.Downtime).Because("burst window");
 
         p.OGcd(A.Bloodfest)
-            .When(c => !c.Downtime && c.Gnb.Ammo == 0)
+            .When(CanRefill)
             .Because("refill the cartridges");
 
         p.OGcd(c => ZoneAction(c)).When(c => !c.Downtime);
@@ -235,10 +236,16 @@ public sealed class GunbreakerRotation : JobRotationBase
     }
 
     /// <summary>
-    /// How many cartridges the magazine holds: two, and three once Cartridge Charge II
-    /// arrives at level 88.
+    /// Bloodfest temporarily doubles the normal two- or three-cartridge capacity.
     /// </summary>
-    private static byte MaxAmmo(RotationContext c) => c.Level >= 88 ? (byte)3 : (byte)2;
+    private static int BaseAmmo(RotationContext c) => c.Level >= 88 ? 3 : 2;
+
+    private static int MaxAmmo(RotationContext c) =>
+        BaseAmmo(c) * (c.Buff(A.BloodfestBuff) ? 2 : 1);
+
+    private static bool CanRefill(RotationContext c) =>
+        !c.Downtime && !c.Buff(A.BloodfestBuff)
+        && (c.Gnb.Ammo == 0 || (c.Buff(A.NoMercyBuff) && c.Gnb.Ammo <= BaseAmmo(c)));
 
     /// <summary>
     /// True when the combo is one step from handing over a cartridge there is no room for.
