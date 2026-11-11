@@ -30,6 +30,8 @@ public sealed class GunbreakerRotation : JobRotationBase
 
     public override ActionRef AoeButton => A.DemonSlice;
 
+    public override WeaveStyle MinimumWeaveStyle => WeaveStyle.Double;
+
     public override IReadOnlyList<ActionRef> AllActions => A.All;
 
     public override IReadOnlyList<StatusRef> AllStatuses => A.AllStatuses;
@@ -44,25 +46,24 @@ public sealed class GunbreakerRotation : JobRotationBase
     /// </summary>
     private const float GnashingFangLead = 7f;
 
-    // Level 100 standard opener. Use Jugular Rip before the next weaponskill so the proc
-    // is preserved. Blasting Zone and Bow Shock share the Double Down weave window.
+    // Recorded manual opener: load cartridges and enable No Mercy in the first weave
+    // window, then start Gnashing Fang without inserting the basic combo first.
     private static readonly Opener Sequence = new(
-        "Standard Gunbreaker opener", 100,
-        A.LightningShot, A.Bloodfest,
-        A.KeenEdge,
-        A.BrutalShell, A.NoMercy,
-        A.GnashingFang, A.JugularRip,
-        A.DoubleDown, A.BlastingZone, A.BowShock,
+        "Early Gunbreaker opener", 100,
+        A.LightningShot, A.Bloodfest, A.NoMercy,
+        A.GnashingFang, A.JugularRip, A.BowShock,
+        A.DoubleDown, A.BlastingZone,
         A.SonicBreak,
         A.SavageClaw, A.AbdomenTear,
         A.WickedTalon, A.EyeGouge,
         A.ReignOfBeasts,
         A.NobleBlood,
         A.LionHeart,
-        A.SolidBarrel,
-        A.GnashingFang, A.JugularRip)
+        A.KeenEdge,
+        A.BrutalShell,
+        A.SolidBarrel)
     {
-        PotionBeforeStep = 4,
+        PotionBeforeStep = 0,
     };
 
     public override Opener? Opener => Sequence;
