@@ -15,24 +15,23 @@ namespace OneTwoPunch.Core.Tests;
 public sealed class GunbreakerBurstTests
 {
     [Fact]
-    public void OpenerPotionIsPromptedAlongsideNoMercy()
+    public void OpenerPotionIsPromptedBeforeThePull()
     {
         var opener = JobRotationBase.Create<GunbreakerRotation>().Opener!;
-        Assert.Equal(G.NoMercy.Id, opener.Steps[opener.PotionBeforeStep].Id);
-        Assert.Equal(G.BrutalShell.Id, opener.Steps[opener.PotionBeforeStep - 1].Id);
+        Assert.Equal(0, opener.PotionBeforeStep);
     }
 
     [Theory]
     [InlineData(2.48f)]
     [InlineData(2.50f)]
-    public void StandardOpenerDoubleWeavesAfterDoubleDownAndFinishesNoMercy(float gcd)
+    public void RecordedManualOpenerStartsBurstInFirstGapAndFinishesNoMercy(float gcd)
     {
         const float weaveDelay = 0.65f;
         const float effectDelay = 0.65f;
         var session = new RotationSession(JobRotationBase.Create<GunbreakerRotation>(),
-            new RotationSettings { WeaveStyle = WeaveStyle.Double });
+            new RotationSettings { WeaveStyle = WeaveStyle.Single });
         var actions = new FakeActionState();
-        var noMercyStarts = 2 * gcd + weaveDelay + effectDelay;
+        var noMercyStarts = 2 * weaveDelay + effectDelay;
         var ammo = 0;
 
         void Press(ActionRef expected, int slot, StatusRef? proc = null, byte chain = 0, int weave = 0)
@@ -57,7 +56,7 @@ public sealed class GunbreakerBurstTests
             var suggestion = session.Resolve(RotationMode.SingleTarget, snapshot.Build(), actions);
             Assert.Equal(expected.Id, suggestion.Action.Id);
             Assert.StartsWith("opener step ", suggestion.Note);
-            if (slot is >= 3 and <= 10)
+            if (slot is >= 1 and <= 8)
                 Assert.InRange(time + effectDelay, noMercyStarts, noMercyStarts + 20f);
             session.NotifyActionUsed(expected.Id);
         }
@@ -65,24 +64,26 @@ public sealed class GunbreakerBurstTests
         Press(G.LightningShot, 0);
         Press(G.Bloodfest, 0, weave: 1);
         ammo += 3;
-        Press(G.KeenEdge, 1);
-        Press(G.BrutalShell, 2);
-        Press(G.NoMercy, 2, weave: 1);
-        Press(G.GnashingFang, 3);
+        Press(G.NoMercy, 0, weave: 2);
+        Press(G.GnashingFang, 1);
         ammo -= 1;
-        Press(G.JugularRip, 3, G.ReadyToRip, chain: 1, weave: 1);
-        Press(G.DoubleDown, 4, chain: 1);
+        Press(G.JugularRip, 1, G.ReadyToRip, chain: 1, weave: 1);
+        Press(G.BowShock, 1, chain: 1, weave: 2);
+        Press(G.DoubleDown, 2, chain: 1);
         ammo -= 2;
-        Press(G.BlastingZone, 4, chain: 1, weave: 1);
-        Press(G.BowShock, 4, chain: 1, weave: 2);
-        Press(G.SonicBreak, 5, G.ReadyToBreak, chain: 1);
-        Press(G.SavageClaw, 6, chain: 1);
-        Press(G.AbdomenTear, 6, G.ReadyToTear, chain: 2, weave: 1);
-        Press(G.WickedTalon, 7, chain: 2);
-        Press(G.EyeGouge, 7, G.ReadyToGouge, weave: 1);
-        Press(G.ReignOfBeasts, 8, G.ReadyToReign);
-        Press(G.NobleBlood, 9, chain: 3);
-        Press(G.LionHeart, 10, chain: 4);
+        Press(G.BlastingZone, 2, chain: 1, weave: 1);
+        Press(G.SonicBreak, 3, G.ReadyToBreak, chain: 1);
+        Press(G.SavageClaw, 4, chain: 1);
+        Press(G.AbdomenTear, 4, G.ReadyToTear, chain: 2, weave: 1);
+        Press(G.WickedTalon, 5, chain: 2);
+        Press(G.EyeGouge, 5, G.ReadyToGouge, weave: 1);
+        Press(G.ReignOfBeasts, 6, G.ReadyToReign);
+        Press(G.NobleBlood, 7, chain: 3);
+        Press(G.LionHeart, 8, chain: 4);
+        Press(G.KeenEdge, 9);
+        Press(G.BrutalShell, 10);
+        Press(G.SolidBarrel, 11);
+        Assert.False(session.OpenerActive);
         Assert.Null(session.OpenerOutcome);
     }
 
