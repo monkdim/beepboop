@@ -93,9 +93,12 @@ public sealed unsafe class ActionStateAdapter : IActionState
     public int MaxCharges(uint actionId) => Lookup(actionId).MaxCharges;
 
     public Func<bool>? CardTargetingAvailable { get; set; }
+    public Func<bool>? BishopPlacementAvailable { get; set; }
 
     public bool CanUse(uint actionId, bool ignoreRecast = false) =>
         (!AstrologianCardTarget.IsCard(actionId) || CardTargetingAvailable?.Invoke() == true)
+        && (actionId != OneTwoPunch.Core.Jobs.Machinist.MachinistPvpRotation.BishopAutoturretId
+            || BishopPlacementAvailable?.Invoke() == true)
         && (ignoreRecast ? Lookup(actionId).UsableIgnoringRecast : Lookup(actionId).Usable);
 
     public int RefusalCode(uint actionId) => Lookup(actionId).Refusal;

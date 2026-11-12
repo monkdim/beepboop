@@ -141,7 +141,9 @@ public sealed unsafe class GameStateProvider(
 
         s.TargetId = battleTarget?.GameObjectId ?? CombatSnapshot.NoTarget;
         s.HasTarget = battleTarget is not null;
-        s.TargetIsHostile = battleTarget is IBattleNpc;
+        s.TargetIsHostile = battleTarget is IBattleNpc
+            || job is OneTwoPunch.Core.Jobs.Machinist.MachinistPvpRotation
+                && battleTarget is IPlayerCharacter;
         s.TargetDistance = battleTarget is null ? float.PositiveInfinity
             : Math.Max(0, System.Numerics.Vector3.Distance(player.Position, battleTarget.Position)
                 - battleTarget.HitboxRadius);

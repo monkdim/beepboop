@@ -47,8 +47,8 @@ public static class WelcomeContent
         ImGui.SetCursorScreenPos(new Vector2(origin.X, header.Y + 112 * scale));
         ImGui.TextColored(Muted, "A few little upgrades, made for your hands.");
         ImGui.Dummy(new Vector2(0, 5 * scale));
-        Card("01", "Gunbreaker bursts sooner", "Weave Bloodfest and No Mercy after Lightning Shot, then go straight into Gnashing Fang.", Mint, width, scale);
-        Card("02", "Potion before the pull", "If opener potion prompts are on, Gunbreaker cues your potion before Lightning Shot.", Peach, width, scale);
+        Card("01", "Machinist PvP", "Use /otp arm pvp and press Blast Charge on your PvP hotbar to drive the rotation.", Mint, width, scale);
+        Card("02", "Bishop at your target", "When the rotation offers Bishop Autoturret, press the same button to place it at your target's feet.", Peach, width, scale);
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
         ImGui.TextColored(Muted, "Changing the opener or globals-only mode mid-fight leaves the normal rotation in charge until your next pull.");
         ImGui.PopTextWrapPos();
