@@ -47,8 +47,8 @@ public static class WelcomeContent
         ImGui.SetCursorScreenPos(new Vector2(origin.X, header.Y + 112 * scale));
         ImGui.TextColored(Muted, "A few little upgrades, made for your hands.");
         ImGui.Dummy(new Vector2(0, 5 * scale));
-        Card("01", "Machinist PvP", "Use /otp arm pvp and press Blast Charge on your PvP hotbar to drive the rotation.", Mint, width, scale);
-        Card("02", "Bishop at your target", "When the rotation offers Bishop Autoturret, press the same button to place it at your target's feet.", Peach, width, scale);
+        Card("01", "Two more PvP jobs", "Use /otp arm pvp for Black Mage or Gunbreaker. Use Fire and Blizzard or Gnashing Fang and Fated Circle.", Mint, width, scale);
+        Card("02", "Record any PvP job", "Arm PvP and use /otp record to capture a manual pull, even if the job has no rotation yet.", Peach, width, scale);
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
         ImGui.TextColored(Muted, "Changing the opener or globals-only mode mid-fight leaves the normal rotation in charge until your next pull.");
         ImGui.PopTextWrapPos();

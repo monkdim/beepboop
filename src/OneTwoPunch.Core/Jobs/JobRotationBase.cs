@@ -20,6 +20,8 @@ public abstract class JobRotationBase : IJobRotation
 
     public abstract ActionRef AoeButton { get; }
 
+    public virtual ActionRef GcdProbe => SingleTargetButton;
+
     public virtual float AoeRadius => 5f;
     public virtual bool AoeCenteredOnPlayer => false;
 

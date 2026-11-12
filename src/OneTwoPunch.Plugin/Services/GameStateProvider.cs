@@ -56,7 +56,7 @@ public sealed unsafe class GameStateProvider(
         _wasInCombat = inCombat;
     }
 
-    public CombatSnapshot? Build(IJobRotation job, double now)
+    public CombatSnapshot? Build(IJobRotation? job, double now)
     {
         var player = objects.LocalPlayer;
         if (player is null)
@@ -77,12 +77,19 @@ public sealed unsafe class GameStateProvider(
         s.MovingFor = movement.MovingFor;
         s.StillFor = movement.StillFor;
 
-        FillGcd(s, job);
+        if (job is not null)
+        {
+            FillGcd(s, job);
+            FillGauges(s, job);
+            FillPotion(s);
+        }
+        else
+        {
+            s.GcdRemaining = 0;
+        }
         FillTarget(s, job, player);
         FillStatuses(s, player);
         FillCombo(s);
-        FillGauges(s, job);
-        FillPotion(s);
 
         return s;
     }
@@ -95,7 +102,7 @@ public sealed unsafe class GameStateProvider(
 
         // Read the GCD off the job's own basic weaponskill, so it reflects the player's
         // actual skill/spell speed rather than an assumed 2.5s.
-        var probe = job.SingleTargetButton.Id;
+        var probe = job.GcdProbe.Id;
         var total = manager->GetRecastTime(ActionType.Action, probe);
         var elapsed = manager->GetRecastTimeElapsed(ActionType.Action, probe);
 
@@ -134,7 +141,7 @@ public sealed unsafe class GameStateProvider(
         s.AnimationLock = Math.Max(0f, manager->AnimationLock);
     }
 
-    private void FillTarget(CombatSnapshot s, IJobRotation job, IPlayerCharacter player)
+    private void FillTarget(CombatSnapshot s, IJobRotation? job, IPlayerCharacter player)
     {
         var target = targets.Target;
         var battleTarget = target as IBattleChara;
@@ -142,8 +149,8 @@ public sealed unsafe class GameStateProvider(
         s.TargetId = battleTarget?.GameObjectId ?? CombatSnapshot.NoTarget;
         s.HasTarget = battleTarget is not null;
         s.TargetIsHostile = battleTarget is IBattleNpc
-            || job is OneTwoPunch.Core.Jobs.Machinist.MachinistPvpRotation
-                && battleTarget is IPlayerCharacter;
+            || Plugin.ClientState.IsPvP && battleTarget is IPlayerCharacter opponent
+                && (opponent.StatusFlags & StatusFlags.Hostile) != 0;
         s.TargetDistance = battleTarget is null ? float.PositiveInfinity
             : Math.Max(0, System.Numerics.Vector3.Distance(player.Position, battleTarget.Position)
                 - battleTarget.HitboxRadius);
@@ -155,10 +162,10 @@ public sealed unsafe class GameStateProvider(
         var playerAddress = player.Address;
         var targetAddress = battleTarget?.Address ?? nint.Zero;
 
-        s.TargetInRange = playerAddress != nint.Zero
+        s.TargetInRange = job is not null && playerAddress != nint.Zero
             && targetAddress != nint.Zero
             && ActionManager.GetActionInRangeOrLoS(
-                job.SingleTargetButton.Id,
+                job.GcdProbe.Id,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)playerAddress,
                 (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)targetAddress) == 0;
 
@@ -176,13 +183,13 @@ public sealed unsafe class GameStateProvider(
         // Nothing hostile and targetable means the boss is away: hold burst.
         s.InDowntime = battleTarget is null || !battleTarget.IsTargetable;
 
-        if (s.Now - _enemyCountedAt >= EnemyCountInterval)
+        if (job is not null && s.Now - _enemyCountedAt >= EnemyCountInterval)
         {
             _enemyCount = EnemyCounter.CountAround(objects, job.AoeCenteredOnPlayer ? player : battleTarget, job.AoeRadius);
             _enemyCountedAt = s.Now;
         }
 
-        s.EnemiesInAoeRange = _enemyCount;
+        s.EnemiesInAoeRange = job is null ? 0 : _enemyCount;
 
         s.Position = config.DetectPositionals && battleTarget is not null
             ? PositionMath.Relative(player, battleTarget)
