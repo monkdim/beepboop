@@ -21,6 +21,7 @@ public sealed class SessionRecorder
     private double _startedAt;
     private int _casts;
     private int _followed;
+    private bool _manual;
 
     /// <summary>
     /// The hook counters as they stood when recording started, so the footer can report the
@@ -34,12 +35,14 @@ public sealed class SessionRecorder
     public int Casts => _casts;
 
     public void Start(
-        string job, byte level, string version, double now, HookTraffic traffic, IconTraffic icons)
+        string job, byte level, string version, double now, HookTraffic traffic, IconTraffic icons,
+        bool manual = false)
     {
         _iconsAtStart = icons;
         _lines.Clear();
         _casts = 0;
         _followed = 0;
+        _manual = manual;
         _startedAt = now;
         _trafficAtStart = traffic;
         IsRecording = true;
@@ -86,7 +89,9 @@ public sealed class SessionRecorder
              .Append(Trim(suggested ?? "-", 31).PadRight(32));
 
         // Only mark the disagreements. Marking every line would bury them.
-        if (!agreed)
+        if (_manual)
+            _line.Append($"  (action {castId})");
+        else if (!agreed)
             _line.Append("  <-- differs");
 
         if (!string.IsNullOrEmpty(note))
@@ -124,8 +129,10 @@ public sealed class SessionRecorder
             return null;
 
         _lines.Add("");
-        _lines.Add($"  {_casts} casts over {Stamp(now - _startedAt)}, "
-                   + $"{_followed} matched the suggestion, {_casts - _followed} did not.");
+        _lines.Add(_manual
+            ? $"  {_casts} manual casts over {Stamp(now - _startedAt)}."
+            : $"  {_casts} casts over {Stamp(now - _startedAt)}, "
+                + $"{_followed} matched the suggestion, {_casts - _followed} did not.");
 
         // "The button fires the right ability but the icon never changes" is otherwise
         // impossible to diagnose from a recording. The hotbar draws its icons from the same

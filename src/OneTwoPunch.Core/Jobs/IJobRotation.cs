@@ -22,6 +22,8 @@ public interface IJobRotation
     /// <summary>The hotbar action for the AoE plan.</summary>
     ActionRef AoeButton { get; }
 
+    ActionRef GcdProbe => SingleTargetButton;
+
     /// <summary>Radius in yalms used to count enemies for the AoE button.</summary>
     float AoeRadius { get; }
     bool AoeCenteredOnPlayer { get; }

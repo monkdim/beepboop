@@ -66,7 +66,7 @@ public sealed class Plugin : IDalamudPlugin
     private IJobRotation? _job;
     private RotationSession? _session;
     private uint _currentJobId;
-    private const uint MachinistPvpRotationKey = uint.MaxValue;
+    private const uint PvpRotationFlag = 1u << 31;
     private bool _pvpArmed;
 
     /// <summary>
@@ -222,7 +222,7 @@ public sealed class Plugin : IDalamudPlugin
                     HelpMessage =
                         "Open One Two Punch settings.\n"
                         + "/otp arm - enable PvE for this session\n"
-                        + "/otp arm pvp - enable Machinist on PvP hotbars for this session\n"
+                        + "/otp arm pvp - enable supported PvP rotations for this session\n"
                         + "/otp record - start or stop recording a pull to your Downloads\n"
                         + "/otp disarm - stop it and remove the hook\n"
                         + "/otp verify - check every action id against the game's own data\n"
@@ -322,9 +322,7 @@ public sealed class Plugin : IDalamudPlugin
         _movement.Update(player, delta);
         _state.Tick(delta);
 
-        var jobId = _pvpArmed
-            ? player.ClassJob.RowId == 31 ? MachinistPvpRotationKey : 0
-            : player.ClassJob.RowId;
+        var jobId = player.ClassJob.RowId | (_pvpArmed ? PvpRotationFlag : 0);
         if (jobId != _currentJobId)
         {
             _currentJobId = jobId;
@@ -339,6 +337,8 @@ public sealed class Plugin : IDalamudPlugin
             _buttonFormsLevel = player.Level;
             RefreshButtonForms();
         }
+        else if (_pvpArmed)
+            RememberPvpButtonForms();
 
         // Work out both buttons every frame, whether or not the game has asked.
         //
@@ -373,6 +373,9 @@ public sealed class Plugin : IDalamudPlugin
         // This is the half that was missing. The hook that was supposed to do it is on a
         // function the game never calls; see HotbarIconPainter for the evidence.
         _painter.Paint();
+
+        if (_job is null && _recorder.IsRecording)
+            _frameSnapshot = _state.Build(null, _now);
 
         // Nothing else to poll: uses arrive from the UseActionLocation hook.
     }
@@ -433,7 +436,9 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        if (_job is null)
+        var player = Objects.LocalPlayer;
+        var manualPvp = _job is null && _pvpArmed && _active && ClientState.IsPvP;
+        if (player is null || _job is null && !manualPvp)
         {
             Chat.PrintError("[One Two Punch] Nothing to record - no supported job is running. /otp arm first.");
             return;
@@ -445,7 +450,8 @@ public sealed class Plugin : IDalamudPlugin
         // pull has to go here or it turns up in the footer of this one.
         _session?.ForgetOpenerReport();
 
-        _recorder.Start(_job.Name, _frameSnapshot?.Level ?? 0, version, _now, Traffic(), Icons());
+        var jobName = _job?.Name ?? $"{player.ClassJob.Value.Name.ExtractText()} PvP";
+        _recorder.Start(jobName, player.Level, version, _now, Traffic(), Icons(), manualPvp);
         Chat.Print("[One Two Punch] Recording. Do your pull, then /otp record again to write it out.");
     }
 
@@ -472,7 +478,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Chat.Print(
             (pvp
-                ? "[One Two Punch] PvP armed for Machinist. Use Blast Charge on your PvP hotbar. "
+                ? "[One Two Punch] PvP armed for Machinist, Black Mage and Gunbreaker. "
                 : $"[One Two Punch] PvE armed. Loaded in {_loadMilliseconds}ms. ")
             + "It is off again next time the game starts - /otp disarm to stop it now.");
     }
@@ -579,7 +585,7 @@ public sealed class Plugin : IDalamudPlugin
         _movement.Reset();
         _useWatcher.Reset();
 
-        if (jobId != MachinistPvpRotationKey && !JobRegistry.IsSupported(jobId))
+        if ((jobId & PvpRotationFlag) == 0 && !JobRegistry.IsSupported(jobId))
             return;
 
         // Already checked out this session: nothing to do but switch it on.
@@ -661,7 +667,7 @@ public sealed class Plugin : IDalamudPlugin
         if (rotation is null)
             return;
 
-        if (!report.IsSafeToRun || jobId == MachinistPvpRotationKey && report.RepairedCount > 0)
+        if (!report.IsSafeToRun || (jobId & PvpRotationFlag) != 0 && report.RepairedCount > 0)
         {
             Chat.PrintError(
                 $"[One Two Punch] {rotation.Name} is switched off because its action table "
@@ -679,8 +685,8 @@ public sealed class Plugin : IDalamudPlugin
         RefreshButtonForms();
     }
 
-    private static IJobRotation? CreateRotation(uint key) => key == MachinistPvpRotationKey
-        ? JobRotationBase.Create<MachinistPvpRotation>()
+    private static IJobRotation? CreateRotation(uint key) => (key & PvpRotationFlag) != 0
+        ? JobRegistry.CreatePvp(key & ~PvpRotationFlag)
         : JobRegistry.Create(key);
 
     private void OnActionUsed(uint actionId)
@@ -853,8 +859,6 @@ public sealed class Plugin : IDalamudPlugin
         Remember(_job.SingleTargetButton.Id, RotationMode.SingleTarget);
         if (_job.AoeButton.Id != _job.SingleTargetButton.Id)
             Remember(_job.AoeButton.Id, RotationMode.Aoe);
-        if (_pvpArmed)
-            _buttonForms[MachinistPvpRotation.BlazingShotId] = RotationMode.SingleTarget;
 
         for (var i = 0; i < _job.ExtraButtons.Count; i++)
             Remember(_job.ExtraButtons[i].Host.Id, i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
@@ -930,6 +934,23 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private void RememberPvpButtonForms()
+    {
+        if (_job is null)
+            return;
+
+        var single = _replacer.CurrentFormOf(_job.SingleTargetButton.Id);
+        if (single != 0)
+            _buttonForms.TryAdd(single, RotationMode.SingleTarget);
+
+        if (_job.AoeButton.Id == _job.SingleTargetButton.Id)
+            return;
+
+        var aoe = _replacer.CurrentFormOf(_job.AoeButton.Id);
+        if (aoe != 0)
+            _buttonForms.TryAdd(aoe, RotationMode.Aoe);
+    }
+
     private Suggestion? Resolve(RotationMode mode)
     {
         if (_job is null || _session is null)
@@ -950,7 +971,7 @@ public sealed class Plugin : IDalamudPlugin
                 _actionState.BeginFrame(
                     _frameSnapshot.Level,
                     _frameSnapshot.TargetId,
-                    _job.SingleTargetButton.Id,
+                    _job.GcdProbe.Id,
                     Objects.LocalPlayer?.GameObjectId ?? CombatSnapshot.NoTarget);
         }
 

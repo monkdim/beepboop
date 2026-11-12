@@ -95,4 +95,12 @@ public static class JobRegistry
 
         return false;
     }
+
+    public static IJobRotation? CreatePvp(uint jobId) => jobId switch
+    {
+        25 => JobRotationBase.Create<BlackMagePvpRotation>(),
+        31 => JobRotationBase.Create<MachinistPvpRotation>(),
+        37 => JobRotationBase.Create<GunbreakerPvpRotation>(),
+        _ => null,
+    };
 }
