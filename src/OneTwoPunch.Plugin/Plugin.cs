@@ -5,6 +5,7 @@ using Dalamud.Plugin.Services;
 using OneTwoPunch.Core.Engine;
 using OneTwoPunch.Core.Jobs;
 using OneTwoPunch.Core.Jobs.Healers;
+using OneTwoPunch.Core.Jobs.Machinist;
 using OneTwoPunch.Core.Model;
 using OneTwoPunch.Plugin.Services;
 using OneTwoPunch.Plugin.UI;
@@ -65,6 +66,8 @@ public sealed class Plugin : IDalamudPlugin
     private IJobRotation? _job;
     private RotationSession? _session;
     private uint _currentJobId;
+    private const uint MachinistPvpRotationKey = uint.MaxValue;
+    private bool _pvpArmed;
 
     /// <summary>
     /// Every id that is one of our buttons, including the upgraded form the player's hotbar
@@ -187,7 +190,13 @@ public sealed class Plugin : IDalamudPlugin
         _partyTargeting = new PartyTargetRedirect(
             Interop, Log, Party, () => _config.Enabled && _config.AetherialManipulationToTank,
             CardForRotationButton, () => Objects.LocalPlayer);
+        _partyTargeting.PlaceBishopAtTarget = actionId =>
+            _pvpArmed && ClientState.IsPvP && _job is MachinistPvpRotation && _config.Enabled
+            && (actionId == MachinistPvpRotation.BishopAutoturretId
+                || Classify(actionId) is { } mode
+                    && Resolve(mode)?.Action.Id == MachinistPvpRotation.BishopAutoturretId);
         _actionState.CardTargetingAvailable = () => _partyTargeting.IsActive;
+        _actionState.BishopPlacementAvailable = () => _partyTargeting.IsActive;
 
         _castLock = new CastMovementLock(
             Interop,
@@ -212,7 +221,8 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     HelpMessage =
                         "Open One Two Punch settings.\n"
-                        + "/otp arm - let it run, this session only (it starts inert)\n"
+                        + "/otp arm - enable PvE for this session\n"
+                        + "/otp arm pvp - enable Machinist on PvP hotbars for this session\n"
                         + "/otp record - start or stop recording a pull to your Downloads\n"
                         + "/otp disarm - stop it and remove the hook\n"
                         + "/otp verify - check every action id against the game's own data\n"
@@ -295,6 +305,13 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        if (ClientState.IsPvP != _pvpArmed)
+        {
+            if (_active)
+                Deactivate();
+            return;
+        }
+
         if (!_active && !Activate())
             return;
 
@@ -305,7 +322,9 @@ public sealed class Plugin : IDalamudPlugin
         _movement.Update(player, delta);
         _state.Tick(delta);
 
-        var jobId = player.ClassJob.RowId;
+        var jobId = _pvpArmed
+            ? player.ClassJob.RowId == 31 ? MachinistPvpRotationKey : 0
+            : player.ClassJob.RowId;
         if (jobId != _currentJobId)
         {
             _currentJobId = jobId;
@@ -435,20 +454,26 @@ public sealed class Plugin : IDalamudPlugin
     /// goes in - deliberately a thing you do on purpose, rather than a thing that happens
     /// to you because you installed something.
     /// </summary>
-    private void Arm()
+    private void Arm(bool pvp = false)
     {
-        if (_armed)
+        if (_armed && _pvpArmed == pvp)
         {
             Chat.Print("[One Two Punch] Already running this session.");
             return;
         }
 
+        if (_active)
+            Deactivate();
+
         _armed = true;
+        _pvpArmed = pvp;
         _shutDown = false;
         _consecutiveFailures = 0;
 
         Chat.Print(
-            $"[One Two Punch] Armed. Loaded in {_loadMilliseconds}ms. "
+            (pvp
+                ? "[One Two Punch] PvP armed for Machinist. Use Blast Charge on your PvP hotbar. "
+                : $"[One Two Punch] PvE armed. Loaded in {_loadMilliseconds}ms. ")
             + "It is off again next time the game starts - /otp disarm to stop it now.");
     }
 
@@ -493,10 +518,10 @@ public sealed class Plugin : IDalamudPlugin
         _icons.Enable();
 
         // Only install the press hook when teleport assistance or AST cards need it.
-        if (_config.AetherialManipulationToTank || Objects.LocalPlayer?.ClassJob.RowId == 33)
+        if (_pvpArmed || _config.AetherialManipulationToTank || Objects.LocalPlayer?.ClassJob.RowId == 33)
             _partyTargeting.Enable();
 
-        if (_config.LockMovementWhileCasting)
+        if (!_pvpArmed && _config.LockMovementWhileCasting)
             _castLock.Enable();
 
         // Opener progress and the weave budget both depend on knowing what was pressed.
@@ -554,7 +579,7 @@ public sealed class Plugin : IDalamudPlugin
         _movement.Reset();
         _useWatcher.Reset();
 
-        if (!JobRegistry.IsSupported(jobId))
+        if (jobId != MachinistPvpRotationKey && !JobRegistry.IsSupported(jobId))
             return;
 
         // Already checked out this session: nothing to do but switch it on.
@@ -587,7 +612,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             try
             {
-                var rotation = JobRegistry.Create(jobId);
+                var rotation = CreateRotation(jobId);
                 if (rotation is null)
                 {
                     Framework.RunOnFrameworkThread(() => _verifying.Remove(jobId));
@@ -632,15 +657,15 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void Adopt(uint jobId, VerificationReport report)
     {
-        var rotation = JobRegistry.Create(jobId);
+        var rotation = CreateRotation(jobId);
         if (rotation is null)
             return;
 
-        if (!report.IsSafeToRun)
+        if (!report.IsSafeToRun || jobId == MachinistPvpRotationKey && report.RepairedCount > 0)
         {
             Chat.PrintError(
-                $"[One Two Punch] {rotation.Name} is switched off: {report.UnresolvedActionCount} action id(s) "
-                + "could not be matched against the game's data. Run /otp verify for the list.");
+                $"[One Two Punch] {rotation.Name} is switched off because its action table "
+                + "could not be verified. Run /otp verify for the list.");
             return;
         }
 
@@ -653,6 +678,10 @@ public sealed class Plugin : IDalamudPlugin
         _useWatcher.Track(rotation);
         RefreshButtonForms();
     }
+
+    private static IJobRotation? CreateRotation(uint key) => key == MachinistPvpRotationKey
+        ? JobRotationBase.Create<MachinistPvpRotation>()
+        : JobRegistry.Create(key);
 
     private void OnActionUsed(uint actionId)
     {
@@ -795,7 +824,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private RotationMode? Classify(uint actionId)
     {
-        if (!_config.Enabled || _job is null || _session is null)
+        if (!_config.Enabled || _job is null || _session is null || ClientState.IsPvP != _pvpArmed)
             return null;
 
         return _buttonForms.TryGetValue(actionId, out var mode) ? mode : null;
@@ -822,7 +851,10 @@ public sealed class Plugin : IDalamudPlugin
             return;
 
         Remember(_job.SingleTargetButton.Id, RotationMode.SingleTarget);
-        Remember(_job.AoeButton.Id, RotationMode.Aoe);
+        if (_job.AoeButton.Id != _job.SingleTargetButton.Id)
+            Remember(_job.AoeButton.Id, RotationMode.Aoe);
+        if (_pvpArmed)
+            _buttonForms[MachinistPvpRotation.BlazingShotId] = RotationMode.SingleTarget;
 
         for (var i = 0; i < _job.ExtraButtons.Count; i++)
             Remember(_job.ExtraButtons[i].Host.Id, i == 0 ? RotationMode.Extra1 : RotationMode.Extra2);
@@ -968,6 +1000,10 @@ public sealed class Plugin : IDalamudPlugin
 
             case "arm":
                 Arm();
+                break;
+
+            case "arm pvp":
+                Arm(pvp: true);
                 break;
 
             case "disarm":

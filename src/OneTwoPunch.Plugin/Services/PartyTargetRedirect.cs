@@ -1,6 +1,7 @@
 using Dalamud.Hooking;
 using Dalamud.Game.ClientState.Objects.Types;
 using OneTwoPunch.Core.Jobs.Healers;
+using OneTwoPunch.Core.Jobs.Machinist;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
@@ -60,6 +61,7 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
     }
 
     public bool IsActive => _hook is { IsEnabled: true };
+    public Func<uint, bool>? PlaceBishopAtTarget { get; set; }
 
     /// <summary>How many presses have been pointed at a tank.</summary>
     public long TimesRedirected => _redirected;
@@ -120,6 +122,18 @@ public sealed unsafe class PartyTargetRedirect : IDisposable
     {
         try
         {
+            if (actionType == ActionType.Action && PlaceBishopAtTarget?.Invoke(actionId) == true)
+            {
+                if (outOptAreaTargeted != null)
+                    *outOptAreaTargeted = false;
+                if (Svc.Targets.Target is not IBattleChara { IsDead: false } target)
+                    return false;
+
+                var location = target.Position;
+                return self->UseActionLocation(actionType, MachinistPvpRotation.BishopAutoturretId,
+                    NoTarget, &location, extraParam, 0);
+            }
+
             var card = actionType == ActionType.Action ? _cardForButton(actionId) : 0;
             if (AstrologianCardTarget.IsCard(card))
             {
